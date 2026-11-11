@@ -1,15 +1,15 @@
 class_name EscMenu
 extends Control
-## Esc's menu (ARCHITECTURE §4.7, #169), in the Toy style of #491: built node for node from
-## prime-game-ui's handoff s05 at ui-0.4.0 (the differences are listed in #491's PR). Dim (the
-## running game dimmed), then Menu, a raised 1600x880 ToyPanelMenu: Tabs on the left (ToyTab
-## toggles in one ButtonGroup) and Page on the right, the title row (the selected tab's name; the
-## host's note or a player's host-only line on the Lobby tab) above one page per tab:
-## - Game (Actions): Resume, Leave (the host's coral, asking first), Quit.
-## - Role (RolePage, the round only): the own role, its goal, a dissident's team (RoleFacts).
-## - Guide (GuidePanel, #254): every how-to card.
-## - Lobby (LobbyPanel, the lobby screen only): the roster, Ready and the match settings.
-## - Settings (SettingsPage, #491): Sound and voice, Controls, Display, Accessibility, Language.
+## Esc's menu (ARCHITECTURE §4.7, #169): the suit menu as the left side panel, built node for node
+## from prime-game-ui's handoff s05 at ui-2.5.4 (#1571, the engineer's side panel of 2026-10-22):
+## no dim and no pause, the world visible beside it. `Menu` (full rect, the mouse passes) holds:
+## - `Side` (ToyPanelMenu, the left edge, 36 px in, 520 wide, full height): `V` > `Head` (in the
+##   lobby: the room's code with Copy; hidden with no code and in a round), `Entries` (Resume, then
+##   one ToyMenuItem per page: Guide, Lobby, Settings), `Gap`, `Rule` (the hairline) and `Bottom`
+##   (Leave, Quit).
+## - `Page` (ToyPanelMenu, 24 px right of the panel, 1120 wide): the open entry's page, one at a
+##   time: GuidePanel (#254), LobbyPanel (Ready and the match settings: the plainest stand-in until
+##   the ship's match console, s04, #1285) or SettingsPage; hidden while none is open.
 ## The host's question is the confirm dialog over the menu: ConfirmDim and Confirm, the menu behind
 ## unreachable by focus (focus_behavior_recursive) and Cancel focused; Esc closes only the dialog
 ## (GameUi's `esc_dialog` overlay, #488). What it shows and does is EscMenuState's; this draws it.
@@ -18,52 +18,60 @@ signal resume_requested
 signal leave_requested
 signal quit_requested
 
-## Each tab's button: its node name and deck key.
+## Each page's entry: its node name and deck key, in the panel's order.
 const TABS: Dictionary[EscMenuState.Tab, Array] = {
-	EscMenuState.Tab.GAME: ["Game", "esc.tab.game"],
-	EscMenuState.Tab.ROLE: ["Role", "esc.tab.role"],
 	EscMenuState.Tab.GUIDE: ["Guide", "esc.tab.guide"],
 	EscMenuState.Tab.LOBBY: ["Lobby", "esc.tab.lobby"],
 	EscMenuState.Tab.SETTINGS: ["Settings", "esc.tab.settings"],
 }
-## Sizes in px at the 1920x1080 base (the handoff's; layout, not style).
-const MENU_SIZE := Vector2(1600, 880)
-const TABS_WIDTH := Vector2(288, 0)
-const ACTIONS_WIDTH := Vector2(760, 0)
-const DIALOG_WIDTH := Vector2(720, 0)
-const DIALOG_TEXT_WIDTH := Vector2(600, 0)
+## Places in px at the 1920x1080 base (the handoff's; layout, not style): the panel's offsets
+## (left, top, right, bottom on the left_wide preset), the page's left and top and width, the
+## dialog's and its texts' widths.
+const SIDE_OFFSETS := Vector4(36, 36, 556, -36)
+const PAGE_AT := Vector2(580, 36)
+const PAGE_WIDTH := 1120.0
+const DIALOG_WIDTH := Vector2(1080, 0)
+const DIALOG_TEXT_WIDTH := Vector2(900, 0)
 const LOCK_SIZE := Vector2(20, 20)
 const LOCK := preload("res://assets/ui/toy_pack/icons/lock.svg")
 const HOST_ONLY_KEY := "esc.lobby.host_only"
 
 var state := EscMenuState.new()
-## The raised Menu (its ToyRaised wrapper) and its face.
-var menu: ToyRaised
+## The full-rect root and the side panel.
+var menu := Control.new()
+var side := PanelContainer.new()
+## The panel's head: the room's code and Copy.
+var head := PanelContainer.new()
+var code_label := UiParts.styled_label("", &"ToyTextOnLight")
+var copy_button := Button.new()
 var tab_buttons: Dictionary[EscMenuState.Tab, Button] = {}
-var title_label := UiParts.styled_label("", &"ToyTitleOnLight")
+var resume_button := Button.new()
+var leave_button := Button.new()
+var quit_button := Button.new()
+## The open entry's page tile.
+var page_tile := PanelContainer.new()
+## Over the Lobby page: the host's note, or the line that only the host changes the settings (the
+## console's HostNote and lock line, s04, while the page stands in for it).
+var host_row := HBoxContainer.new()
 var host_note := UiParts.styled_label("esc.lobby.you_host", &"ToyTextMutedOnLight")
 var host_only := HBoxContainer.new()
 var host_only_label := UiParts.styled_label("", &"ToyTextMutedOnLight")
-## The Game page.
-var actions := VBoxContainer.new()
-var resume_button: Button
-var leave_button: Button
-var quit_button := Button.new()
-var role := RolePage.new()
 var guide := GuidePanel.new(ToyHints.LIGHT)
 var lobby := LobbyPanel.new()
 var settings := SettingsPage.new()
 ## The Settings page's Sound and voice and Controls (the game feeds them).
 var voice: VoicePanel = settings.voice
 var controls: ControlsPanel = settings.controls
-## The confirm dialog: its dim and its raised panel (the wrapper).
+## The confirm dialog: its dim and its panel.
 var confirm_dim := Panel.new()
-var confirm_box: ToyRaised
+var confirm_box := PanelContainer.new()
 var confirm_title := UiParts.styled_label("", &"ToyTitleOnLight")
 var confirm_body := UiParts.styled_label("esc.game.leave_host_note", &"ToyTextMutedOnLight")
-var confirm_button: Button
+var confirm_button := Button.new()
 var cancel_button := Button.new()
 
+## The room's code the head shows ("" hides it).
+var _code := ""
 ## The last model the menu was given: the host's name of the host-only line.
 var _model: ClientModel
 
@@ -72,19 +80,13 @@ func _init() -> void:
 	name = "EscMenu"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	UiParts.backdrop(self, &"ToyBackdropDeep").name = "Dim"
-	var face := PanelContainer.new()
-	face.name = "Menu"
-	face.theme_type_variation = &"ToyPanelMenu"
-	menu = UiParts.raised(face, ToyHints.DARK)
-	_center(menu, MENU_SIZE)
+	menu.name = "Menu"
+	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# A click on the world beside the panel reaches nothing and closes nothing (Esc and Resume do).
+	menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(menu)
-	var body := HBoxContainer.new()
-	body.name = "H"
-	body.theme_type_variation = &"ToyRowTwentyFour"
-	face.add_child(body)
-	body.add_child(_build_tabs())
-	body.add_child(_build_page())
+	_build_side()
+	_build_page()
 	_build_confirm()
 	_sync()
 
@@ -110,8 +112,8 @@ func _hide_lists() -> void:
 		(node as OptionButton).get_popup().hide()
 
 
-## Opens the menu on Game at the host's question to quit (the window's close button); the
-## tutorial quits at once.
+## Opens the menu at the host's question to quit (the window's close button); the tutorial quits
+## at once.
 func ask_quit(screen: GameFlow.Screen, model: ClientModel) -> void:
 	_model = model
 	var action := state.ask_quit(screen, model)
@@ -124,14 +126,14 @@ func is_open() -> bool:
 	return state.is_open
 
 
-## Follows the game while open; `host_tick` is the newest host tick known (-1: none yet); `mode`
-## names the own role on the Role page.
+## Follows the game while open; `host_tick` is the newest host tick known (-1: none yet). `mode`
+## is kept for the callers of the old Role tab.
 func refresh(
 	screen: GameFlow.Screen,
 	model: ClientModel,
 	host_tick: int,
 	hosting: bool,
-	mode: GameMode = null,
+	_mode: GameMode = null,
 ) -> void:
 	if not state.is_open:
 		return
@@ -140,8 +142,6 @@ func refresh(
 	state.follow(screen, model, hosting)
 	if state.selected == EscMenuState.Tab.LOBBY and model != null:
 		lobby.refresh(model, host_tick, state.may_change_settings, state.in_round)
-	if state.selected == EscMenuState.Tab.ROLE:
-		role.show_facts(RoleFacts.of(model, mode))
 	if model != null:
 		# The Guide's task cards follow the picked or the match's map (DE16).
 		guide.set_map(model.map)
@@ -150,7 +150,16 @@ func refresh(
 		_focus()
 
 
-## A press on `tab`'s button.
+## The room's code for the head (s05 `lobby`: the code and Copy) and the Lobby page: `line` the
+## page's words for it (JoinProgress.code_text), `code` the code itself ("" for none).
+func show_code(line: String, code: String) -> void:
+	_code = code
+	code_label.text = code
+	lobby.show_code(line, code)
+	_sync()
+
+
+## A press on `tab`'s entry: its page opens beside the panel, or closes on a second press.
 func press(tab: EscMenuState.Tab) -> void:
 	state.press(tab)
 	_sync()
@@ -163,7 +172,7 @@ func resume() -> void:
 	_act(action)
 
 
-## Leave on the Game page.
+## Leave on the panel.
 func press_leave() -> void:
 	var action := state.press_leave()
 	_sync()
@@ -172,7 +181,7 @@ func press_leave() -> void:
 		cancel_button.grab_focus.call_deferred()
 
 
-## Quit on the Game page.
+## Quit on the panel.
 func press_quit() -> void:
 	var action := state.press_quit()
 	_sync()
@@ -188,7 +197,7 @@ func confirm() -> void:
 	_act(action)
 
 
-## No to the host's question: the button that asked takes the focus back.
+## No to the host's question: the entry that asked takes the focus back.
 func cancel() -> void:
 	var asked := state.question
 	state.cancel()
@@ -197,17 +206,15 @@ func cancel() -> void:
 		(leave_button if asked == EscMenuState.Action.LEAVE else quit_button).grab_focus()
 
 
-## The page that shows now; null while closed.
+## The page that shows now; null while closed or with no page open.
 func page() -> Control:
 	if not state.is_open:
 		return null
-	return _pages()[state.selected]
+	return _pages().get(state.selected)
 
 
 func _pages() -> Dictionary[EscMenuState.Tab, Control]:
 	return {
-		EscMenuState.Tab.GAME: actions,
-		EscMenuState.Tab.ROLE: role,
 		EscMenuState.Tab.GUIDE: guide,
 		EscMenuState.Tab.LOBBY: lobby,
 		EscMenuState.Tab.SETTINGS: settings,
@@ -224,26 +231,26 @@ func _act(action: EscMenuState.Action) -> void:
 			quit_requested.emit()
 
 
-## Draws the state: the tabs that exist, the selected one pressed, its page alone, the title row,
-## the Game page's looks and the dialog.
+## Draws the state: the entries that exist, the open one pressed, its page alone, the head and the
+## dialog.
 func _sync() -> void:
 	visible = state.is_open
 	for tab: EscMenuState.Tab in tab_buttons:
 		var button := tab_buttons[tab]
 		button.visible = state.has_tab(tab)
-		SettingRows.set_pressed(button, state.selected == tab)
+		button.set_pressed_no_signal(state.selected == tab)
 	var shown := page()
 	var pages := _pages()
 	for tab: EscMenuState.Tab in pages:
 		pages[tab].visible = pages[tab] == shown
-	title_label.text = str(TABS[state.selected][1])
-	var lobby_tab := state.selected == EscMenuState.Tab.LOBBY
-	host_note.visible = lobby_tab and state.in_lobby and state.may_change_settings
-	# A guest in the lobby and everyone in a round: only the host changes the settings.
-	host_only.visible = lobby_tab and (state.in_round or (state.in_lobby and not state.hosting))
+	page_tile.visible = shown != null
+	var lobby_page := state.selected == EscMenuState.Tab.LOBBY
+	host_note.visible = lobby_page and state.may_change_settings
+	host_only.visible = lobby_page and state.in_lobby and not state.hosting
+	host_row.visible = host_note.visible or host_only.visible
 	_retext()
-	var host_leave := state.hosting and not state.tutorial
-	leave_button.theme_type_variation = &"ToyButtonDanger" if host_leave else &"ToyButtonSecondary"
+	# The head: the room's code in the lobby (none in a round, the tutorial or a Direct game).
+	head.visible = state.in_lobby and not state.tutorial and not _code.is_empty()
 	leave_button.text = "esc.game.leave_tutorial" if state.tutorial else "esc.game.leave"
 	var asking := state.asking()
 	confirm_dim.visible = asking
@@ -256,16 +263,14 @@ func _sync() -> void:
 	confirm_button.text = "esc.game.quit" if quitting else "esc.game.leave"
 
 
-## The focus on opening: Cancel under the question, Resume on Game, else the selected tab.
+## The focus on opening: Cancel under the question, else Resume (or the first entry).
 func _focus() -> void:
 	if not is_inside_tree() or not state.is_open:
 		return
 	if state.asking():
 		cancel_button.grab_focus.call_deferred()
-	elif state.selected == EscMenuState.Tab.GAME:
-		resume_button.grab_focus.call_deferred()
 	else:
-		tab_buttons[state.selected].grab_focus.call_deferred()
+		resume_button.grab_focus.call_deferred()
 
 
 func _notification(what: int) -> void:
@@ -279,37 +284,107 @@ func _retext() -> void:
 	host_only_label.text = tr(HOST_ONLY_KEY).format({"name": host})
 
 
-func _build_tabs() -> VBoxContainer:
-	var tabs := VBoxContainer.new()
-	tabs.name = "Tabs"
-	tabs.theme_type_variation = &"ToyColumnEight"
-	tabs.custom_minimum_size = TABS_WIDTH
-	var group := ButtonGroup.new()
+func _build_side() -> void:
+	side.name = "Side"
+	side.theme_type_variation = &"ToyPanelMenu"
+	side.set_anchors_preset(Control.PRESET_LEFT_WIDE)
+	side.offset_left = SIDE_OFFSETS.x
+	side.offset_top = SIDE_OFFSETS.y
+	side.offset_right = SIDE_OFFSETS.z
+	side.offset_bottom = SIDE_OFFSETS.w
+	side.grow_horizontal = Control.GROW_DIRECTION_END
+	side.grow_vertical = Control.GROW_DIRECTION_BOTH
+	menu.add_child(side)
+	var column := VBoxContainer.new()
+	column.name = "V"
+	column.theme_type_variation = &"ToyColumnSixteen"
+	side.add_child(column)
+	column.add_child(_build_head())
+	var entries := VBoxContainer.new()
+	entries.name = "Entries"
+	entries.theme_type_variation = &"ToyColumnFour"
+	column.add_child(entries)
+	_item(resume_button, "Resume", "esc.game.resume", resume)
+	entries.add_child(resume_button)
 	for tab: EscMenuState.Tab in TABS:
-		var button := UiParts.toggle(str(TABS[tab][1]), press.bind(tab), &"ToyTab")
-		button.name = str(TABS[tab][0])
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.button_group = group
+		var button := Button.new()
+		_item(button, str(TABS[tab][0]), str(TABS[tab][1]), press.bind(tab))
+		button.toggle_mode = true
 		tab_buttons[tab] = button
-		tabs.add_child(button)
-	return tabs
+		entries.add_child(button)
+	var gap := Control.new()
+	gap.name = "Gap"
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(gap)
+	var rule := PanelContainer.new()
+	rule.name = "Rule"
+	rule.theme_type_variation = &"ToySettingRow"
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(rule)
+	var bottom := VBoxContainer.new()
+	bottom.name = "Bottom"
+	bottom.theme_type_variation = &"ToyColumnFour"
+	column.add_child(bottom)
+	_item(leave_button, "Leave", "esc.game.leave", press_leave)
+	bottom.add_child(leave_button)
+	_item(quit_button, "Quit", "esc.game.quit", press_quit)
+	bottom.add_child(quit_button)
 
 
-func _build_page() -> VBoxContainer:
-	var page_box := VBoxContainer.new()
-	page_box.name = "Page"
-	page_box.theme_type_variation = &"ToyColumnSixteen"
-	page_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var title_row := HBoxContainer.new()
-	title_row.name = "TitleRow"
-	title_row.theme_type_variation = &"ToyRowSixteen"
-	page_box.add_child(title_row)
-	title_label.name = "Title"
-	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_row.add_child(title_label)
+## The head (s05 `lobby`): `common.code` in small capitals over the code and Copy.
+func _build_head() -> PanelContainer:
+	head.name = "Head"
+	head.theme_type_variation = &"ToySettingRow"
+	var column := VBoxContainer.new()
+	column.name = "V"
+	column.theme_type_variation = &"ToyColumnEight"
+	head.add_child(column)
+	var label := UiParts.styled_label("common.code", &"ToyKicker")
+	label.name = "Label"
+	label.uppercase = true
+	column.add_child(label)
+	var row := HBoxContainer.new()
+	row.name = "Row"
+	row.theme_type_variation = &"ToyRowTwelve"
+	column.add_child(row)
+	code_label.name = "Value"
+	code_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	code_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	code_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(code_label)
+	copy_button.name = "Copy"
+	copy_button.text = "esc.lobby.copy"
+	copy_button.theme_type_variation = &"ToyButtonSecondary"
+	copy_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	copy_button.pressed.connect(func() -> void: DisplayServer.clipboard_set(_code))
+	ToyPress.attach(copy_button)
+	row.add_child(copy_button)
+	return head
+
+
+func _build_page() -> void:
+	page_tile.name = "Page"
+	page_tile.theme_type_variation = &"ToyPanelMenu"
+	page_tile.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	page_tile.offset_left = PAGE_AT.x
+	page_tile.offset_top = PAGE_AT.y
+	page_tile.offset_right = PAGE_AT.x
+	page_tile.offset_bottom = PAGE_AT.y
+	page_tile.grow_horizontal = Control.GROW_DIRECTION_END
+	page_tile.grow_vertical = Control.GROW_DIRECTION_END
+	page_tile.custom_minimum_size = Vector2(PAGE_WIDTH, 0)
+	menu.add_child(page_tile)
+	var pages := VBoxContainer.new()
+	pages.name = "V"
+	pages.theme_type_variation = &"ToyColumnSixteen"
+	page_tile.add_child(pages)
+	host_row.name = "HostRow"
+	host_row.theme_type_variation = &"ToyRowSixteen"
+	pages.add_child(host_row)
 	host_note.name = "HostNote"
 	host_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	title_row.add_child(host_note)
+	host_row.add_child(host_note)
 	host_only.name = "HostOnly"
 	host_only.theme_type_variation = &"ToyRowEight"
 	host_only.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -328,39 +403,9 @@ func _build_page() -> VBoxContainer:
 	host_only_label.name = "Text"
 	host_only_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	host_only.add_child(host_only_label)
-	title_row.add_child(host_only)
-	page_box.add_child(_build_actions())
-	page_box.add_child(role)
-	guide.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	page_box.add_child(guide)
-	lobby.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	page_box.add_child(lobby)
-	page_box.add_child(settings)
-	return page_box
-
-
-func _build_actions() -> VBoxContainer:
-	actions.name = "Actions"
-	actions.theme_type_variation = &"ToyColumnSixteen"
-	actions.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	actions.custom_minimum_size = ACTIONS_WIDTH
-	var resume_raised := UiParts.button(
-		"esc.game.resume", resume, &"ToyButtonPrimary", ToyHints.LIGHT
-	)
-	resume_raised.name = "ResumeRaised"
-	resume_button = resume_raised.face as Button
-	resume_button.name = "Resume"
-	actions.add_child(resume_raised)
-	var leave_raised := UiParts.button(
-		"esc.game.leave", press_leave, &"ToyButtonDanger", ToyHints.LIGHT
-	)
-	leave_raised.name = "LeaveRaised"
-	leave_button = leave_raised.face as Button
-	leave_button.name = "Leave"
-	actions.add_child(leave_raised)
-	_ghost(quit_button, "Quit", "esc.game.quit", press_quit)
-	actions.add_child(quit_button)
-	return actions
+	host_row.add_child(host_only)
+	for each: Control in [guide, lobby, settings]:
+		pages.add_child(each)
 
 
 func _build_confirm() -> void:
@@ -369,19 +414,20 @@ func _build_confirm() -> void:
 	confirm_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	confirm_dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(confirm_dim)
-	var face := PanelContainer.new()
-	face.name = "Confirm"
-	face.theme_type_variation = &"ToyPanelDialog"
-	confirm_box = UiParts.raised(face, ToyHints.DARK)
-	_center(confirm_box, DIALOG_WIDTH)
+	confirm_box.name = "Confirm"
+	confirm_box.theme_type_variation = &"ToyPanelDialog"
+	confirm_box.set_anchors_preset(Control.PRESET_CENTER)
+	confirm_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	confirm_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	confirm_box.custom_minimum_size = DIALOG_WIDTH
 	add_child(confirm_box)
 	var column := VBoxContainer.new()
 	column.name = "V"
 	column.theme_type_variation = &"ToyColumnThirtyTwo"
-	face.add_child(column)
+	confirm_box.add_child(column)
 	var text := VBoxContainer.new()
 	text.name = "Text"
-	text.theme_type_variation = &"ToyColumnTwelve"
+	text.theme_type_variation = &"ToyColumnSixteen"
 	column.add_child(text)
 	for label: Label in [confirm_title, confirm_body]:
 		label.custom_minimum_size = DIALOG_TEXT_WIDTH
@@ -392,32 +438,28 @@ func _build_confirm() -> void:
 	confirm_body.name = "Body"
 	var buttons := HBoxContainer.new()
 	buttons.name = "Buttons"
-	buttons.theme_type_variation = &"ToyRowSixteen"
+	buttons.theme_type_variation = &"ToyRowTwentyFour"
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_child(buttons)
-	var confirm_raised := UiParts.button(
-		"esc.game.leave", confirm, &"ToyButtonDanger", ToyHints.LIGHT
-	)
-	confirm_raised.name = "ConfirmButtonRaised"
-	confirm_button = confirm_raised.face as Button
 	confirm_button.name = "ConfirmButton"
-	buttons.add_child(confirm_raised)
-	_ghost(cancel_button, "Cancel", "common.cancel", cancel)
+	confirm_button.text = "esc.game.leave"
+	confirm_button.theme_type_variation = &"ToyButtonDanger"
+	confirm_button.pressed.connect(confirm)
+	ToyPress.attach(confirm_button)
+	buttons.add_child(confirm_button)
+	cancel_button.name = "Cancel"
+	cancel_button.text = "common.cancel"
+	cancel_button.theme_type_variation = &"ToyButtonGhostOnLight"
+	cancel_button.pressed.connect(cancel)
+	ToyPress.attach(cancel_button)
 	buttons.add_child(cancel_button)
 
 
-## A flat ghost button on the light panel.
-static func _ghost(button: Button, node_name: String, key: String, pressed: Callable) -> void:
+## A panel entry: a ToyMenuItem named `node_name`, its deck key `key`, left-aligned.
+static func _item(button: Button, node_name: String, key: String, pressed: Callable) -> void:
 	button.name = node_name
 	button.text = key
-	button.theme_type_variation = &"ToyButtonGhostOnLight"
+	button.theme_type_variation = &"ToyMenuItem"
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.pressed.connect(pressed)
 	ToyPress.attach(button)
-
-
-## `control` centred on the screen, at least `at_least` big (its size grows both ways).
-static func _center(control: Control, at_least: Vector2) -> void:
-	control.set_anchors_preset(Control.PRESET_CENTER)
-	control.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	control.grow_vertical = Control.GROW_DIRECTION_BOTH
-	control.custom_minimum_size = at_least

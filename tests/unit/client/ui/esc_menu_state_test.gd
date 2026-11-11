@@ -17,13 +17,14 @@ func before() -> void:
 	_mode = load(MODE) as GameMode
 
 
-func test_it_starts_closed_and_opens_on_the_lobby_tab_in_the_lobby() -> void:
+func test_it_starts_closed_and_opens_the_panel_alone_in_the_lobby() -> void:
+	# s05 at ui-2.5.4 (#1571): the side panel with nothing open; the lobby has its Lobby entry.
 	var menu := EscMenuState.new()
 	assert_bool(menu.is_open).is_false()
 	menu.open(S.LOBBY, Preview.fake_model(_mode, false), false)
 	assert_bool(menu.is_open).is_true()
 	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.GUIDE, TAB.LOBBY, TAB.SETTINGS])
-	assert_int(menu.selected).is_equal(TAB.LOBBY)
+	assert_int(menu.selected).is_equal(TAB.GAME)
 	menu.close()
 	assert_bool(menu.is_open).is_false()
 
@@ -40,14 +41,14 @@ func test_it_keeps_the_screen_it_opened_over_and_follows() -> void:
 	assert_int(menu.over_screen).is_equal(S.ROUND)
 
 
-func test_the_round_has_the_role_tab_and_the_read_only_lobby_and_opens_on_game() -> void:
-	# #491 (the issue's "Lobby, a player (and everyone in a round)"; s05 game-host keeps the Lobby
-	# tab): the round reads the settings in Lobby, nobody changes them.
+func test_the_round_has_no_role_and_no_lobby_and_opens_the_panel_alone() -> void:
+	# s05 at ui-2.5.4 `round` (#1571): Resume, Guide, Settings, Leave, Quit; the HUD shows the role,
+	# and the match settings are the lobby's.
 	var menu := EscMenuState.new()
 	var host := Preview.fake_model(_mode, true)
 	Preview.fold_round(host, false)
 	menu.open(S.ROUND, host, true)
-	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.ROLE, TAB.GUIDE, TAB.LOBBY, TAB.SETTINGS])
+	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.GUIDE, TAB.SETTINGS])
 	assert_bool(menu.may_change_settings).is_false()
 	assert_int(menu.selected).is_equal(TAB.GAME)
 	# Loading, the pregame and the end: no Role, no Lobby.
@@ -70,12 +71,12 @@ func test_the_tutorial_shows_game_guide_and_settings_and_leaves_at_once() -> voi
 	assert_int(menu.press_quit()).is_equal(ACT.QUIT)
 
 
-func test_a_tab_that_goes_away_gives_way_to_the_default() -> void:
+func test_a_page_that_goes_away_gives_way_to_the_default() -> void:
 	var menu := EscMenuState.new()
 	var model := Preview.fake_model(_mode, true)
-	menu.open(S.ROUND, model, true)
-	menu.press(TAB.ROLE)
-	assert_int(menu.selected).is_equal(TAB.ROLE)
+	menu.open(S.LOBBY, model, true)
+	menu.press(TAB.LOBBY)
+	assert_int(menu.selected).is_equal(TAB.LOBBY)
 	menu.follow(S.END, model, true)
 	assert_bool(menu.has_tab(TAB.ROLE)).is_false()
 	assert_bool(menu.has_tab(TAB.LOBBY)).is_false()
@@ -92,17 +93,20 @@ func test_the_last_tab_is_kept_on_the_same_kind_of_screen() -> void:
 	menu.close()
 	menu.open(S.ROUND, null, false)
 	assert_int(menu.selected).is_equal(TAB.SETTINGS)
-	menu.press(TAB.ROLE)
-	menu.close()
-	# The end screen has no Role tab: the default.
-	menu.open(S.END, null, false)
+	# A second press closes the page, and the panel alone is what is kept.
+	menu.press(TAB.SETTINGS)
 	assert_int(menu.selected).is_equal(TAB.GAME)
-	# Back in the lobby, a tab chosen in the round does not carry over.
+	menu.close()
+	menu.open(S.ROUND, null, false)
+	assert_int(menu.selected).is_equal(TAB.GAME)
+	menu.press(TAB.GUIDE)
+	menu.close()
+	# Back in the lobby, a page chosen in the round does not carry over: the panel alone.
+	menu.open(S.LOBBY, null, false)
+	assert_int(menu.selected).is_equal(TAB.GAME)
+	menu.press(TAB.LOBBY)
 	menu.open(S.LOBBY, null, false)
 	assert_int(menu.selected).is_equal(TAB.LOBBY)
-	menu.press(TAB.GUIDE)
-	menu.open(S.LOBBY, null, false)
-	assert_int(menu.selected).is_equal(TAB.GUIDE)
 
 
 func test_a_players_leave_and_quit_act_at_once_and_resume_closes() -> void:

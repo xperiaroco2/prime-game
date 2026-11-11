@@ -9,10 +9,14 @@ extends HBoxContainer
 ## ...OnLight captions and chips; the Toy Esc menu since #491) or a dark one (...OnDark, an
 ## option no menu uses now).
 
-## The list's width (the handoff's: the longest chip at large text), in pixels (layout).
-const LIST_WIDTH := 332.0
-## The spacer between the basics and the tasks caption, in pixels (layout).
-const GAP := 8.0
+## The list's view (the handoff s05 `guide` at ui-2.5.4: 360 x 828, shared with Settings), in
+## pixels (layout).
+const LIST_SIZE := Vector2(360, 828)
+## The spacer between the basics and the tasks heads, in pixels (layout).
+const GAP := 16.0
+## The card's sideways Scroll beside the list (the page's 1120 px less the list, the gap and the
+## tiles' margins): two and a bit frames, the cut one showing there is more.
+const CARD_SCROLL := 640.0
 
 ## The page it sits on: ToyHints.LIGHT (the handoff's) or DARK.
 var context := ToyHints.LIGHT
@@ -37,21 +41,20 @@ var _map := ""
 func _init(on_context: StringName = ToyHints.LIGHT) -> void:
 	context = on_context
 	name = "Guide"
-	theme_type_variation = &"ToyRowTwentyFour"
+	theme_type_variation = &"ToyRowThirtyTwo"
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	list.name = "List"
-	list.custom_minimum_size = Vector2(LIST_WIDTH, 0)
+	list.custom_minimum_size = LIST_SIZE
 	list.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	list.follow_focus = true
 	add_child(list)
 	column.name = "V"
-	column.theme_type_variation = &"ToyColumnEight"
+	column.theme_type_variation = &"ToyColumnFour"
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_child(column)
-	var basics := UiParts.styled_label(
-		"guide.basics", _look(&"ToyTextMutedOnLight", &"ToyTextMutedOnDark")
-	)
+	var basics := UiParts.styled_label("guide.basics", &"ToyKicker")
 	basics.name = "Basics"
+	basics.uppercase = true
 	column.add_child(basics)
 	for id: StringName in HowtoCards.BASICS:
 		var basic := HowtoCards.of_basic(id)
@@ -63,7 +66,8 @@ func _init(on_context: StringName = ToyHints.LIGHT) -> void:
 	column.add_child(gap)
 	tasks_label.name = "Tasks"
 	tasks_label.text = "guide.tasks"
-	tasks_label.theme_type_variation = _look(&"ToyTextMutedOnLight", &"ToyTextMutedOnDark")
+	tasks_label.theme_type_variation = &"ToyKicker"
+	tasks_label.uppercase = true
 	column.add_child(tasks_label)
 	set_mode(null)
 
@@ -121,7 +125,9 @@ func select(id: StringName) -> void:
 	selected = id if _cards.has(id) else &""
 	if selected.is_empty():
 		return
-	card = HowtoCardView.raised(_cards[selected], HowtoCardView.GUIDE_ART, context)
+	card = HowtoCardView.raised(
+		_cards[selected], HowtoCardView.GUIDE_ART, context, false, CARD_SCROLL
+	)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	add_child(card)
@@ -131,22 +137,20 @@ func select(id: StringName) -> void:
 
 
 func _chip(shown: HowtoCard) -> Button:
-	var chip := UiParts.toggle(
-		String(shown.title), Callable(), _look(&"ToyChipToggleOnLight", &"ToyChipToggleOnDark")
-	)
+	# The handoff's entries: ToyMenuItem toggles, left-aligned, the list's width.
+	var chip := Button.new()
+	chip.text = String(shown.title)
+	chip.theme_type_variation = &"ToyMenuItem"
+	chip.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	chip.toggle_mode = true
+	ToyPress.attach(chip)
 	chip.name = String(shown.id).to_pascal_case()
-	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	chip.button_group = group
 	chip.set_meta(&"howto", shown.id)
 	chip.pressed.connect(select.bind(shown.id))
 	chips[shown.id] = chip
 	_cards[shown.id] = shown
 	return chip
-
-
-## `on_light` or `on_dark`, for the page's context.
-func _look(on_light: StringName, on_dark: StringName) -> StringName:
-	return on_dark if context == ToyHints.DARK else on_light
 
 
 static func _id_of(chip: Button) -> StringName:

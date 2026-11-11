@@ -26,10 +26,9 @@ func after_test() -> void:
 func test_the_list_holds_the_basics_then_every_task_type() -> void:
 	var guide := _guide()
 	assert_str(guide.name).is_equal("Guide")
-	assert_str(String(guide.theme_type_variation)).is_equal("ToyRowTwentyFour")
+	assert_str(String(guide.theme_type_variation)).is_equal("ToyRowThirtyTwo")
 	assert_int(guide.size_flags_vertical).is_equal(Control.SIZE_EXPAND_FILL)
 	assert_str(String(guide.list.theme_type_variation)).is_equal("ToyScroll")
-	assert_that(guide.list.custom_minimum_size).is_equal(Vector2(332, 0))
 	assert_bool(guide.list.follow_focus).is_true()
 	assert_int(guide.list.horizontal_scroll_mode).is_equal(ScrollContainer.SCROLL_MODE_DISABLED)
 	var rows: Array[String] = []
@@ -66,10 +65,13 @@ func test_the_list_holds_the_basics_then_every_task_type() -> void:
 		var chip := guide.chips[id]
 		assert_object(chip.button_group).is_same(guide.group)
 		assert_bool(chip.toggle_mode).is_true()
-		assert_int(chip.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_BEGIN)
+		# s05 at ui-2.5.4 (#1571): the list's entries are ToyMenuItem rows, the list's width.
+		assert_str(String(chip.theme_type_variation)).is_equal("ToyMenuItem")
+		assert_int(chip.alignment).is_equal(HORIZONTAL_ALIGNMENT_LEFT)
 	assert_that((guide.column.get_node(^"Gap") as Control).custom_minimum_size).is_equal(
-		Vector2(0, 8)
+		Vector2(0, 16)
 	)
+	assert_that(guide.list.custom_minimum_size).is_equal(Vector2(360, 828))
 	await get_tree().process_frame
 
 
@@ -77,9 +79,8 @@ func test_delivery_is_selected_first_and_a_chip_shows_its_card() -> void:
 	var guide := _guide()
 	assert_str(String(guide.selected)).is_equal("delivery")
 	assert_bool(guide.chips[&"delivery"].button_pressed).is_true()
-	assert_str(String(guide.chips[&"delivery"].theme_type_variation)).is_equal(
-		"ToyChipToggleOnLightSelected"
-	)
+	# A ToyMenuItem draws its own `pressed` look (the variation has no toggle partner).
+	assert_str(String(guide.chips[&"delivery"].theme_type_variation)).is_equal("ToyMenuItem")
 	var face := HowtoCardView.face_of(guide.card)
 	assert_str(face.title_label.text).is_equal("task.delivery")
 	assert_object(face.close_button).is_null()
@@ -164,17 +165,17 @@ func test_the_task_chips_follow_the_map_and_keep_a_selection_that_stays() -> voi
 	assert_str(HowtoCards.shown_map(null, "")).is_empty()
 
 
-func test_on_a_dark_page_its_captions_and_chips_are_the_dark_ones() -> void:
-	# The dark look stays an option (the greybox Esc menu used it before #491 made it light).
-	var guide: GuidePanel = auto_free(GuidePanel.new(ToyHints.DARK))
-	assert_str(String((guide.column.get_node(^"Basics") as Label).theme_type_variation)).is_equal(
-		"ToyTextMutedOnDark"
-	)
-	assert_str(String(guide.tasks_label.theme_type_variation)).is_equal("ToyTextMutedOnDark")
-	assert_str(String(guide.chips[&"voice"].theme_type_variation)).is_equal("ToyChipToggleOnDark")
-	var light := _guide()
-	assert_str(String(light.tasks_label.theme_type_variation)).is_equal("ToyTextMutedOnLight")
-	assert_str(String(light.chips[&"voice"].theme_type_variation)).is_equal("ToyChipToggleOnLight")
+func test_the_heads_are_small_capitals_and_the_entries_menu_items_on_any_page() -> void:
+	# s05 at ui-2.5.4 (#1571): the heads are ToyKicker tile heads and the entries ToyMenuItem rows,
+	# the same on a light or a dark page (the dark captions and chips of ui-0.4.0 are gone).
+	for context: StringName in [ToyHints.DARK, ToyHints.LIGHT]:
+		var guide: GuidePanel = auto_free(GuidePanel.new(context))
+		var basics := guide.column.get_node(^"Basics") as Label
+		assert_str(String(basics.theme_type_variation)).is_equal("ToyKicker")
+		assert_bool(basics.uppercase).is_true()
+		assert_str(String(guide.tasks_label.theme_type_variation)).is_equal("ToyKicker")
+		assert_bool(guide.tasks_label.uppercase).is_true()
+		assert_str(String(guide.chips[&"voice"].theme_type_variation)).is_equal("ToyMenuItem")
 	var ui: GameUi = auto_free(GameUi.new())
 	# The Toy Esc menu (#491) hosts it on its light page.
 	assert_str(String(ui.esc.guide.context)).is_equal(String(ToyHints.LIGHT))

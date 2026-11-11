@@ -1,19 +1,21 @@
 class_name EscMenuState
 extends RefCounted
-## Esc's menu as data (ARCHITECTURE §4.7, #169; the Toy menu of #491, prime-game-ui handoff s05 at
-## ui-0.4.0): whether it is open, which tabs it has in which screen, the selected tab, the host's
-## question, and who may change the match settings in its Lobby tab. Pure, so the menu and its
-## unit test read the same rules; EscMenu draws it.
+## Esc's menu as data (ARCHITECTURE §4.7, #169; the suit menu's side panel of prime-game-ui's
+## handoff s05 at ui-2.5.4, #1571): whether it is open, which pages its entries open in which
+## screen, the open page, the host's question, and who may change the match settings on its Lobby
+## page. Pure, so the menu and its unit test read the same rules; EscMenu draws it.
 ##
-## The tabs, top to bottom: Game (Resume, Leave, Quit), Role (in the round only), Guide (#254),
-## Lobby (on the lobby screen, the lobby and the countdown, and read-only in the round: the
-## handoff's "everyone's in a round"), Settings. The tutorial shows only Game, Guide and Settings.
-## The Character tab waits for #73. Opening selects the tab chosen last on this kind of screen (the
-## lobby screen or any other), else the default: Lobby in the lobby, Game everywhere else.
+## The pages: GAME is none open (the panel alone: Resume, Leave, Quit are its own entries), Guide
+## (#254), Lobby (on the lobby screen, the lobby and the countdown: Ready and the match settings,
+## the plainest stand-in until the ship's match console, s04, #1285), Settings. No Role page: the
+## HUD shows the role (s05 at ui-2.3.0). The tutorial shows Guide and Settings. Character waits for
+## the mirror (#1394, the engineer 2026-10-28). Opening shows the page chosen last on this kind of
+## screen (the lobby screen or any other), else none.
 ## A player's Leave and Quit act at once, and so do the tutorial's; the host's ask first, since
 ## they end the session for every player: confirm() answers the question, cancel() drops it.
 
-## The tabs in their order on the menu.
+## The pages; GAME is none open (ROLE is kept for the old saves of the remembered page, never
+## shown).
 enum Tab { GAME, ROLE, GUIDE, LOBBY, SETTINGS }
 ## What a press or a confirmation asks the game to do.
 enum Action { NONE, RESUME, LEAVE, QUIT }
@@ -78,15 +80,12 @@ func follow(screen: GameFlow.Screen, model: ClientModel, hosting_now: bool) -> v
 		selected = default_tab()
 
 
-## The tabs in their order, top to bottom.
+## The pages the entries open, top to bottom (GAME: none open, always allowed).
 func tabs() -> Array[Tab]:
 	if tutorial:
 		return [Tab.GAME, Tab.GUIDE, Tab.SETTINGS]
-	var shown: Array[Tab] = [Tab.GAME]
-	if in_round:
-		shown.append(Tab.ROLE)
-	shown.append(Tab.GUIDE)
-	if in_lobby or in_round:
+	var shown: Array[Tab] = [Tab.GAME, Tab.GUIDE]
+	if in_lobby:
 		shown.append(Tab.LOBBY)
 	shown.append(Tab.SETTINGS)
 	return shown
@@ -96,16 +95,18 @@ func has_tab(tab: Tab) -> bool:
 	return tabs().has(tab)
 
 
+## Nothing open: the panel alone (s05's `lobby` and `round`).
 func default_tab() -> Tab:
-	return Tab.LOBBY if in_lobby and not tutorial else Tab.GAME
+	return Tab.GAME
 
 
-## A press on `tab`: it is selected and remembered for the next opening on this kind of screen.
+## A press on `tab`'s entry: its page opens (a second press closes it again) and is remembered
+## for the next opening on this kind of screen.
 func press(tab: Tab) -> void:
 	if not is_open or not has_tab(tab) or asking():
 		return
-	selected = tab
-	_remembered = tab
+	selected = Tab.GAME if selected == tab else tab
+	_remembered = selected
 	_remembered_in_lobby = in_lobby
 
 
@@ -117,12 +118,12 @@ func resume() -> Action:
 	return Action.RESUME
 
 
-## Leave on the Game page: the host asks first; a player and the tutorial leave at once.
+## Leave on the panel: the host asks first; a player and the tutorial leave at once.
 func press_leave() -> Action:
 	return _ask_or_act(Action.LEAVE)
 
 
-## Quit on the Game page: the host asks first; a player and the tutorial quit at once.
+## Quit on the panel: the host asks first; a player and the tutorial quit at once.
 func press_quit() -> Action:
 	return _ask_or_act(Action.QUIT)
 
@@ -141,7 +142,7 @@ func confirm() -> Action:
 	return action
 
 
-## No to the host's question: the Game page again.
+## No to the host's question: the panel again.
 func cancel() -> void:
 	question = Action.NONE
 

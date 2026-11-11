@@ -15,7 +15,7 @@ signal close_requested
 ## The art's size per place, 4:3 (px at the 1920x1080 base; the handoff's numbers).
 const MAP_ART := Vector2(352, 264)
 const LOADING_ART := Vector2(352, 264)
-const GUIDE_ART := Vector2(160, 120)
+const GUIDE_ART := Vector2(272, 204)
 
 var card: HowtoCard
 var title_label := Label.new()
@@ -84,9 +84,13 @@ func _init(shown: HowtoCard, art_size: Vector2, with_close := false, scroll_widt
 ## `shown` drawn with `art_size` art on its toy base for a `context` screen (ToyHints.DARK on the
 ## loading screen, LIGHT over the map and in the Esc menu).
 static func raised(
-	shown: HowtoCard, art_size: Vector2, context: StringName, with_close := false
+	shown: HowtoCard,
+	art_size: Vector2,
+	context: StringName,
+	with_close := false,
+	scroll_width := 0.0
 ) -> ToyRaised:
-	return UiParts.raised(HowtoCardView.new(shown, art_size, with_close), context)
+	return UiParts.raised(HowtoCardView.new(shown, art_size, with_close, scroll_width), context)
 
 
 ## The face of a card: the card itself, or the face inside one made by raised(); null for

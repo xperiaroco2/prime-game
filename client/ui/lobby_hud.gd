@@ -265,14 +265,14 @@ func _build_status_pips(shown_rows: Array[LobbyText.Row]) -> void:
 	for child: Node in status_pips.get_children():
 		status_pips.remove_child(child)
 		child.free()
-	var ready := 0
+	var ready_count := 0
 	for row in shown_rows:
 		if row.ready:
-			ready += 1
+			ready_count += 1
 	for index in shown_rows.size():
 		var pip := Panel.new()
 		pip.name = "P%d" % (index + 1)
-		pip.theme_type_variation = PIP_ON if index < ready else PIP_OFF
+		pip.theme_type_variation = PIP_ON if index < ready_count else PIP_OFF
 		pip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		status_pips.add_child(UiParts.sized(pip))

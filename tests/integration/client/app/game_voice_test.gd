@@ -122,7 +122,9 @@ func test_under_the_esc_menu_the_talk_key_sends_and_typing_never_does() -> void:
 	assert_bool(host.ui.lobby_hud.shows_mic_on()).is_true()
 	mic.capture_chunks(5, 0.5)
 	assert_bool(await _until(func() -> bool: return host.sender().sent > 0)).is_true()
-	# A text field on the menu's page has the keys: V is a letter there.
+	# A text field on the menu's page has the keys: V is a letter there (the Lobby page, opened
+	# from the side panel, #1571).
+	host.ui.esc.press(EscMenuState.Tab.LOBBY)
 	var field := LineEdit.new()
 	host.ui.esc.page().add_child(field)
 	field.grab_focus()
