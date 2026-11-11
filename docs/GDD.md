@@ -118,7 +118,9 @@ Lobby → Countdown → Loading → Pregame → Round → End → Lobby. Adopted
   - **The mirror** (same day, [#1095 c6473619521](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473619521)):
     you change your alien's colour, clothes and body shape (accessories such as hats and glasses were not picked). You
     see yourself in the mirror, your reflection, in first person. One wide mirror has several places; each player
-    stands at a part of it.
+    stands at a part of it. In M8 the mirror changes only the colour; clothes and body shapes come after M8 (the M8
+    sit-down, 2026-11-08, [#1095 c6721181350](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6721181350)).
+    Provisional (#1394, the engineer tunes it on the hall): three places on the greybox mirror.
   - **The photo booth** (same day, [#1095 c6473780162](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6473780162)):
     a strip of frames: a button, a countdown, several flashes in a row, and between them you change your pose with the
     pose wheel (§8, Photo). The whole party squeezes in. No screen: you do not see yourself before the shot, only the
