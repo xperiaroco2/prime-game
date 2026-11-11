@@ -33,6 +33,8 @@ Loaded when a file in `net/` is read. The invariants in the root `CLAUDE.md` app
   service's rooms and routing, no sockets), `LanSignalling` (the router over ws://) and `Signaller` (the client).
   The transcripts and decoding cases in `tests/fixtures/signal/` are shared with the Worker (`tools/signal/`, #368):
   change the rules in both.
+- `discovery/`: the lobbies nearby (§4.9, #1316): `LobbyBeacon` (the query and the answer, apart from the game's
+  wire, on UDP 24599), `LobbyFinder` (asks the broadcast and this machine, lists), `LobbyResponder` (a host answers).
 
 ## Rules
 - A new message kind is one row in `WireSchema` (`NetKindTable.game()` is built from it): pick its lane (voice takes

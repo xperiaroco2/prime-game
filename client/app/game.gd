@@ -103,6 +103,11 @@ var howto: HowtoProgress
 var tutorial := GameTutorial.new()
 ## The own ship with no session (#1285): the boot's and every return's private lobby.
 var ship := GameShip.new()
+## The lobbies nearby (#1316): this game's answers while it hosts, Find's list while it is open.
+var discovery := GameDiscovery.new()
+## The port and address the session hosted now listens on (host_on), for the lobbies nearby.
+var hosted_port := 0
+var hosted_bind := ""
 
 var _schema := WireSchema.game(OS.is_debug_build())
 var _host: HostNode
@@ -228,6 +233,9 @@ func _ready() -> void:
 		join_target(options.target)
 	tutorial.setup(self)
 	GameShipWiring.setup(self)
+	# The launched game only: a test that wants the discovery sets it (GameDiscovery).
+	if read_command_line:
+		discovery.enabled = GameShip.homes(self)
 
 
 ## The tree outlives this root in tests: give it back the quit it had. The microphone closes
@@ -235,6 +243,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	get_tree().auto_accept_quit = true
 	_sender.close()
+	discovery.close()
 
 
 ## Hosts a session on `port`, listening on `bind` (every interface unless "127.0.0.1"); false,
@@ -288,6 +297,8 @@ func host_on(transport: NetTransport, port: int, bind: String) -> bool:
 		node.skip_replay()
 	node.name = "HostNode"
 	_host = node
+	hosted_port = port
+	hosted_bind = bind
 	_host.ended.connect(_on_host_ended)
 	add_child(_host)
 	ui.connecting.show_join("", JoinProgress.Step.CONNECTING)
@@ -585,6 +596,7 @@ func _process(delta: float) -> void:
 		# A new screen closes the Esc menu opened over another, its question too (#726).
 		GamePlayer.point_for(self, now, ui.close_esc_left(now))
 	ui.show_screen(now)
+	discovery.process(self)
 	if _client != null:
 		_join.refresh(self)
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())

@@ -5772,7 +5772,7 @@ has no main menu on the way; it boots straight into the aliens' ship and comes b
   `boot`), the crosshair, status, roster, ready tile, mic and voice hint hidden (`Aim`, the game's own, still names
   what E uses); `EscMenuState.ship` gives the tabs Game, Find,
   Guide, Settings with Host and Tutorial after Find. `FindPage` (`client/ui/find_page.gd`): `Nearby` (`find.nearby`,
-  `find.none`: no discovery yet, #1316), `Code` (420 px: the code field of the code alphabet, Join at six, the quiet
+  the lobbies nearby, §4.9, #1316), `Code` (420 px: the code field of the code alphabet, Join at six, the quiet
   Join by address) or, in its place, `Address` (the address, the default port line, Join, Host and Back; Esc closes it
   first, `EscMenu.close_page`).
 - **Not built here:** s11's workbench on a machine (`WorkbenchScreen` stays standalone, §4.7.65; the engineer: later,
@@ -5993,6 +5993,83 @@ Exponent too high"); `LanSignalling` serves the LAN only, so they stay.
   clients with it; `tools\run.cmd join <code> --signal ws://<address>:<port>` joins from another machine (without
   `--signal`, through the deployed Worker). The headless session (`--headless`)
   does the same through `CodeRoom` and prints `session: room code <CODE>`.
+
+### 4.9 The lobbies nearby (#1316)
+How a player in the own ship finds the lobbies on the local network (prime-game-ui's s05 `ship-find` at `ui-2.5.4`;
+the engineer, 2026-10-22: "the list of lobbies nearby is needed"). "Nearby" is the local network only, its IPv4
+broadcast and this machine (#1316's recommendation, taken as a technical choice): the code service lists no lobbies,
+and friends elsewhere join by a code. The datagrams are apart from the game's wire (§4.3) and its transports, on their
+own UDP port, and carry nothing a lobby does not show to anyone in it.
+
+**Pieces** (`net/discovery/`): `LobbyBeacon` (the two datagrams and their checks), `LobbyFinder` (asks and lists),
+`LobbyResponder` (a host answers); `client/app/GameDiscovery` runs them for `Game`; `FindPage` draws the list.
+
+**Datagrams** (little-endian, `LobbyBeacon.PORT` 24599, beside the game's default 24600):
+- Query: magic `PRGL`, version 1, kind 1, the query's number (u32). 10 bytes.
+- Answer: magic, version, kind 2, the query's number, the host's number (u32, drawn anew each time a responder starts:
+  one host heard on the broadcast and on 127.0.0.1 is one lobby), the game's protocol (u16, `WireSchema.VERSION`:
+  another build's lobby is not listed), the game port (u16, 0 for a code host), the players and the most (u8 each),
+  the lobby's name (20 characters at most, "" for the default) and the host's name (16), each a u8 byte count and
+  UTF-8, and the room's code (a u8 count, 0 or 6 characters of the code alphabet). 23 to 189 bytes.
+- The decoder refuses any other size, magic, version or kind, a name over its cap or not a wire `name`
+  (`WireText.utf8_problem` before decoding, so no engine error line), a code off the alphabet, more players than the
+  most or a most of 0; the encoder refuses the same with an error and an empty result (`answer_problem`), never cutting
+  (`tests/unit/net/discovery/lobby_beacon_test.gd`, with a fuzz of byte changes and noise). `net/` names no `core/`
+  class: the name caps are pinned to `LobbyName.MAX_CHARS` and `PlayerNames.MAX_CHARS` by that test.
+
+**The finder** (`LobbyFinder`, polled): from its own IPv4 UDP socket (`0.0.0.0`, any free port: a broadcast never goes
+out of a dual-stack one), a query when it starts and every 1 s (`QUERY_MS`) to 255.255.255.255 and 127.0.0.1 on the
+discovery port. An answer to a query it remembers (the last 8) lists the lobby by its host's number at the address
+its first answer came from; a later answer naming that host from another address is not taken (a forged one cannot
+steer the row's Join), nor a new host past 16 (`MOST_LOBBIES`: a flood cannot grow the list). Each keeps the round
+trip of its latest answer in whole ms (frame-bound: both ends read once a frame) and when it was last heard; one
+unheard for 3.5 s (`FORGET_MS`) is gone. It reads at most 64 datagrams a poll and counts the refused (`rejected`).
+On this Windows machine the broadcast reached a responder on the same machine (answered from its LAN address); two
+machines on a real network are not checked here. The numbers are provisional.
+
+**The responder** (`LobbyResponder`, polled): bound to the discovery port on IPv4 (`0.0.0.0`); for a query from a
+nearby address (`is_nearby`: 127/8, 10/8, 172.16/12, 192.168/16, 169.254/16; never a public one, so a scan from the
+internet learns no room code) it asks `describe` for the answer now and sends it to the asker's address and port, at
+most once per asker every 250 ms (`ANSWER_GAP_MS`); null answers nobody. Whether a second process on one machine can
+bind the port too is the system's; `start()` is false when it cannot (tried once per hosting). It reads at most 32
+datagrams a poll and counts the refused.
+
+**In the game** (`GameDiscovery`, `Game.discovery`, every frame from `Game._process`): `enabled` only for the launched
+game that lives in the ship (`Game._ready`: `GameShip.homes` with the command line read) or a test that sets it, so
+tests (a `ship_home` Game included), runners and playcheck windows open no discovery socket.
+- The responder runs while `Game.hosting()` (a shared session: direct or with a code; never the own ship or the
+  tutorial). `describe` answers from the own `ClientModel` on the lobby screen only (a running match answers nobody):
+  the lobby's name, the host's name, the roster's size, the mode's `max_players`, and the way in: the room's code for a
+  code host (none yet: no answer), else `Game.hosted_port`. No answer for a session nobody nearby could join: bound to
+  this machine alone (`Game.hosted_bind` 127.0.0.1), or a code room on this process's own LAN service
+  (`--signal=lan`: a joiner's Join by code asks its own service).
+- The finder runs while Find a lobby is open (`FindPage` in the tree and visible) and feeds `FindPage.show_lobbies`;
+  when it stops, the page's rows are cleared.
+
+**The list** (`FindPage`, §4.7.66): `Nearby/Scroll` (ToyScroll, as tall as five rows: more scroll) holds `List`
+(ToyColumnEight), one ToyPresetCard toggle row per lobby, kept across refreshes by its host's number, 60 px high, its
+content `H` (inset 16, every part ignoring the mouse): `Name` (the lobby's name, else `lobby.default_name` with the
+host's name), `Count` ("6 / 10"), `Ping` (`unit.ms`; ToyToggle swaps it to ToyPresetCardNoteSelected with the row); a
+full lobby is disabled, its name ToyPresetCardNote, `Full` (`connect.fail.full`) in place of the count and ping. The
+chosen row stays while it has room, else the first with room is chosen; `Join` (ToyButtonPrimary, at the end,
+disabled with none chosen) and a double click on a row with room join it (a full row's double click joins nothing):
+by its code when it has one, else at its address and port (Find's own code and direct joins, so the ship is left
+first). With no lobby, `None` (`find.none`) alone.
+
+**Not built here:** the own code in the ship (s05's head «Твій код»: every ship holding a room on the code service so
+friends can call into it; a question for the engineer on the PR, the head stays hidden); public lobbies from the code
+service; a lobby on another subnet or behind a router (a broadcast stays in its own network).
+
+**Tests:** `tests/unit/net/discovery/lobby_beacon_test.gd`; `tests/integration/net/lobby_discovery_test.gd` (a
+responder and a finder over real UDP on 127.0.0.1 and a test port, on a stepped clock: listed once with its address and
+round trip and kept while heard, nothing from a silent host or another build (whose answer arrives and is refused), a
+lobby gone quiet forgotten, a lobby opening after the finder started asking found, one asker answered once per gap,
+the nearby addresses); `tests/unit/client/ui/find_page_test.gd` (the rows, the full one, the chosen one, Join by code or
+address, a double click and a full row's, a row kept across refreshes, the scroll past five, a lobby gone, the
+language); `tests/integration/client/app/game_discovery_test.gd` (two ship Games: the ship answers nobody, a direct
+host's lobby shows on the other's Find and Join joins it, the responder stops when the host leaves; a host bound to
+this machine alone answers nobody; a Game not in the ship opens no socket). Previews:
+`client/dev/esc_ship_nearby_preview.tscn` and its `_uk` twin (the handoff's three lobbies, the last full).
 
 ## 5. Per-peer information filtering
 
