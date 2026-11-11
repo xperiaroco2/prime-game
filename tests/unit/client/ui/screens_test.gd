@@ -193,7 +193,9 @@ func test_a_mode_with_one_map_shows_it_with_nothing_to_pick() -> void:
 	assert_bool(panel.settings_editable()).is_true()
 
 
-func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
+func test_the_esc_menu_shows_the_open_entrys_page_alone() -> void:
+	# s05 at ui-2.5.4 (#1571): the side panel opens with no page (the handoff's `lobby` and
+	# `round`); an entry opens its page beside the panel, a second press closes it.
 	var mode := load(MODE) as GameMode
 	var menu: EscMenu = auto_free(EscMenu.new())
 	add_child(menu)
@@ -203,36 +205,34 @@ func test_the_esc_menu_shows_the_selected_tabs_page_alone() -> void:
 	menu.open(GameFlow.Screen.LOBBY, model, true)
 	menu.refresh(GameFlow.Screen.LOBBY, model, -1, true)
 	assert_bool(menu.visible).is_true()
+	assert_object(menu.page()).is_null()
+	assert_bool(menu.page_tile.visible).is_false()
+	menu.press(EscMenuState.Tab.LOBBY)
+	menu.refresh(GameFlow.Screen.LOBBY, model, -1, true)
 	assert_object(menu.page()).is_same(menu.lobby)
+	assert_bool(menu.page_tile.visible).is_true()
 	assert_bool(menu.lobby.is_visible_in_tree()).is_true()
-	assert_bool(menu.confirm_box.visible or menu.actions.visible).is_false()
+	assert_bool(menu.confirm_box.visible).is_false()
 	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].button_pressed).is_true()
 	assert_bool(menu.lobby.settings_editable()).is_true()
-	assert_str(menu.title_label.text).is_equal("esc.tab.lobby")
 	assert_bool(menu.host_note.visible).is_true()
 	assert_bool(menu.host_only.visible).is_false()
 	var marks := menu.lobby.player_rows.find_children("Ready", "TextureRect", true, false)
 	assert_bool((marks[0] as Control).visible).is_true()
 	assert_bool(menu.lobby.ready_button.is_visible_in_tree()).is_true()
-	# The round starts under the open menu: the Lobby tab stays, read-only for everyone (#491:
-	# "Lobby, a player (and everyone in a round)"): the host-only line, no host note, no Ready,
-	# no ready marks.
+	# The round starts under the open menu: no Lobby entry in a round (s05 `round`), so the page
+	# closes and the panel stays alone.
 	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": -1})
 	menu.refresh(GameFlow.Screen.ROUND, model, -1, true)
-	assert_object(menu.page()).is_same(menu.lobby)
-	assert_bool(menu.lobby.settings_editable()).is_false()
-	assert_bool(menu.host_note.visible).is_false()
-	assert_bool(menu.host_only.visible).is_true()
-	assert_bool(menu.lobby.ready_button.is_visible_in_tree()).is_false()
-	marks = menu.lobby.player_rows.find_children("Ready", "TextureRect", true, false)
-	for mark: Node in marks:
-		assert_bool((mark as Control).visible).is_false()
-	# The end screen has no Lobby tab: the Game page.
-	menu.refresh(GameFlow.Screen.END, model, -1, true)
 	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].visible).is_false()
-	assert_object(menu.page()).is_same(menu.actions)
+	assert_object(menu.page()).is_null()
 	assert_bool(menu.lobby.visible).is_false()
-	assert_str(menu.title_label.text).is_equal("esc.tab.game")
+	assert_bool(menu.host_note.visible or menu.host_only.visible).is_false()
+	# A second press closes an open page.
+	menu.press(EscMenuState.Tab.SETTINGS)
+	assert_object(menu.page()).is_same(menu.settings)
+	menu.press(EscMenuState.Tab.SETTINGS)
+	assert_object(menu.page()).is_null()
 
 
 func test_the_pregame_screen_shows_the_own_role_and_no_word_on_the_microphone() -> void:
@@ -275,12 +275,14 @@ func test_the_ui_opens_the_esc_menu_on_the_screen_it_is_given_else_the_one_drawn
 	var ui: GameUi = auto_free(GameUi.new())
 	ui.show_screen(GameFlow.Screen.CONNECTING)
 	ui.open_esc(false, null, GameFlow.Screen.LOBBY)
+	# The lobby's panel: its Lobby entry there, no page open (s05 `lobby`, #1571).
 	assert_bool(ui.esc.state.has_tab(EscMenuState.Tab.LOBBY)).is_true()
-	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.LOBBY)
+	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.GAME)
 	ui.close_esc()
 	ui.show_screen(GameFlow.Screen.LOBBY)
 	ui.open_esc(false)
-	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.LOBBY)
+	# s05 at ui-2.5.4 (#1571): the side panel alone, no page open.
+	assert_int(ui.esc.state.selected).is_equal(EscMenuState.Tab.GAME)
 	ui.close_esc()
 	ui.show_screen(GameFlow.Screen.ROUND)
 	ui.open_esc(false)
@@ -295,12 +297,13 @@ func test_the_esc_menus_leave_asks_the_host_and_not_a_client() -> void:
 	menu.leave_requested.connect(func() -> void: said.append("leave"))
 	menu.quit_requested.connect(func() -> void: said.append("quit"))
 	menu.open(GameFlow.Screen.ROUND, null, false)
-	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyButtonSecondary")
+	# Leave is a panel entry like the others (s05); the host's confirm is the danger button.
+	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyMenuItem")
 	menu.leave_button.pressed.emit()
 	assert_array(said).is_equal(["leave"])
 	assert_bool(menu.confirm_box.visible).is_false()
 	menu.open(GameFlow.Screen.ROUND, null, true)
-	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyButtonDanger")
+	assert_str(String(menu.confirm_button.theme_type_variation)).is_equal("ToyButtonDanger")
 	menu.quit_button.pressed.emit()
 	assert_array(said).is_equal(["leave"])
 	assert_bool(menu.confirm_box.visible and menu.confirm_dim.visible).is_true()
@@ -357,51 +360,91 @@ func test_the_tutorials_menu_leaves_the_tutorial_at_once() -> void:
 	var said: Array[String] = []
 	menu.leave_requested.connect(func() -> void: said.append("leave"))
 	menu.open(GameFlow.Screen.ROUND, null, true)
-	assert_bool(menu.tab_buttons[EscMenuState.Tab.ROLE].visible).is_false()
+	assert_bool(menu.tab_buttons.has(EscMenuState.Tab.ROLE)).is_false()
+	assert_bool(menu.tab_buttons[EscMenuState.Tab.LOBBY].visible).is_false()
 	assert_str(menu.leave_button.text).is_equal("esc.game.leave_tutorial")
-	assert_str(String(menu.leave_button.theme_type_variation)).is_equal("ToyButtonSecondary")
 	menu.leave_button.pressed.emit()
 	assert_array(said).is_equal(["leave"])
 	assert_bool(menu.confirm_box.visible).is_false()
 
 
 func test_the_esc_menu_is_built_as_the_handoff_names_it() -> void:
-	# #491: prime-game-ui's s05 at ui-0.4.0, node for node (the differences are in the PR).
+	# prime-game-ui's s05 at ui-2.5.4 (#1571), node for node: the side panel and the page beside it.
 	var menu: EscMenu = auto_free(EscMenu.new())
 	var paths: Dictionary[String, String] = {
-		"Dim": "ToyBackdropDeep",
-		"MenuRaised/Menu": "ToyPanelMenu",
-		"MenuRaised/Menu/H": "ToyRowTwentyFour",
-		"MenuRaised/Menu/H/Tabs": "ToyColumnEight",
-		"MenuRaised/Menu/H/Tabs/Game": "ToyTab",
-		"MenuRaised/Menu/H/Page": "ToyColumnSixteen",
-		"MenuRaised/Menu/H/Page/TitleRow/Title": "ToyTitleOnLight",
-		"MenuRaised/Menu/H/Page/TitleRow/HostNote": "ToyTextMutedOnLight",
-		"MenuRaised/Menu/H/Page/TitleRow/HostOnly": "ToyRowEight",
-		"MenuRaised/Menu/H/Page/Actions": "ToyColumnSixteen",
-		"MenuRaised/Menu/H/Page/Actions/ResumeRaised/Resume": "ToyButtonPrimary",
-		"MenuRaised/Menu/H/Page/Actions/Quit": "ToyButtonGhostOnLight",
-		"MenuRaised/Menu/H/Page/Role/Team/Scroll/Grid": "ToyGridList",
-		"MenuRaised/Menu/H/Page/Settings/Sub/Sound": "ToyChipToggleOnLight",
-		"MenuRaised/Menu/H/Page/Settings/Scroll/Rows/Sound/Mic": "ToySettingRow",
-		"MenuRaised/Menu/H/Page/Settings/Scroll/Rows/Controls/Talk/H/Bind": "ToyKeyButton",
-		"MenuRaised/Menu/H/Page/Settings/Scroll/Rows/Controls/Talk/H/Same": "ToyChipAlert",
+		"Menu": "",
+		"Menu/Side": "ToyPanelMenu",
+		"Menu/Side/V": "ToyColumnSixteen",
+		"Menu/Side/V/Head": "ToySettingRow",
+		"Menu/Side/V/Head/V": "ToyColumnEight",
+		"Menu/Side/V/Head/V/Label": "ToyKicker",
+		"Menu/Side/V/Head/V/Row": "ToyRowTwelve",
+		"Menu/Side/V/Head/V/Row/Value": "ToyTextOnLight",
+		"Menu/Side/V/Head/V/Row/Copy": "ToyButtonSecondary",
+		"Menu/Side/V/Entries": "ToyColumnFour",
+		"Menu/Side/V/Entries/Resume": "ToyMenuItem",
+		"Menu/Side/V/Entries/Guide": "ToyMenuItem",
+		"Menu/Side/V/Entries/Lobby": "ToyMenuItem",
+		"Menu/Side/V/Entries/Settings": "ToyMenuItem",
+		"Menu/Side/V/Gap": "",
+		"Menu/Side/V/Rule": "ToySettingRow",
+		"Menu/Side/V/Bottom": "ToyColumnFour",
+		"Menu/Side/V/Bottom/Leave": "ToyMenuItem",
+		"Menu/Side/V/Bottom/Quit": "ToyMenuItem",
+		"Menu/Page": "ToyPanelMenu",
+		"Menu/Page/V/Settings": "ToyRowTwentyFour",
+		"Menu/Page/V/Settings/Nav": "ToyColumnFour",
+		"Menu/Page/V/Settings/Nav/Sound": "ToyMenuItem",
+		"Menu/Page/V/Settings/Scroll/Rows/Sound/Mic": "ToySettingRow",
+		"Menu/Page/V/Settings/Scroll/Rows/Controls/Talk/H/Bind": "ToyKeyButton",
+		"Menu/Page/V/Settings/Scroll/Rows/Controls/Talk/H/Same": "ToyChipAlert",
+		"Menu/Page/V/Guide": "ToyRowThirtyTwo",
 		"ConfirmDim": "ToyBackdrop",
-		"ConfirmRaised/Confirm": "ToyPanelDialog",
-		"ConfirmRaised/Confirm/V/Buttons/ConfirmButtonRaised/ConfirmButton": "ToyButtonDanger",
-		"ConfirmRaised/Confirm/V/Buttons/Cancel": "ToyButtonGhostOnLight",
+		"Confirm": "ToyPanelDialog",
+		"Confirm/V": "ToyColumnThirtyTwo",
+		"Confirm/V/Text": "ToyColumnSixteen",
+		"Confirm/V/Buttons": "ToyRowTwentyFour",
+		"Confirm/V/Buttons/ConfirmButton": "ToyButtonDanger",
+		"Confirm/V/Buttons/Cancel": "ToyButtonGhostOnLight",
 	}
 	for path: String in paths:
 		var node := menu.get_node_or_null(NodePath(path)) as Control
 		assert_object(node).override_failure_message(path).is_not_null()
 		var variation := String(node.theme_type_variation)
-		assert_str(variation).override_failure_message(path).starts_with(paths[path])
-	assert_vector(menu.menu.custom_minimum_size).is_equal(EscMenu.MENU_SIZE)
+		assert_str(variation).override_failure_message(path).is_equal(paths[path])
+	# No dim: the world stays visible beside the panel; the mouse passes Menu.
+	assert_bool(menu.has_node(^"Dim")).is_false()
+	assert_int(menu.menu.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	# The panel at the left, full height; the page 24 px right of it, 1120 wide.
+	var side := menu.side
 	(
-		assert_vector((menu.get_node(^"MenuRaised/Menu/H/Tabs") as Control).custom_minimum_size)
-		. is_equal(Vector2(288, 0))
+		assert_vector(
+			Vector4(side.anchor_left, side.anchor_top, side.anchor_right, side.anchor_bottom)
+		)
+		. is_equal(Vector4(0, 0, 0, 1))
 	)
-	assert_vector(menu.role.scroll.custom_minimum_size).is_equal(Vector2(0, 250))
+	(
+		assert_vector(
+			Vector4(side.offset_left, side.offset_top, side.offset_right, side.offset_bottom)
+		)
+		. is_equal(Vector4(36, 36, 556, -36))
+	)
+	assert_vector(Vector2(menu.page_tile.offset_left, menu.page_tile.offset_top)).is_equal(
+		Vector2(580, 36)
+	)
+	assert_float(menu.page_tile.custom_minimum_size.x).is_equal(1120.0)
+	assert_vector(menu.confirm_box.custom_minimum_size).is_equal(Vector2(1080, 0))
+	(
+		assert_bool(
+			(
+				(menu.get_node(^"Menu/Side/V/Gap") as Control).size_flags_vertical
+				== Control.SIZE_EXPAND_FILL
+			)
+		)
+		. is_true()
+	)
+	for button: Button in [menu.resume_button, menu.leave_button, menu.quit_button]:
+		assert_int(button.alignment).is_equal(HORIZONTAL_ALIGNMENT_LEFT)
 
 
 func test_the_lobby_tab_shows_the_code_to_whoever_knows_it_and_the_service_gone_in_its_place(

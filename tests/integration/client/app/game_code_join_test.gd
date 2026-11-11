@@ -40,8 +40,8 @@ func test_a_code_joiner_reaches_the_lobby_and_both_see_the_code() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	for game: Game in [host, joiner]:
-		assert_str(game.ui.lobby_hud.code_label.text).is_equal(CODE)
-		assert_bool(game.ui.lobby_hud.code_row.visible).is_true()
+		# The code is the Esc menu's head (s05 `lobby`), no longer the lobby HUD's (s04, #1571).
+		assert_str(game.ui.esc.code_label.text).is_equal(CODE)
 		assert_str(game.ui.esc.lobby.code_label.text).is_equal(CODE)
 		assert_bool(game.ui.esc.lobby.code_row.visible).is_true()
 		assert_bool(game.ui.esc.lobby.copy_button.visible).is_true()
@@ -146,10 +146,9 @@ func test_the_host_lobby_says_when_its_code_service_is_gone() -> void:
 	assert_bool(host.host_with_code(0, LaunchOptions.LOCALHOST)).is_true()
 	assert_bool(await _until(func() -> bool: return host.room().code() == CODE)).is_true()
 	host.room().lan.stop()
-	var gone := func() -> bool: return host.ui.lobby_hud.code_label.text == LobbyHud.CODE_GONE
+	var gone := func() -> bool: return host.ui.esc.lobby.code_gone.visible
+	# The Esc Lobby page explains it (#491's `esc.lobby.code_gone`).
 	assert_bool(await _until(gone)).is_true()
-	# The Esc Lobby page explains it (#491's `esc.lobby.code_gone`; the handoff: the HUD reads "—").
-	assert_bool(host.ui.esc.lobby.code_gone.visible).is_true()
 	assert_bool(host.ui.esc.lobby.code_row.visible).is_false()
 	host.leave()
 	await get_tree().process_frame

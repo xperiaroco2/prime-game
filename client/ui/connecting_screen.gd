@@ -1,15 +1,18 @@
 class_name ConnectingScreen
 extends Control
 ## The black screen of a join, its failures and the map loading (prime-game-ui's s3 handoff at
-## ui-0.4.0, #494; ARCHITECTURE §4.7.32), node for node as drawn: under Night (opaque, it takes the
-## mouse) one of three parts shows.
-## - JOIN (Connecting): the spinner, the title and the step (JoinProgress), a code join's code and
-##   the time since Join, and Cancel, focused; Game makes Esc do the same.
-## - FAILURE (Failure): what failed in plain words from the EndReasons id (its state:
-##   EndReasons.failure_state), the host's and this game's version when known, then Try again or
-##   Join directly with a flat Back beside it, or Back alone and raised; Esc is Back.
-## - LOAD (Loading and Tip): this machine's load, a row per player (the host first, then in join
-##   order), one random tip; or, given a how-to card (show_card, #490 and #254), Head and Card.
+## ui-2.5.4, #494, #1571; ARCHITECTURE §4.7.32), node for node as drawn: under Night (opaque, it
+## takes the mouse) one of three parts shows, each one quiet tile.
+## - JOIN (Connecting, a ToyPanelDialog): the spinner, the step in small capitals over the title
+##   (JoinProgress), the time since Join at the right; at the foot a code join's code and Cancel,
+##   focused; Game makes Esc do the same.
+## - FAILURE (Failure, a ToyPanelDialog): what failed in plain words from the EndReasons id (its
+##   state: EndReasons.failure_state), the host's and this game's version when known, then Try
+##   again or Join directly with a ghost Back beside it, or Back alone; Esc is Back.
+## - LOAD (Loading and Tip, ToyPlate tiles): this machine's load, the players' hairline rows (the
+##   host first, then in join order) under their small-capitals head, one random tip; or, given a
+##   how-to card (show_card, #490 and #254), Head and Card.
+## The focus lands with its ring hidden (grab_focus(true)) until an arrow or d-pad press.
 ## Every text is a deck key; a key with placeholders and every text from data are set here with
 ## `auto_translate_mode` DISABLED and rebuilt on NOTIFICATION_TRANSLATION_CHANGED.
 
@@ -50,16 +53,17 @@ const TIPS: Array[String] = ["tip.two_hands", "tip.neighbours"]
 ## The spinner's turns per second; half under reduced motion (UiPrefs).
 const TURNS_PER_SECOND := 1.0
 ## The widths and the places of the handoff (px at the 1920x1080 base, #287).
-const JOIN_WIDTH := 768.0
-const FAILURE_WIDTH := 848.0
-const BAR_SIZE := Vector2(768, 16)
-const LOADING_TOP := 368.0
-const TIP_WIDTH := 1072.0
-const TIP_TEXT_WIDTH := 1036.0
-const TIP_BOTTOM := -88.0
-const HEAD_TOP := 64.0
-const CARD_WIDTH := 1616.0
-const CARD_TOP := 40.0
+const JOIN_WIDTH := 960.0
+const JOIN_TITLE_WIDTH := 660.0
+const FAILURE_WIDTH := 1080.0
+const FAILURE_TEXT_WIDTH := 996.0
+const BAR_SIZE := Vector2(0, 24)
+const LOADING_WIDTH := 960.0
+const TIP_BOTTOM := -132.0
+const HEAD_TOP := 96.0
+## The Head is as wide as the card (its frames and margins); the card takes the same width.
+const CARD_WIDTH := 1440.0
+const CARD_TOP := 39.0
 
 ## The part shown now.
 var part := Part.JOIN
@@ -67,7 +71,7 @@ var part := Part.JOIN
 var failure_state: StringName = &""
 
 var night := Panel.new()
-var connecting := VBoxContainer.new()
+var connecting := PanelContainer.new()
 var spinner := Panel.new()
 ## The spinner's holder in the column: a plain Control, so that no sort resets the turn.
 var spinner_box := Control.new()
@@ -79,7 +83,7 @@ var code_label := Label.new()
 var elapsed_label := Label.new()
 var cancel: ToyRaised
 
-var failure := VBoxContainer.new()
+var failure := PanelContainer.new()
 var failure_title := Label.new()
 var failure_body := Label.new()
 ## The two version lines (fail-version, when the game can name both).
@@ -90,13 +94,14 @@ var primary: ToyRaised
 var back_ghost := Button.new()
 var back_solo: ToyRaised
 
-var loading := VBoxContainer.new()
+var loading := PanelContainer.new()
 var bar := ProgressBar.new()
-## One row per player (HBoxContainer: Name, State), keyed by peer.
+## The players' small-capitals Head, then one row per player (a ToySettingRow: H/Name, H/State).
 var players := VBoxContainer.new()
+var players_head := Label.new()
 var tip := PanelContainer.new()
 var tip_label := Label.new()
-var head := VBoxContainer.new()
+var head := PanelContainer.new()
 var head_bar := ProgressBar.new()
 ## The how-to card on load-card (show_card); null shows the players and the tip.
 var card: ToyRaised
@@ -231,8 +236,9 @@ func refresh_loading(model: ClientModel) -> void:
 		return
 	_rows_shown = shown
 	for row: Node in players.get_children():
-		players.remove_child(row)
-		row.free()
+		if row != players_head:
+			players.remove_child(row)
+			row.free()
 	for each: Array in shown:
 		var row := _player_row(each[0] as int, each[1] as bool, each[2] as bool, each[3] as String)
 		players.add_child(row, true)
@@ -308,7 +314,8 @@ func _focus() -> void:
 		Part.FAILURE:
 			target = primary.face if action() != Action.NONE else back_solo.face
 	if target != null:
-		target.grab_focus()
+		# The ring hidden until an arrow or d-pad press (Control.grab_focus's hide_focus).
+		target.grab_focus(true)
 
 
 func _retext_title() -> void:
@@ -331,12 +338,15 @@ func _fit_spinner_box() -> void:
 
 func _build_connecting() -> void:
 	connecting.name = "Connecting"
-	connecting.theme_type_variation = &"ToyColumnTwentyFour"
-	connecting.alignment = BoxContainer.ALIGNMENT_CENTER
+	connecting.theme_type_variation = &"ToyPanelDialog"
 	connecting.custom_minimum_size = Vector2(JOIN_WIDTH, 0)
 	connecting.set_anchors_preset(Control.PRESET_CENTER)
 	_place(connecting, 0.0, Control.GROW_DIRECTION_BOTH)
 	add_child(connecting)
+	var column := _column("V", &"ToyColumnThirtyTwo")
+	connecting.add_child(column)
+	var top := _row("Top", &"ToyRowTwentyFour")
+	column.add_child(top)
 	spinner.name = "Spinner"
 	spinner.theme_type_variation = &"ToySpinner"
 	spinner.pivot_offset_ratio = Vector2(0.5, 0.5)
@@ -345,73 +355,80 @@ func _build_connecting() -> void:
 	# which would snap the turning spinner back: a plain Control keeps it out of the layout, and
 	# takes its size.
 	spinner_box.name = "SpinnerBox"
-	spinner_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	spinner_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	spinner_box.add_child(UiParts.sized(spinner))
 	spinner.minimum_size_changed.connect(_fit_spinner_box)
 	_fit_spinner_box()
-	connecting.add_child(spinner_box)
+	top.add_child(spinner_box)
 	var texts := _column("Texts", &"ToyColumnEight")
-	connecting.add_child(texts)
-	_label(title_label, "Title", &"ToyTitleOnDark", JOIN_WIDTH, true)
+	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(texts)
+	_label(step_label, "Step", &"ToyKicker")
+	step_label.uppercase = true
+	texts.add_child(step_label)
+	_label(title_label, "Title", &"ToyTitleOnLight", JOIN_TITLE_WIDTH, true)
 	title_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	texts.add_child(title_label)
-	_label(step_label, "Step", &"ToyTextOnDark")
-	texts.add_child(step_label)
+	_label(elapsed_label, "Elapsed", &"ToyTextMutedOnLight")
+	elapsed_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	elapsed_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	top.add_child(elapsed_label)
+	var foot := _row("Foot", &"ToyRowSixteen")
+	column.add_child(foot)
 	code_row.name = "CodeRow"
-	code_row.theme_type_variation = &"ToyRowEight"
-	code_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	connecting.add_child(code_row)
-	var code_word := UiParts.styled_label("common.code", &"ToyTextMutedOnDark")
+	code_row.theme_type_variation = &"ToyRowTwelve"
+	code_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	foot.add_child(code_row)
+	var code_word := UiParts.styled_label("common.code", &"ToyTextMutedOnLight")
 	code_word.name = "Label"
 	code_word.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	code_row.add_child(code_word)
 	code_key.name = "Code"
-	code_key.theme_type_variation = &"ToyKeyOnDark"
+	code_key.theme_type_variation = &"ToyKeyOnLight"
 	code_key.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	code_row.add_child(UiParts.sized(code_key))
 	_label(code_label, "Text", &"ToyKeyText")
+	code_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	code_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	code_key.add_child(code_label)
-	_label(elapsed_label, "Elapsed", &"ToyTextMutedOnDark")
-	elapsed_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	connecting.add_child(elapsed_label)
+	var space := Control.new()
+	space.name = "Space"
+	space.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	foot.add_child(space)
 	cancel = _raised_button("Cancel", "common.cancel", &"ToyButtonSecondary", cancel_requested)
-	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	connecting.add_child(cancel)
+	foot.add_child(cancel)
 
 
 func _build_failure() -> void:
 	failure.name = "Failure"
-	failure.theme_type_variation = &"ToyColumnThirtyTwo"
-	failure.alignment = BoxContainer.ALIGNMENT_CENTER
+	failure.theme_type_variation = &"ToyPanelDialog"
 	failure.custom_minimum_size = Vector2(FAILURE_WIDTH, 0)
 	failure.set_anchors_preset(Control.PRESET_CENTER)
 	_place(failure, 0.0, Control.GROW_DIRECTION_BOTH)
 	add_child(failure)
-	var texts := _column("Texts", &"ToyColumnSixteen")
-	failure.add_child(texts)
-	_label(failure_title, "Title", &"ToyTitleOnDark", FAILURE_WIDTH, true)
+	var column := _column("V", &"ToyColumnThirtyTwo")
+	failure.add_child(column)
+	var texts := _column("Texts", &"ToyColumnTwelve")
+	column.add_child(texts)
+	_label(failure_title, "Title", &"ToyTitleOnLight", FAILURE_TEXT_WIDTH, true)
 	texts.add_child(failure_title)
-	_label(failure_body, "Body", &"ToyTextMutedOnDark", FAILURE_WIDTH, true)
+	_label(failure_body, "Body", &"ToyTextMutedOnLight", FAILURE_TEXT_WIDTH, true)
 	texts.add_child(failure_body)
 	versions.name = "Versions"
 	versions.theme_type_variation = &"ToyColumnFour"
 	texts.add_child(versions)
 	for line: Label in [version_host, version_own]:
-		_label(line, "Host" if line == version_host else "Own", &"ToyTextOnDark")
+		_label(line, "Host" if line == version_host else "Own", &"ToyTextOnLight")
 		line.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		versions.add_child(line)
-	var buttons := HBoxContainer.new()
-	buttons.name = "Buttons"
-	buttons.theme_type_variation = &"ToyRowSixteen"
-	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	failure.add_child(buttons)
+	var buttons := _row("Buttons", &"ToyRowSixteen")
+	column.add_child(buttons)
 	primary = _raised_button("Primary", "connect.fail.retry", &"ToyButtonPrimary", Signal())
 	(primary.face as Button).pressed.connect(_on_primary)
 	buttons.add_child(primary)
 	back_ghost.name = "BackGhost"
 	back_ghost.text = "common.back"
-	back_ghost.theme_type_variation = &"ToyButtonGhostOnDark"
+	back_ghost.theme_type_variation = &"ToyButtonGhostOnLight"
 	back_ghost.pressed.connect(func() -> void: back_requested.emit())
 	ToyPress.attach(back_ghost)
 	buttons.add_child(back_ghost)
@@ -421,63 +438,76 @@ func _build_failure() -> void:
 
 func _build_loading() -> void:
 	loading.name = "Loading"
-	loading.theme_type_variation = &"ToyColumnSixteen"
-	loading.custom_minimum_size = Vector2(JOIN_WIDTH, 0)
-	loading.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_place(loading, LOADING_TOP, Control.GROW_DIRECTION_END)
+	loading.theme_type_variation = &"ToyPlate"
+	loading.custom_minimum_size = Vector2(LOADING_WIDTH, 0)
+	loading.set_anchors_preset(Control.PRESET_CENTER)
+	_place(loading, 0.0, Control.GROW_DIRECTION_BOTH)
 	add_child(loading)
-	loading.add_child(_load_title())
+	var column := _column("V", &"ToyColumnThirtyTwo")
+	loading.add_child(column)
+	var top := _column("Top", &"ToyColumnTwelve")
+	column.add_child(top)
+	top.add_child(_load_title())
 	_bar(bar)
-	loading.add_child(bar)
+	top.add_child(bar)
 	players.name = "Players"
-	players.theme_type_variation = &"ToyColumnEight"
-	loading.add_child(players)
+	players.theme_type_variation = &"ToyColumnFour"
+	column.add_child(players)
+	_label(players_head, "Head", &"ToyKicker")
+	players_head.text = "lobby.players"
+	players_head.uppercase = true
+	players.add_child(players_head)
 	tip.name = "Tip"
 	tip.theme_type_variation = &"ToyPlate"
-	tip.custom_minimum_size = Vector2(TIP_WIDTH, 0)
 	tip.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_place(tip, TIP_BOTTOM, Control.GROW_DIRECTION_BOTH)
 	add_child(tip)
-	_label(tip_label, "Text", &"ToyPlateText", TIP_TEXT_WIDTH, true)
+	_label(tip_label, "Text", &"ToyPlateTextMuted")
+	tip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tip.add_child(tip_label)
 	head.name = "Head"
-	head.theme_type_variation = &"ToyColumnTwelve"
-	head.custom_minimum_size = Vector2(JOIN_WIDTH, 0)
+	head.theme_type_variation = &"ToyPlate"
+	head.custom_minimum_size = Vector2(CARD_WIDTH, 0)
 	head.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_place(head, HEAD_TOP, Control.GROW_DIRECTION_END)
 	add_child(head)
-	head.add_child(_load_title())
+	var head_column := _column("V", &"ToyColumnTwelve")
+	head.add_child(head_column)
+	head_column.add_child(_load_title())
 	_bar(head_bar)
-	head.add_child(head_bar)
+	head_column.add_child(head_bar)
 
 
-## A player's row: the host's HostRow, the own Row (player.you), the others OtherRow (Godot
-## numbers the repeats); the state muted while it loads.
-func _player_row(peer: int, own: bool, loaded: bool, player_name: String) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.theme_type_variation = &"ToyRowTwelve"
+## A player's hairline row: the host's HostRow, the own Row (player.you), the others OtherRow
+## (Godot numbers the repeats); the state dim (ToySettingRowValue) while it loads.
+func _player_row(peer: int, own: bool, loaded: bool, player_name: String) -> PanelContainer:
+	var row := PanelContainer.new()
+	row.theme_type_variation = &"ToySettingRow"
 	row.name = "HostRow" if peer == NetTransport.HOST_ID else ("Row" if own else "OtherRow")
-	var name_label := UiParts.styled_label("player.you" if own else player_name, &"ToyTextOnDark")
+	var line := _row("H", &"ToyRowSixteen")
+	row.add_child(line)
+	var name_label := UiParts.styled_label(
+		"player.you" if own else player_name, &"ToySettingRowText"
+	)
 	name_label.name = "Name"
 	if not own:
 		name_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.clip_text = true
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	row.add_child(name_label)
+	line.add_child(name_label)
 	var state_label := UiParts.styled_label(
 		"loading.player_ready" if loaded else "loading.player_loading",
-		&"ToyTextOnDark" if loaded else &"ToyTextMutedOnDark"
+		&"ToySettingRowText" if loaded else &"ToySettingRowValue"
 	)
 	state_label.name = "State"
-	row.add_child(state_label)
+	line.add_child(state_label)
 	return row
 
 
 func _load_title() -> Label:
-	var title := UiParts.styled_label("loading.title", &"ToyTitleOnDark")
+	var title := UiParts.styled_label("loading.title", &"ToyPlateTitle")
 	title.name = "Title"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return title
 
 
@@ -489,12 +519,13 @@ func _bar(made: ProgressBar) -> void:
 	made.show_percentage = false
 
 
-## A raised Toy button named `face_name` (its wrapper `<face_name>Raised`), with no minimum size
-## of its own (the handoff gives none), emitting `said` when pressed.
+## A Toy button named `face_name` (its wrapper `<face_name>Raised`; no base since ui-2.0.0), on a
+## tile (ToyHints.LIGHT), with no minimum size of its own (the handoff gives none), emitting
+## `said` when pressed.
 func _raised_button(
 	face_name: String, key: String, variation: StringName, said: Signal
 ) -> ToyRaised:
-	var made := UiParts.button(key, Callable(), variation, ToyHints.DARK)
+	var made := UiParts.button(key, Callable(), variation, ToyHints.LIGHT)
 	made.face.name = face_name
 	made.name = "%sRaised" % face_name
 	made.custom_minimum_size = Vector2.ZERO
@@ -517,13 +548,19 @@ static func _column(column_name: String, variation: StringName) -> VBoxContainer
 	return made
 
 
-## `label` named and styled; centred, at least `width` wide and word-wrapped when `wraps`.
+static func _row(row_name: String, variation: StringName) -> HBoxContainer:
+	var made := HBoxContainer.new()
+	made.name = row_name
+	made.theme_type_variation = variation
+	return made
+
+
+## `label` named and styled; at least `width` wide and word-wrapped when `wraps`.
 static func _label(
 	label: Label, label_name: String, variation: StringName, width := 0.0, wraps := false
 ) -> void:
 	label.name = label_name
 	label.theme_type_variation = variation
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	if width > 0.0:
 		label.custom_minimum_size = Vector2(width, 0)
 	if wraps:

@@ -18,7 +18,6 @@ wait phase lobby
 wait screen lobby
 press ui_cancel
 wait esc open
-button esc.tab.game
 button esc.game.leave
 wait screen menu
 frames 20

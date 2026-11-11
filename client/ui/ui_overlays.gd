@@ -21,6 +21,8 @@ const MAP := 30
 const CARD := 35
 ## The Esc menu (layer 4).
 const ESC_MENU := 40
+## An entry's page beside the Esc menu's panel (s05, #1571): Esc closes it before the menu.
+const ESC_PAGE := 45
 ## The Esc menu's question to the host before Leave or Quit (layer 5).
 const ESC_DIALOG := 50
 

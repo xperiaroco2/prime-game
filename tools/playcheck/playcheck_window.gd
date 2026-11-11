@@ -182,8 +182,8 @@ class GameView:
 				found = [kind, hand != null and hand.is_visible_in_tree() and not kind.is_empty()]
 		return found
 
-	## The lobby HUD's rows, one line each: the name as drawn ("You" for the own row, "<name> ·
-	## host" for the host's), then "ready" where the row shows its check, else "not ready".
+	## The lobby HUD's rows, one line each: the name as drawn ("<name> (you)" for the own row),
+	## then "ready" where the row's pip is full, else "not ready".
 	func _roster(lobby: LobbyHud) -> String:
 		var lines := PackedStringArray()
 		var texts := lobby.row_texts()

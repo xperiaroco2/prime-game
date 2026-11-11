@@ -171,7 +171,7 @@ func test_a_picture_fills_its_frame_and_a_missing_one_is_named() -> void:
 	var stand_in := face.get_node(^"V/Scroll/Frames/Frame1/Placeholder") as Label
 	assert_str(stand_in.text).is_equal("icon.svg.png")
 	assert_str(String(stand_in.theme_type_variation)).is_equal("ToyTextMutedOnLight")
-	assert_that(stand_in.custom_minimum_size).is_equal(Vector2(160, 120))
+	assert_that(stand_in.custom_minimum_size).is_equal(Vector2(272, 204))
 	# A picture that is in the game: a TextureRect at the place's size, keeping its aspect.
 	card.frames[0].art = "res://icon.svg"
 	face = HowtoCardView.new(card, HowtoCardView.LOADING_ART)

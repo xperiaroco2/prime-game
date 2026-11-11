@@ -1,15 +1,10 @@
 extends GdUnitTestSuite
-## The Esc menu's states (client/ui/esc_menu.gd, #491) against prime-game-ui's handoff s05 at
-## ui-0.4.0 (docs/handoff/s05-esc-menu.md). The handoff draws `lobby-host` whole and every other
-## state as what differs from it: its Hidden list, its Changed lines and the roots of its Shown
-## subtrees. BASE and STATES copy those lists verbatim, with the handoff's paths; `ours()` maps a
-## handoff path onto the built tree (the differences the PR lists), and NOT_BUILT names the paths
-## the menu does not build, each with its reason. A mismatch is fixed in the code or listed in the
-## PR, never by editing these lists. Character and character-round wait for #73 (M7): not built.
-## Each state is built as the preview scenes build it (screen_preview.gd's Preview.ESC branch), on
-## the melee fixture: the handoff draws a Knives row, which the shipped base mode hides since no
-## part of it reads `knives` (the M8 slice, #1497, #1525; screens_test.gd checks that hide), and
-## the fixture is the shipped mode with the knives placed again.
+## The Esc menu's states (client/ui/esc_menu.gd, #491, #1571) against prime-game-ui's handoff s05 at
+## ui-2.5.4 (docs/handoff/s05-esc-menu.md): the side panel at the left with the page of the open
+## entry beside it. Each state lists what differs from BASE (the `lobby` state: the panel alone);
+## a mismatch is fixed in the code or listed in the PR, never by editing these lists. Each state is
+## built as the preview scenes build it (screen_preview.gd's Preview.ESC branch), on the melee
+## fixture (the shipped mode with the knives placed again, #1497).
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := FixtureBaseModeWithMelee.PATH
@@ -18,134 +13,69 @@ const S := GameFlow.Screen
 const TAB := EscMenuState.Tab
 const PAGE := SettingsPage.Page
 
-## `lobby-host`, the handoff's whole tree: the nodes it draws (true) and those it lacks that other
-## states show (false).
+## The handoff s05 at ui-2.5.4 drawn by the built tree: the paths every state checks, shown (true)
+## or not (false) in `lobby` (the panel alone in the lobby, nothing open).
 const BASE: Dictionary[String, bool] = {
-	"Menu/H/Tabs/Game": true,
-	"Menu/H/Tabs/Role": false,
-	"Menu/H/Tabs/Guide": true,
-	"Menu/H/Tabs/Lobby": true,
-	"Menu/H/Tabs/Settings": true,
-	"Menu/H/Page/TitleRow/Title": true,
-	"Menu/H/Page/TitleRow/HostNote": true,
-	"Menu/H/Page/TitleRow/HostOnly": false,
-	"Menu/H/Page/Actions": false,
-	"Menu/H/Page/Role": false,
-	"Menu/H/Page/Role/Team": false,
-	"Menu/H/Page/Guide": false,
-	"Menu/H/Page/Lobby": true,
-	"Menu/H/Page/Lobby/Presets": true,
-	"Menu/H/Page/Lobby/Preset": false,
-	"Menu/H/Page/Lobby/Body/SettingList/Name/H/Field": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Duration/H/Stepper/Less": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Duration/H/Stepper/More": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Packages/H/Stepper/Less": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Packages/H/Stepper/More": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Dissidents/H/Stepper/Less": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Dissidents/H/Stepper/More": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Knives/H/Stepper/Less": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Knives/H/Stepper/More": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Tasks/H/Allowed": true,
-	"Menu/H/Page/Lobby/Body/SettingList/Tasks/H/Shown": false,
-	"Menu/H/Page/Lobby/Body/Side/CodeRow": true,
-	"Menu/H/Page/Lobby/Body/Side/CodeGone": false,
-	"Menu/H/Page/Lobby/Body/Side/Players": true,
-	"Menu/H/Page/Lobby/Body/Side/Ready": true,
-	"Menu/H/Page/Settings": false,
+	"Menu/Side": true,
+	"Menu/Side/V/Head": true,
+	"Menu/Side/V/Head/V/Row/Copy": true,
+	"Menu/Side/V/Entries/Resume": true,
+	"Menu/Side/V/Entries/Guide": true,
+	"Menu/Side/V/Entries/Lobby": true,
+	"Menu/Side/V/Entries/Settings": true,
+	"Menu/Side/V/Rule": true,
+	"Menu/Side/V/Bottom/Leave": true,
+	"Menu/Side/V/Bottom/Quit": true,
+	"Menu/Page": false,
+	"Menu/Page/V/HostRow": false,
+	"Menu/Page/V/HostRow/HostNote": false,
+	"Menu/Page/V/HostRow/HostOnly": false,
+	"Menu/Page/V/Guide": false,
+	"Menu/Page/V/Lobby": false,
+	"Menu/Page/V/Settings": false,
 	"ConfirmDim": false,
 	"Confirm": false,
 }
-## Handoff paths the menu does not build: the players' rows are named after the handoff's sample
-## players (the rows follow the roster, LobbyPanel), SwitchSteps waits for a mode that declares a
-## step count (#256), Character for #73.
-const NOT_BUILT: Array[String] = [
-	"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/",
-	"Menu/H/Page/Lobby/Body/SettingList/SwitchSteps/",
-	"Menu/H/Tabs/Character",
-]
-const LOBBY_GUEST_HIDDEN: Array[String] = [
-	"Menu/H/Page/TitleRow/HostNote",
-	"Menu/H/Page/Lobby/Presets",
-	"Menu/H/Page/Lobby/Body/SettingList/Duration/H/Stepper/Less",
-	"Menu/H/Page/Lobby/Body/SettingList/Duration/H/Stepper/More",
-	"Menu/H/Page/Lobby/Body/SettingList/Packages/H/Stepper/Less",
-	"Menu/H/Page/Lobby/Body/SettingList/Packages/H/Stepper/More",
-	"Menu/H/Page/Lobby/Body/SettingList/Dissidents/H/Stepper/Less",
-	"Menu/H/Page/Lobby/Body/SettingList/Dissidents/H/Stepper/More",
-	"Menu/H/Page/Lobby/Body/SettingList/Knives/H/Stepper/Less",
-	"Menu/H/Page/Lobby/Body/SettingList/Knives/H/Stepper/More",
-	"Menu/H/Page/Lobby/Body/SettingList/Tasks/H/Allowed",
-	"Menu/H/Page/Lobby/Body/SettingList/SwitchSteps/H/Stepper/Less",
-	"Menu/H/Page/Lobby/Body/SettingList/SwitchSteps/H/Stepper/More",
-	"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/Ivan",
-	"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/Marko/H/Ready",
-	"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/Oksana",
-	"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/Solomiia",
-	"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/Bohdan",
-	"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/Iryna",
-	"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/Dmytro",
-	"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/Lesia",
-]
-## The Hidden list every state off the Lobby tab shares.
-const OFF_LOBBY: Array[String] = ["Menu/H/Page/TitleRow/HostNote", "Menu/H/Page/Lobby"]
-## The 15 states the menu builds: its context (screen, hosting, role, tutorial, the code service
-## gone), the tab and the Settings sub-page pressed, the host's question; then the handoff's lists.
-## `pressed` and `title` are its Changed lines (lobby-host: Lobby, esc.tab.lobby).
+## The Hidden list every state in a round shares: no code head, no Lobby entry (s05 `round`).
+const IN_ROUND: Array[String] = ["Menu/Side/V/Head", "Menu/Side/V/Entries/Lobby"]
+## The states the menu builds: its context (screen, hosting, tutorial), the entry pressed and the
+## Settings section, the host's question; then what differs from BASE. Character waits for the
+## mirror (#1394, the engineer 2026-10-28) and the ship's states (no session) for #1285.
 var states: Dictionary[String, Dictionary] = {
-	"lobby-host": {},
-	"lobby-guest":
+	"lobby": {},
+	"lobby-page":
+	{
+		"tab": TAB.LOBBY,
+		"shown":
+		["Menu/Page", "Menu/Page/V/Lobby", "Menu/Page/V/HostRow", "Menu/Page/V/HostRow/HostNote"],
+	},
+	# A guest reads the settings: the lock line naming the host, no host note.
+	"lobby-page-guest":
 	{
 		"hosting": false,
-		"hidden": LOBBY_GUEST_HIDDEN,
+		"tab": TAB.LOBBY,
 		"shown":
-		[
-			"Menu/H/Page/TitleRow/HostOnly",
-			"Menu/H/Page/Lobby/Preset",
-			"Menu/H/Page/Lobby/Body/SettingList/Tasks/H/Shown",
-			"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/Host/H/Ready",
-			"Menu/H/Page/Lobby/Body/Side/Players/Scroll/Rows/You",
-		]
+		["Menu/Page", "Menu/Page/V/Lobby", "Menu/Page/V/HostRow", "Menu/Page/V/HostRow/HostOnly"],
 	},
-	"lobby-no-code":
+	# The code service gone: no dead code in the head (the Lobby page says so).
+	"lobby-no-code": {"code_gone": true, "hidden": ["Menu/Side/V/Head"]},
+	"round": {"round": true, "hidden": IN_ROUND},
+	"round-confirm":
+	{"round": true, "question": true, "hidden": IN_ROUND, "shown": ["ConfirmDim", "Confirm"]},
+	"guide":
 	{
-		"code_gone": true,
-		"hidden": ["Menu/H/Page/Lobby/Body/Side/CodeRow"],
-		"shown": ["Menu/H/Page/Lobby/Body/Side/CodeGone"],
+		"round": true,
+		"tab": TAB.GUIDE,
+		"hidden": IN_ROUND,
+		"shown": ["Menu/Page", "Menu/Page/V/Guide"]
 	},
-	"game-host": _off_lobby(TAB.GAME, ["Menu/H/Tabs/Role", "Menu/H/Page/Actions"]),
-	"game-guest":
-	_off_lobby(TAB.GAME, ["Menu/H/Tabs/Role", "Menu/H/Page/Actions"], {"hosting": false}),
-	"game-confirm":
-	_off_lobby(
-		TAB.GAME,
-		["Menu/H/Tabs/Role", "Menu/H/Page/Actions", "ConfirmDim", "Confirm"],
-		{"question": true},
-	),
-	"role-engineer":
-	_off_lobby(TAB.ROLE, ["Menu/H/Tabs/Role", "Menu/H/Page/Role"], {"role": &"crew"}),
-	# Team is in role-dissident's Shown subtree under Menu/H/Page/Role, not in role-engineer's.
-	"role-dissident":
-	_off_lobby(TAB.ROLE, ["Menu/H/Tabs/Role", "Menu/H/Page/Role", "Menu/H/Page/Role/Team"]),
-	"guide": _off_lobby(TAB.GUIDE, ["Menu/H/Tabs/Role", "Menu/H/Page/Guide"]),
 	"settings-sound": _settings(PAGE.SOUND),
 	"settings-controls": _settings(PAGE.CONTROLS),
 	"settings-display": _settings(PAGE.DISPLAY),
 	"settings-access": _settings(PAGE.ACCESS),
 	"settings-language": _settings(PAGE.LANGUAGE),
-	"tutorial-game":
-	{
-		"round": true,
-		"tutorial": true,
-		"tab": TAB.GAME,
-		"hidden":
-		[
-			"Menu/H/Tabs/Lobby",
-			"Menu/H/Tabs/Character",
-			"Menu/H/Page/TitleRow/HostNote",
-			"Menu/H/Page/Lobby",
-		],
-		"shown": ["Menu/H/Page/Actions"],
-	},
+	# Quit is not in the tutorial: leave it first (s05 `tutorial`).
+	"tutorial": {"round": true, "tutorial": true, "hidden": IN_ROUND + ["Menu/Side/V/Bottom/Quit"]},
 }
 var _mode: GameMode
 var _keys := RegEx.create_from_string("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$")
@@ -159,27 +89,14 @@ func after_test() -> void:
 	TranslationServer.set_locale(Languages.ENGLISH)
 
 
-## A handoff path in the built tree: raised parts sit in their `<Name>Raised` wrapper, and the
-## mode's setting rows in SettingList's `Settings` box (LobbyPanel rebuilds it per mode).
-static func ours(path: String) -> String:
-	if path == "Confirm":
-		return "ConfirmRaised/Confirm"
-	var mapped := "MenuRaised/" + path if path.begins_with("Menu/") else path
-	for row: String in ["Duration", "Packages", "Dissidents", "Knives", "Tasks", "SwitchSteps"]:
-		mapped = mapped.replace("/SettingList/%s/" % row, "/SettingList/Settings/%s/" % row)
-	return mapped.replace("/Side/Ready", "/Side/ReadyRaised/Ready")
-
-
 func test_every_state_shows_and_hides_what_the_handoff_lists() -> void:
-	assert_int(states.size()).is_equal(15)
+	assert_int(states.size()).is_equal(13)
 	for id: String in states:
 		var spec := states[id]
 		var menu := _build(spec)
 		var own := _expected(spec)
 		for path: String in own:
-			if _not_built(path):
-				continue
-			var node := menu.get_node_or_null(NodePath(ours(path))) as Control
+			var node := menu.get_node_or_null(NodePath(path)) as Control
 			assert_object(node).override_failure_message("%s: no %s" % [id, path]).is_not_null()
 			if node == null:
 				continue
@@ -189,27 +106,29 @@ func test_every_state_shows_and_hides_what_the_handoff_lists() -> void:
 				. override_failure_message("%s: %s should be %s" % [id, path, want])
 				. is_equal(want)
 			)
-		var pressed := str(EscMenu.TABS[spec.get("tab", TAB.LOBBY)][0])
+		# Only the open entry is pressed (none in `lobby`, `round` and `tutorial`).
+		var open: int = spec.get("tab", TAB.GAME)
 		for tab: TAB in menu.tab_buttons:
 			var button := menu.tab_buttons[tab]
 			(
 				assert_bool(button.button_pressed)
-				. override_failure_message("%s: tab %s" % [id, button.name])
-				. is_equal(str(button.name) == pressed)
+				. override_failure_message("%s: entry %s" % [id, button.name])
+				. is_equal(tab == open)
 			)
-		var title := str(EscMenu.TABS[spec.get("tab", TAB.LOBBY)][1])
-		assert_str(menu.title_label.text).override_failure_message(id).is_equal(title)
 		if spec.has("page"):
-			var chip_name: String = SettingsPage.SUB_KEYS.keys()[spec["page"]]
-			for chip: Node in menu.settings.get_node(^"Sub").get_children():
+			var item_name: String = SettingsPage.SUB_KEYS.keys()[spec["page"]]
+			for item: Node in menu.settings.get_node(^"Nav").get_children():
 				(
-					assert_bool((chip as Button).button_pressed)
-					. override_failure_message("%s: chip %s" % [id, chip.name])
-					. is_equal(str(chip.name) == chip_name)
+					assert_bool((item as Button).button_pressed)
+					. override_failure_message("%s: section %s" % [id, item.name])
+					. is_equal(str(item.name) == item_name)
 				)
-		# Character waits for #73: no tab, no placeholder.
-		assert_object(menu.get_node_or_null(^"MenuRaised/Menu/H/Tabs/Character")).is_null()
-		assert_object(menu.get_node_or_null(^"MenuRaised/Menu/H/Page/Character")).is_null()
+		# Leave reads the tutorial's words there.
+		var leave := "esc.game.leave_tutorial" if spec.get("tutorial", false) else "esc.game.leave"
+		assert_str(menu.leave_button.text).override_failure_message(id).is_equal(leave)
+		# Character waits for the mirror (#1394), the Role page is the HUD's (s05).
+		assert_object(menu.get_node_or_null(^"Menu/Side/V/Entries/Character")).is_null()
+		assert_object(menu.get_node_or_null(^"Menu/Side/V/Entries/Role")).is_null()
 		menu.free()
 
 
@@ -261,17 +180,15 @@ func _build(spec: Dictionary) -> EscMenu:
 	menu.guide.set_mode(_mode)
 	var hosting: bool = spec.get("hosting", true)
 	var model := Preview.fake_model(_mode, hosting)
-	menu.lobby.show_code(JoinProgress.code_text(CODE, spec.get("code_gone", false) as bool), CODE)
+	menu.show_code(JoinProgress.code_text(CODE, spec.get("code_gone", false) as bool), CODE)
 	var screen := S.LOBBY
 	if spec.get("round", false):
-		# The own player a dissident with one teammate (fold_round's), or `role` alone.
 		Preview.fold_round(model, false)
 		screen = S.ROUND
-		if spec.has("role"):
-			model.fold(&"RoleAssigned", {"role": spec["role"]})
 	menu.state.tutorial = spec.get("tutorial", false)
 	menu.open(screen, model, hosting)
-	menu.press(spec.get("tab", TAB.LOBBY) as TAB)
+	if spec.has("tab"):
+		menu.press(spec["tab"] as TAB)
 	menu.settings.show_page(spec.get("page", PAGE.SOUND) as PAGE)
 	menu.refresh(screen, model, -1, hosting, _mode)
 	if spec.get("question", false):
@@ -297,20 +214,11 @@ static func _shown_with_parents(path: String, own: Dictionary[String, bool]) -> 
 	return own[path]
 
 
-static func _not_built(path: String) -> bool:
-	for prefix: String in NOT_BUILT:
-		if path == prefix or path.begins_with(prefix):
-			return true
-	return false
-
-
-## A state off the Lobby tab, in a round (Role is shown in each): `tab` pressed, `shown` its
-## Shown roots.
-static func _off_lobby(tab: TAB, shown: Array[String], more: Dictionary = {}) -> Dictionary:
-	var spec := {"round": true, "tab": tab, "hidden": OFF_LOBBY, "shown": shown}
-	spec.merge(more, true)
-	return spec
-
-
 static func _settings(page: PAGE) -> Dictionary:
-	return _off_lobby(TAB.SETTINGS, ["Menu/H/Tabs/Role", "Menu/H/Page/Settings"], {"page": page})
+	return {
+		"round": true,
+		"tab": TAB.SETTINGS,
+		"page": page,
+		"hidden": IN_ROUND,
+		"shown": ["Menu/Page", "Menu/Page/V/Settings"],
+	}

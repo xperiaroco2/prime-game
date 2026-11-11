@@ -1,9 +1,10 @@
 class_name SettingsPage
-extends VBoxContainer
-## Settings (#491; prime-game-ui handoff s05 `settings-*` at ui-0.4.0): one scene the Esc menu's
-## Settings tab and the main menu's Settings panel (s2) each instance. Sub: the sub-page chips in
-## one ButtonGroup (Sound and voice, the default; Controls; Display; Accessibility; Language);
-## Scroll (follow_focus): Rows, holding each sub-page's box, the selected one shown:
+extends HBoxContainer
+## Settings (#491, #1571; prime-game-ui handoff s05 `settings-*` at ui-2.5.4): one scene the Esc
+## menu's Settings page and the main menu's Settings panel (s2) each instance. `Nav` (300 px, at
+## the left): the sections as ToyMenuItem toggles in one ButtonGroup (Sound and voice, the default;
+## Controls; Display; Accessibility; Language); `Scroll` (ToyScroll, 700 x 828, follow_focus):
+## Rows, holding each section's box, the selected one shown:
 ## - Sound: VoicePanel (the game feeds it and listens to it).
 ## - Controls: ControlsPanel (the game gives it the player's Controls).
 ## - Display: Window, fullscreen or windowed (GameWindow).
@@ -27,6 +28,9 @@ const SUB_KEYS: Dictionary[String, String] = {
 	"Access": "settings.tab.accessibility",
 	"Language": "settings.tab.language",
 }
+## The section list's width and the rows' view (the handoff's; layout, not style).
+const NAV_SIZE := Vector2(300, 0)
+const SCROLL_SIZE := Vector2(700, 828)
 const OFF_ON: Dictionary[String, String] = {"Off": "common.off", "On": "common.on"}
 ## Each language's chip name, in the handoff's order.
 const LANGUAGE_CHIPS: Dictionary[String, String] = {
@@ -34,7 +38,8 @@ const LANGUAGE_CHIPS: Dictionary[String, String] = {
 	"English": Languages.ENGLISH,
 }
 
-var sub: HBoxContainer
+## The sections' toggles (the handoff's `Nav`).
+var sub := VBoxContainer.new()
 var scroll := UiParts.scroll()
 var rows := VBoxContainer.new()
 var voice := VoicePanel.new()
@@ -57,18 +62,33 @@ var _large_text := func() -> bool: return false
 
 func _init() -> void:
 	name = "Settings"
-	theme_type_variation = &"ToyColumnSixteen"
+	theme_type_variation = &"ToyRowTwentyFour"
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sub = SettingRows.chips("Sub", SUB_KEYS, _on_sub)
-	sub.custom_minimum_size = Vector2.ZERO
+	sub.name = "Nav"
+	sub.theme_type_variation = &"ToyColumnFour"
+	sub.custom_minimum_size = NAV_SIZE
+	var group := ButtonGroup.new()
+	for item_name: String in SUB_KEYS:
+		var item := Button.new()
+		item.name = item_name
+		item.text = SUB_KEYS[item_name]
+		item.theme_type_variation = &"ToyMenuItem"
+		item.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		item.toggle_mode = true
+		item.button_group = group
+		item.pressed.connect(_on_sub.bind(item_name))
+		ToyPress.attach(item)
+		sub.add_child(item)
 	add_child(sub)
 	scroll.name = "Scroll"
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.follow_focus = true
+	scroll.custom_minimum_size = SCROLL_SIZE
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(scroll)
 	rows.name = "Rows"
-	rows.theme_type_variation = &"ToyColumnEight"
+	rows.theme_type_variation = &"ToyColumnFour"
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(rows)
 	rows.add_child(voice)
@@ -124,7 +144,8 @@ func bind(settings: UserSettings, window: GameWindow, large_text: Callable) -> v
 ## Shows `page` alone, its chip pressed, scrolled to the top.
 func show_page(page: Page) -> void:
 	shown = page
-	SettingRows.show_chip(sub, str(SUB_KEYS.keys()[page]))
+	for item: Node in sub.get_children():
+		SettingRows.set_pressed(item as Button, String(item.name) == str(SUB_KEYS.keys()[page]))
 	var boxes: Array[Control] = [voice, controls, display, access, language]
 	for at: int in boxes.size():
 		boxes[at].visible = at == page

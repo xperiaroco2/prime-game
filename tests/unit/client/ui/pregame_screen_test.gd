@@ -1,6 +1,7 @@
 extends GdUnitTestSuite
-## The pregame role reveal (#496; prime-game-ui docs/handoff/s06-pre-game.md at ui-0.4.0): the tree
-## node for node, the pack's variations only, `engineer`, `dissident` with and without teammates,
+## The pregame role reveal (#496, #1571; prime-game-ui docs/handoff/s06-pre-game.md at ui-2.5.4):
+## the tree node for node, the pack's variations only, the accent band (`alien`: an engineer) and
+## the danger band (`human`: a dissident) with and without teammates and their body colours,
 ## `after` (Night's fade over the round's HUD and its cut under reduced motion), the language
 ## switch, no focus or input, that it reads only the own role and Teammates, and the own side's
 ## sound once per reveal on the UI bus, only in the pregame (#716). How it looks: the
@@ -38,16 +39,16 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 	assert_array(_anchors(screen)).is_equal([0.0, 0.0, 1.0, 1.0])
 	# [path, class, variation, children's names in order]
 	var rows: Array[Array] = [
-		[".", "Control", &"", ["Night", "V"]],
-		["Night", "Panel", &"ToyBackdropNight", []],
-		["V", "VBoxContainer", &"ToyColumnThirtyTwo", ["YourRole", "RoleRaised", "Text"]],
-		["V/YourRole", "Label", &"ToyTextMutedOnDark", []],
-		["V/RoleRaised", "MarginContainer", &"", ["Base", "Role"]],
-		["V/RoleRaised/Base", "Panel", &"", []],  # No base since ui-2.0.0 (#1559).
-		["V/RoleRaised/Role", "Label", &"ToyTitlePlate", []],
-		["V/Text", "VBoxContainer", &"ToyColumnSixteen", ["Goal", "Team"]],
-		["V/Text/Goal", "Label", &"ToyTextOnDark", []],
-		["V/Text/Team", "Label", &"ToyTextMutedOnDark", []],
+		[".", "Control", &"", ["Night", "Reveal"]],
+		["Night", "Panel", &"ToyBackdropFullScreen", []],
+		["Reveal", "Control", &"", ["YourRole", "Band", "Goal", "Team"]],
+		["Reveal/YourRole", "Label", &"ToyKicker", []],
+		["Reveal/Band", "PanelContainer", &"ToyBand", ["Role"]],
+		["Reveal/Band/Role", "Label", &"ToyTitleHero", []],
+		["Reveal/Goal", "PanelContainer", &"ToyPlateGoal", ["Text"]],
+		["Reveal/Goal/Text", "Label", &"ToyPlateGoalText", []],
+		["Reveal/Team", "HBoxContainer", &"ToyRowTwelve", ["Text"]],
+		["Reveal/Team/Text", "Label", &"ToyTextOnDark", []],
 	]
 	for row: Array in rows:
 		var node := screen.get_node_or_null(NodePath(row[0] as String)) as Control
@@ -62,25 +63,35 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 			)
 			assert_array(names).is_equal(row[3])
 	assert_array(_anchors(screen.night)).is_equal([0.0, 0.0, 1.0, 1.0])
-	var column := screen.column
-	assert_array(_anchors(column)).is_equal([0.5, 0.5, 0.5, 0.5])
-	var offsets := [
-		column.offset_left, column.offset_top, column.offset_right, column.offset_bottom
+	assert_array(_anchors(screen.reveal_box)).is_equal([0.0, 0.0, 1.0, 1.0])
+	# The fixed places of the target's frame 4: [control, anchors, offsets (l, t, r, b)].
+	var places: Array[Array] = [
+		[screen.title_label, [0.0, 0.0, 1.0, 0.0], [0.0, 270.0, 0.0, 270.0]],
+		[screen.band, [0.0, 0.0, 1.0, 0.0], [0.0, 345.0, 0.0, 630.0]],
+		[screen.goal, [0.5, 0.0, 0.5, 0.0], [0.0, 684.0, 0.0, 684.0]],
+		[screen.team, [0.5, 0.0, 0.5, 0.0], [0.0, 870.0, 0.0, 870.0]],
 	]
-	assert_array(offsets).is_equal([0.0, 0.0, 0.0, 0.0])
-	assert_int(column.grow_horizontal).is_equal(Control.GROW_DIRECTION_BOTH)
-	assert_int(column.grow_vertical).is_equal(Control.GROW_DIRECTION_BOTH)
-	assert_vector(column.custom_minimum_size).is_equal(Vector2(1152, 0))
-	assert_int(column.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
-	assert_int(column.get_theme_constant(&"separation")).is_equal(32)
-	assert_int(screen.text_box.get_theme_constant(&"separation")).is_equal(16)
-	assert_bool(screen.role_plate is ToyRaised).is_true()
-	assert_int(screen.role_plate.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
-	for label: Label in [screen.goal_label, screen.team_label]:
-		assert_vector(label.custom_minimum_size).is_equal(Vector2(1152, 0))
-		assert_int(label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
-	for label: Label in [screen.title_label, screen.goal_label, screen.team_label]:
+	for place: Array in places:
+		var control := place[0] as Control
+		var where := String(control.name)
+		assert_array(_anchors(control)).override_failure_message(where).is_equal(place[1])
+		var offsets := [
+			control.offset_left, control.offset_top, control.offset_right, control.offset_bottom
+		]
+		assert_array(offsets).override_failure_message(where).is_equal(place[2])
+		assert_int(control.grow_horizontal).is_equal(Control.GROW_DIRECTION_BOTH)
+		assert_int(control.grow_vertical).is_equal(Control.GROW_DIRECTION_END)
+	# The goal's width from its variation (deferred, UiParts.sized), the line 1080 and wrapped.
+	await get_tree().process_frame
+	assert_vector(screen.goal.custom_minimum_size).is_equal(Vector2(900, 0))
+	assert_vector(screen.goal_label.custom_minimum_size).is_equal(Vector2(1080, 0))
+	assert_int(screen.goal_label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
+	for label: Label in [screen.title_label, screen.role_label, screen.goal_label]:
 		assert_int(label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
+	assert_int(screen.role_label.vertical_alignment).is_equal(VERTICAL_ALIGNMENT_CENTER)
+	assert_bool(screen.title_label.uppercase).is_true()
+	assert_bool(screen.role_label.uppercase).is_true()
+	assert_int(screen.team_label.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
 	assert_str(screen.title_label.text).is_equal("pregame.your_role")
 	# The team line has a placeholder and the players' names: set from code, never re-translated.
 	assert_int(screen.team_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
@@ -94,7 +105,7 @@ func test_it_names_only_the_packs_variations() -> void:
 	for control: Control in screen.find_children("*", "Control", true, false):
 		if not control.theme_type_variation.is_empty():
 			used.append(control.theme_type_variation)
-	assert_int(used.size()).is_equal(7)
+	assert_int(used.size()).is_equal(8)
 	for variation: String in used:
 		assert_bool(variations.has(variation)).override_failure_message(variation).is_true()
 
@@ -104,10 +115,13 @@ func test_an_engineer_sees_the_role_and_the_goal_and_no_team() -> void:
 	screen.refresh(_pregame(&"crew"), _mode)
 	assert_str(screen.role_label.text).is_equal("role.engineer")
 	assert_str(screen.goal_label.text).is_equal("role.goal.engineer")
-	assert_bool(screen.column.visible).is_true()
-	assert_bool(screen.goal_label.visible).is_true()
-	assert_bool(screen.team_label.visible).is_false()
+	assert_bool(screen.reveal_box.visible).is_true()
+	assert_bool(screen.goal.visible).is_true()
+	assert_bool(screen.team.visible).is_false()
 	assert_str(screen.team_label.text).is_empty()
+	# The party's side on the accent band.
+	assert_str(String(screen.band.theme_type_variation)).is_equal("ToyBand")
+	assert_str(String(screen.role_label.theme_type_variation)).is_equal("ToyTitleHero")
 
 
 func test_a_dissident_sees_its_teammates_and_not_itself() -> void:
@@ -115,8 +129,12 @@ func test_a_dissident_sees_its_teammates_and_not_itself() -> void:
 	screen.refresh(_pregame(&"dissident"), _mode)
 	assert_str(screen.role_label.text).is_equal("role.dissident")
 	assert_str(screen.goal_label.text).is_equal("role.goal.dissident")
-	assert_bool(screen.team_label.visible).is_true()
+	# The side that spoils the party on the danger band.
+	assert_str(String(screen.band.theme_type_variation)).is_equal("ToyBandAlert")
+	assert_str(String(screen.role_label.theme_type_variation)).is_equal("ToyTitleHeroAlert")
+	assert_bool(screen.team.visible).is_true()
 	assert_str(screen.team_label.text).is_equal("Your team: Player3")
+	assert_array(_dot_colours(screen)).is_equal([BodyColours.of(_colour_of(screen, 3))])
 	# Two teammates, joined by ", " in the host's order; one who left the roster is skipped.
 	var model := Preview.fake_model(_mode, false)
 	model.fold(&"RoleAssigned", {"role": &"dissident"})
@@ -124,14 +142,28 @@ func test_a_dissident_sees_its_teammates_and_not_itself() -> void:
 	screen.refresh(model, _mode)
 	assert_str(screen.team_label.text).is_equal("Your team: Player1, Player3")
 	assert_array(Array(PregameScreen.team_of(model))).is_equal(["Player1", "Player3"])
+	# A dot per teammate in its body colour, in the names' order, before the line.
+	(
+		assert_array(_dot_colours(screen))
+		. is_equal(
+			[
+				BodyColours.of(model.roster[1].colour),
+				BodyColours.of(model.roster[3].colour),
+			]
+		)
+	)
+	assert_object(screen.team.get_child(screen.team.get_child_count() - 1)).is_same(
+		screen.team_label
+	)
 
 
 func test_a_dissident_with_no_teammates_sees_no_team_line() -> void:
 	var screen := _screen()
 	screen.refresh(_pregame(&"dissident", false), _mode)
 	assert_str(screen.role_label.text).is_equal("role.dissident")
-	assert_bool(screen.team_label.visible).is_false()
+	assert_bool(screen.team.visible).is_false()
 	assert_str(screen.team_label.text).is_empty()
+	assert_array(_dot_colours(screen)).is_empty()
 
 
 func test_before_the_role_arrives_only_night_shows() -> void:
@@ -141,7 +173,7 @@ func test_before_the_role_arrives_only_night_shows() -> void:
 	screen.reveal()
 	screen.refresh(model, _mode)
 	assert_bool(screen.visible).is_true()
-	assert_bool(screen.column.visible).is_false()
+	assert_bool(screen.reveal_box.visible).is_false()
 	assert_str(screen.role_label.text).is_empty()
 
 
@@ -152,7 +184,7 @@ func test_a_role_with_no_deck_key_shows_its_name_and_no_goal() -> void:
 	var screen := _screen()
 	screen.refresh(model, _mode)
 	assert_str(screen.role_label.text).is_equal("medic")
-	assert_bool(screen.goal_label.visible).is_false()
+	assert_bool(screen.goal.visible).is_false()
 
 
 func test_it_reads_only_the_own_role_and_teammates() -> void:
@@ -213,7 +245,7 @@ func test_night_fades_out_over_the_handoffs_time_then_the_screen_hides() -> void
 	screen.lift()
 	# `after`: V gone at once, Night fading from 1 to 0 over 0.4 s.
 	assert_bool(screen.visible).is_true()
-	assert_bool(screen.column.visible).is_false()
+	assert_bool(screen.reveal_box.visible).is_false()
 	assert_bool(screen.lifting()).is_true()
 	assert_float(screen.night.modulate.a).is_equal(1.0)
 	screen.fade.custom_step(PregameScreen.FADE_SECONDS / 2.0)
@@ -222,11 +254,11 @@ func test_night_fades_out_over_the_handoffs_time_then_the_screen_hides() -> void
 	screen.fade.custom_step(PregameScreen.FADE_SECONDS)
 	assert_bool(screen.visible).is_false()
 	assert_bool(screen.lifting()).is_false()
-	# Ready for the next pregame: Night opaque, the column back once the role shows.
+	# Ready for the next pregame: Night opaque, the reveal back once the role shows.
 	assert_float(screen.night.modulate.a).is_equal(1.0)
 	screen.reveal()
 	assert_bool(screen.visible).is_true()
-	assert_bool(screen.column.visible).is_true()
+	assert_bool(screen.reveal_box.visible).is_true()
 
 
 func test_the_fade_is_a_cut_under_reduced_motion() -> void:
@@ -451,6 +483,22 @@ func _texts(model: ClientModel) -> Array[String]:
 				)
 			)
 	return texts
+
+
+## The team's dots' colours, in order.
+func _dot_colours(screen: PregameScreen) -> Array:
+	var colours: Array = []
+	for child: Node in screen.team.get_children():
+		if child != screen.team_label:
+			assert_str(String((child as Control).theme_type_variation)).is_equal("ToyRosterDot")
+			colours.append((child as Control).self_modulate)
+	return colours
+
+
+## The body colour of `peer` in the model the screen was last refreshed from (fake_model's).
+func _colour_of(_screen_shown: PregameScreen, peer: int) -> int:
+	var model := Preview.fake_model(_mode, true)
+	return model.roster[peer].colour
 
 
 func _anchors(control: Control) -> Array:

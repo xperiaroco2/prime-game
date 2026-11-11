@@ -2999,7 +2999,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   read-only settings), `game_flow_test.gd`, `input_actions_test.gd`, and
   `tests/integration/client/app/esc_menu_input_test.gd`: a host's `Game` alone over the loopback, with keys sent
   through `Input.parse_input_event` (headless, it reaches `_input`, `_unhandled_input` and the action states): one
-  Esc opens the Lobby tab with the mouse free, another closes it and captures the mouse, W held under the menu is
+  Esc opens the side panel with the mouse free (its Lobby entry the page with Ready, #1571), Esc closes an open page
+  first, another the menu, capturing the mouse, W held under the menu is
   released, F under the menu readies nobody, F and the Ready toggle both set the own ready flag. Seen failing first
   with the lobby panel's Ready and settings shown over the game, and with the re-capture planted out. The `shot`s:
   `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|game_host|game_confirm>_preview.tscn` (since #491, §4.7.42).
@@ -3036,8 +3037,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
   tab shows.
-- Since #491 the menu is the Toy one of §4.7.42: the tabs Game, Role, Guide, Lobby and Settings; the host's
-  question is a dialog.
+- Since #1571 the menu is s05's side panel (§4.7.42): Resume, Guide, Lobby (the lobby only), Settings, Leave and
+  Quit; the host's question is a dialog.
 
 #### 4.7.12 Spectating from the target's eyes (#168, PR #167)
 - The spectate camera has no offset: it is the target's interpolated eye transform every physics frame, so it
@@ -3823,8 +3824,8 @@ client; a language switch; no focus or input; the fade, its cut and the outro ho
 own: `tools\run.cmd playcheck end`.
 
 #### 4.7.32 The connecting, failure and loading screen (#494)
-prime-game-ui's s3 at `ui-0.4.0` (its handoff `docs/handoff/s03-connecting.md`; the issue linked `ui-0.2.0`, and
-where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_screen.gd`.
+prime-game-ui's s3 at `ui-2.5.4` (its handoff `docs/handoff/s03-connecting.md`; #1571, after `ui-0.4.0` in #494), node
+for node, in `client/ui/connecting_screen.gd`; the loading card's frames scroll sideways in 1384 px (§4.7.36).
 - **One screen, three parts.** `ConnectingScreen` (GameUi's `connecting`) draws GameFlow's `CONNECTING`, `FAILURE` and
   `LOADING`: under `Night` (ToyBackdropNight, `mouse_filter` STOP) one of `Connecting`, `Failure`, or `Loading` and
   `Tip` (or `Head` and the how-to card) shows. `LoadingScreen` is gone. It is on the handoff's black-screen
@@ -3840,11 +3841,12 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   not drawn today: the frame that folds a Welcome in the Lobby already picks the lobby screen (`GameFlow.screen`),
   so the name shows in the Esc menu's Lobby tab and (#495) the lobby HUD instead; showing it on this screen (a
   short beat after Welcome, or the name in the signalling `found`) is the engineer's call on #214. Then the step
-  from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnDark`'s `min_width` through
+  from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnLight`'s `min_width` through
   `UiParts.sized`, 42 under large text) and the time since Join (m:ss, `GameJoin.refresh`); a Direct join and a
   host show no code row and no address. The spinner turns once a second about its centre, half as fast under
   `UiPrefs.reduced_motion`; it sits in a plain `Control` (`SpinnerBox`, the column's child, the one node beyond the
-  handoff's tree), because a container resets a child's rotation at every sort. Cancel is focused; Esc on this screen is Cancel (`Game._input`): it leaves, and the menu's
+  handoff's tree), because a container resets a child's rotation at every sort. Cancel takes the focus with its ring hidden until an arrow or the d-pad moves it
+  (`grab_focus(true)`); Esc on this screen is Cancel (`Game._input`): it leaves, and the menu's
   fields keep what was typed (a command-line join fills them first, `GameJoin.fill_menu`).
 - **Failures.** `EndReasons.FAILURE_STATES` maps every end reason to the handoff's state but `left` and `closed`
   (`NO_FAILURE`); `ConnectingScreen.FAILURES` gives each state its title, body and action. `Game._show_end` keeps the
@@ -4247,11 +4249,13 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/main_menu.g
 
 #### 4.7.39 The pregame role reveal in the Toy style (#496)
 `PregameScreen` (`client/ui/pregame_screen.gd`, §3.6's screen) is the UI track's pre game, node for node as
-prime-game-ui `docs/handoff/s06-pre-game.md` draws it at `ui-0.4.0` (the issue named `ui-0.2.0`; ui-0.4.0 wins, as
-for #498 and #489): `Night` (ToyBackdropNight, opaque) under `V`, a centred 1152 px ToyColumnThirtyTwo of `YourRole`
-(`pregame.your_role`, ToyTextMutedOnDark), `RoleRaised` (a `ToyRaised` with no base since ui-2.0.0, SHRINK_CENTER) > `Role`
-ToyTitlePlate, and `Text` (ToyColumnSixteen) > `Goal` (ToyTextOnDark) and `Team` (ToyTextMutedOnDark), both 1152 px
-wide, wrapped. Pack variations only, no override.
+prime-game-ui `docs/handoff/s06-pre-game.md` draws it at `ui-2.5.4` (#1571; the target's frame 4, the role reveal):
+`Night` (ToyBackdropFullScreen, opaque) under `Reveal` (full rect, fixed places so the band never moves between the
+sides): `YourRole` (ToyKicker `pregame.your_role`, uppercase, top wide at 270), `Band` (ToyBand, ToyBandAlert for a side
+in `ALERT_SIDES`, the dissidents; top wide from 345 to 630) > `Role` (ToyTitleHero, ToyTitleHeroAlert, uppercase,
+centred), `Goal` (ToyPlateGoal, 684 px down, its `width`) > `Text` (ToyPlateGoalText, 1080 px, wrapped) and `Team`
+(ToyRowTwelve, 870 px down) > a `Dot` (ToyRosterDot in the body colour) per teammate, then `Text` (ToyTextOnDark).
+Pack variations only, no override.
 - **What it shows** (from the own `ClientModel` and the own mode only): the own role as its deck key
   (`HudText.role_key`: `crew` is `role.engineer`, `dissident` `role.dissident`; a role the deck lacks, its display
   name); its goal, `role.goal.engineer` or `role.goal.dissident` by `GOAL_KEYS` (the engineer's provisional generic
@@ -4263,7 +4267,7 @@ wide, wrapped. Pack variations only, no override.
   `model.own_peer` and `model.roster` only (a source test holds it): never another role's entry. Before
   `RoleAssigned` only Night shows. No word about the microphone or hearing.
 - **Behaviour.** `GameUi` calls `reveal()` on every Pregame frame. When the screen turns from Pregame to Round,
-  `lift()`: `V` hides, Night fades from alpha 1 to 0 over 0.4 s (`FADE_SECONDS`, a `Tween` on `modulate:a`) over
+  `lift()`: `Reveal` hides, Night fades from alpha 1 to 0 over 0.4 s (`FADE_SECONDS`, a `Tween` on `modulate:a`) over
   the round's HUD, then the screen hides (the handoff's "freed": the one instance stays under `GameUi` for the next
   match, reset); a cut under `UiPrefs.reduced_motion`, and outside the tree. Any other screen after Pregame hides
   it at once. It draws over the HUD, the life screen (§4.7.41), the tutorial's plates and the map from the black layer
@@ -4276,7 +4280,7 @@ wide, wrapped. Pack variations only, no override.
   `SIDE_SOUNDS[side]` on it through `UiSounds.role` (§4.7.43): `crew` the engineers' sound, `dissidents` the
   dissidents'; any other side nothing. Only the own `ClientModel.role` chooses it and nothing is sent, so no peer
   hears another's role sound (the bots test checks the wire).
-- **Not built here.** The Esc menu's Role tab (#491).
+- **Not built here.** No Esc menu page repeats the role since s05 at ui-2.3.0 (the HUD's role tile, §4.7.37).
 Tests: `tests/unit/client/ui/pregame_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
 minimum sizes; the pack's variations only; engineer, dissident with teammates, dissident alone, before the role, a
 role with no key; it reads only the own role and Teammates (the source's model fields; another role's Teammates
@@ -4413,27 +4417,30 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   `hud_downed_large_uk_preview.tscn`, at `--size 1920x1080`; `spectate_preview.tscn` and `life_preview.tscn` draw it
   too.
 
-#### 4.7.42 The Esc menu in the Toy style (#491)
-- Built node for node from prime-game-ui's handoff s05 at `ui-0.4.0` (the PR lists every difference). `EscMenu`:
-  `Dim`, the raised 1600x880 `Menu` with the `Tabs` column (ToyTab toggles in one ButtonGroup) and the `Page`, whose
-  title row reads the selected tab's name, the host's `HostNote` on the Lobby tab or a player's `HostOnly` lock line.
-  `EscMenuState` (pure): the tabs Game, Role (the round only), Guide, Lobby (the lobby screen, and read-only in the
-  round: the issue's "everyone in a round"), Settings; the tutorial's Game, Guide and Settings
-  (`GameUi.set_tutorial(on)`, which `GameTutorial.start` and `end` call, §4.7.44); the default tab Lobby in the lobby
-  and Game elsewhere; the last tab pressed is kept for the next opening on the same kind of screen (lobby or other).
-  Character waits for #73 (M7): no tab, no placeholder.
-- Game: Resume (also Esc on the menu), Leave (the host's coral ToyButtonDanger, a player's and the tutorial's
-  ToyButtonSecondary, "Leave the tutorial" there) and Quit. The host's Leave and Quit open `ConfirmDim` and `Confirm`
-  (P1): the menu behind takes no focus (`Menu.focus_behavior_recursive` FOCUS_BEHAVIOR_DISABLED, INHERITED again on
+#### 4.7.42 The Esc menu in the Toy style (#491, #1571)
+- Built node for node from prime-game-ui's handoff s05 at `ui-2.5.4` (#1571): the suit menu as the left side panel the
+  engineer approved (2026-10-22), no dim and no pause, the world visible beside it. `EscMenu` > `Menu` (full rect,
+  the mouse passes) > `Side` (ToyPanelMenu, `left_wide` at 36, 36, 556, -36) > `V` ToyColumnSixteen: `Head`
+  (ToySettingRow > `V` > `Label` ToyKicker `common.code`, `Row` > `Value` ToyTextOnLight and `Copy`
+  ToyButtonSecondary; in the lobby with a code only, `EscMenu.show_code` from `GameJoin.refresh`), `Entries`
+  ToyColumnFour (`Resume`, then `Guide`, `Lobby`, `Settings`: ToyMenuItem rows, left-aligned, the page entries
+  toggles), `Gap` (expanding), `Rule` (ToySettingRow, the hairline) and `Bottom` ToyColumnFour (`Leave`, `Quit`);
+  `Page` (ToyPanelMenu at 580, 36, 1120 wide, growing down) holds the open entry's page, one at a time.
+  `EscMenuState` (pure): the pages Guide, Lobby (the lobby screen only), Settings; GAME means none open, the default
+  everywhere (s05's `lobby` and `round`); a second press of an entry closes its page; the page open last is kept for
+  the next opening on the same kind of screen (lobby or other). The tutorial's Guide and Settings
+  (`GameUi.set_tutorial(on)`, §4.7.44). Not built: the ship's places with no session (Find a lobby, Host, Tutorial, the
+  own code; #1285 boots into the ship, #1316 the lobbies nearby), Character (the mirror, #1394, the engineer
+  2026-10-28), the Role page (the HUD shows the role since ui-2.3.0).
+- Resume (also Esc on the menu), Leave ("Leave the tutorial" there) and Quit are panel entries. The host's Leave and
+  Quit open `ConfirmDim` and `Confirm` (P1, ToyPanelDialog 1080 wide: `Title` and `Body` 900 wide, `ConfirmButton`
+  ToyButtonDanger and `Cancel` ToyButtonGhostOnLight): the menu behind takes no focus (`Menu.focus_behavior_recursive` FOCUS_BEHAVIOR_DISABLED, INHERITED again on
   close), Cancel has the focus, and Esc closes only the dialog through `GameUi`'s `esc_dialog` overlay (§4.7.35), not
   an `_input` of its own; Cancel gives the focus back to the button that asked. Closing the window asks the same, but
   in the tutorial (a solo session its player hosts), which quits at once.
-- Role (`RolePage`, the pure `RoleFacts`): the own role (HudText's key), its goal (`role.goal.*`) and, for a role
-  whose `Teammates` the own client holds, the team in join order without the own player or a player who left, in a
-  two-column ToyGridList scrolling in a 250 px view. It reads only `model.role`, `model.teammates[model.role]`,
-  `own_peer` and the roster's names (per-peer filtering decides what the model holds). The HUD's role chip hides
-  while the map is open (`Hud.role_hidden`, the engineer on #652).
-- Lobby (`LobbyPanel`, its signals, name logic and statics kept): the preset cards (`LobbyPresets`: Standard, Quick,
+- `RolePage` and `RoleFacts` stay (their tests too) but no menu shows them since #1571.
+- Lobby (`LobbyPanel`, the plainest stand-in until the ship's match console of s04 (#1285), with `HostRow` over it:
+  the host's `HostNote` or a player's `HostOnly` lock line, its signals, name logic and statics kept): the preset cards (`LobbyPresets`: Standard, Quick,
   No knives, the own preset and Save your own; a card changing a setting the mode lacks or no part reads has none, #1525; the values are placeholders, "not a decision"), a 784 px
   `SettingList` (the lobby's name, the map, then a row per `SettingSpec`: a `SettingStepper` for a number, whose
   arrows hand the focus over before one is disabled, and toggle chips for the banned task types, selected =
@@ -4443,10 +4450,11 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   ChangeSettings (`settings_changed`, `Game.change_settings`): the host checks them together. A card takes a
   default that follows the player count at the roster's size (`default_for`, §9.1), so it never names one it leaves
   (#1492). The own preset is
-  `UserSettings.own_preset` (`[lobby]`). In the round the page is everyone's read-only view: the host-only line with the host's
-  name (the issue: "everyone in a round"), no Ready, no ready marks, no shortfalls (`refresh(..., in_round)`).
-- Settings (`SettingsPage`, one scene in the Esc menu and in the main menu's Settings panel, §4.7.38): the `Sub`
-  chips (Sound and voice, Controls, Display, Accessibility, Language) over a `follow_focus` scroll of 64 px
+  `UserSettings.own_preset` (`[lobby]`). No Lobby page in the round (s05 `round`); `refresh(..., in_round)` keeps its
+  read-only view for a refresh that lands there.
+- Settings (`SettingsPage`, an HBoxContainer ToyRowTwentyFour, one scene in the Esc menu and in the main menu's
+  Settings panel, §4.7.38): `Nav` (300 px, ToyColumnFour: the sections Sound and voice, Controls, Display,
+  Accessibility, Language as ToyMenuItem toggles) beside a `follow_focus` `Scroll` (700 x 828) of 64 px
   ToySettingRows (`SettingRows`: the row, the ToyDropdown with its ToyDropdownList, the ToySlider, the chip groups).
   `VoicePanel` and `ControlsPanel` keep their logic and signals in the new rows (the sliders keep the engine's units,
   no number is drawn; the echo, headset and notice lines and the debug rows stay, in greybox English).
@@ -4455,18 +4463,18 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   through `GameUi.set_large_text`, reduced motion through `UiPrefs`, the language through `Languages.choose`), keeps
   Alt+Enter and the window chips in step, and keeps the talk key shut while either page captures a key. A page reads
   its values again whenever it shows; the saved window mode applies only with the command line read.
-- Tests: `esc_menu_states_test.gd` (the 15 states the menu builds against the handoff's own lists: the lobby-host
-  tree, each state's Hidden list, Shown roots, pressed tab, title and Settings chip, its paths mapped onto the
-  built tree; no deck key shown as itself in en or uk; seen failing with a planted fault in each), `esc_menu_state_test.gd`,
-  `screens_test.gd` (the tree by name and variation, the host's question, its focus and the menu shut behind it,
-  the tutorial, the Lobby tab in the round), `game_ui_overlays_test.gd` and `esc_menu_input_test.gd` (real keys: Esc
+- Guide (`GuidePanel`): `List` (360 x 828) with `Basics` and `Tasks` heads (ToyKicker) over ToyMenuItem entries, the
+  card beside it (272 x 204 art, a 640 px sideways scroll).
+- Tests: `esc_menu_states_test.gd` (the 11 states the menu builds at ui-2.5.4, each as what differs from `lobby`, the
+  panel alone: the pressed entry, the Settings section, Leave's words; no deck key shown as itself in en or uk), `esc_menu_state_test.gd`,
+  `screens_test.gd` (the tree by name, variation and place, the host's question, its focus and the menu shut behind
+  it, the tutorial, the page closing when the round starts), `game_ui_overlays_test.gd` and `esc_menu_input_test.gd` (real keys: Esc
   closes only the dialog), `role_page_test.gd`, `settings_page_test.gd`, `setting_stepper_test.gd` (seen failing
   with the focus hand-over planted out), `lobby_presets_test.gd`, `game_settings_test.gd`, `user_settings_test.gd`,
-  `hud_test.gd`, and the Voice and Controls suites. The `shot`s: `client/dev/esc_<state>_preview.tscn` for every
-  state of the handoff but Character (`lobby`, `lobby_guest`, `lobby_no_code`, `game_host`, `game_guest`,
-  `game_confirm`, `role_engineer`, `role_dissident`, `guide`, `guide_basics`, `settings_sound`, `settings_controls`,
-  `settings_display`, `settings_access`, `settings_language`, `tutorial_game`; `lobby_round`, a guest's Lobby tab in
-  the round), each with a `_uk` twin, and `esc_lobby_large_preview.tscn`, `esc_settings_sound_large_preview.tscn`.
+  `hud_test.gd`, and the Voice and Controls suites. The `shot`s: `client/dev/esc_<state>_preview.tscn` (`lobby_panel` the
+  panel alone in the lobby, `lobby` and `lobby_guest` its Lobby page, `lobby_no_code`, `game_host` and `game_guest`
+  the round's panel, `game_confirm`, `guide`, `guide_basics`, `settings_sound`, `settings_controls`,
+  `settings_display`, `settings_access`, `settings_language`, `tutorial_game`), each with a `_uk` twin, and `esc_lobby_large_preview.tscn`, `esc_settings_sound_large_preview.tscn`.
   The playcheck scenarios `esc_menu` (the round's tabs too) and `main_menu` press the deck keys' buttons.
 #### 4.7.43 Basic sound from Kenney's CC0 packs (#525)
 No new event, row or rule: a client plays a sound only for the events and the snapshots it already receives, and
@@ -4718,42 +4726,45 @@ T4 of the tutorial (`docs/design/tutorial.md` §1, §3; E63, E64 (a); the engine
   time paused under the Esc menu, the end at the main menu; the invite's `begin()`, a second tutorial's fresh
   runner); the `tutorial` playcheck scenario plays through lesson 4's throw to lesson 5's map.
 
-#### 4.7.47 The lobby HUD in the Toy style (#495)
-The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-game-ui `ui-0.4.0`
-`docs/handoff/s04-lobby.md` (not `ui-0.2.0`: since then the keycap's `min_width` follows the text size and the
-`check` icon's `svg_scale` is the pack's `assets` list's, 1, not the 5 #495's `ui-0.3.0` note gave), node for node, px
-at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no override, `theme_test.gd`).
+#### 4.7.47 The lobby HUD in the Toy style (#495, #1571)
+The lobby's HUD (§4.7.11's `LobbyHud`) redrawn as the UI track drew it: prime-game-ui `ui-2.5.4`
+`docs/handoff/s04-lobby.md` (#1571), node for node, px at the 1920x1080 base (§4.7.24), styled by the pack's
+variations only (no override, `theme_test.gd`). The handoff's match console (`console-host`, `console-guest`: a
+SubViewport screen on the ship's console) is not built here: #1285 builds it with the workbench's screen; until then
+the Esc menu's Lobby page holds the settings (§4.7.42).
 - **The tree** (`client/ui/LobbyHud`, built in code under `GameUi`; `Plates`, §4.7.29, stays the first child of
-  `Ui`, under it, the same layer as the round's): `Cross` ToyCrosshair (centre); `Aim` ToyChipPlate > `Text` ToyChipPlateText (beyond the handoff, #1408, #1411: the round HUD's Aim chip, as far below the centre: the name of the item or station E uses, `HudText.aim_of`, or the hand-over's cue while `HandOverUse` names a player, the cue first; hidden when neither); `Status` ToyPlate (top centre, 40 px
-  down) > `Text` ToyPlateText, ToyTitleOnDark during the countdown; `Players` ToyPlate (top right, 400 px) > `V`
-  ToyColumnSixteen > `Info` ToyColumnEight (`LobbyName` ToyTextMutedOnDark; `CodeRow` ToyRowEight > `Label`
-  `common.code`, `Code` ToyKeyOnDark > `Text` ToyKeyText) and `List` ToyColumnEight (`Head` ToyTextOnDark, `Rows`
-  ToyColumnEight > one ToyRowTwelve per player: `HostRow`, the own `OwnRow`, the others `Row<n>`, each `Name`
-  ToyTextOnDark expanding and `Ready`, the pack's `check` at 24 px tinted ToyTextOnDark's `font_color`, shown while
-  that player is ready); `Bottom` ToyColumnTwelve (bottom left) > `ReadyChip` (ToyChipPlate `lobby.ready_no`, or
-  ToyChipLight `lobby.ready_yes`) and `Mic` ToyMic > `Icon` (`mic` tinted `icon_on`, else `mic-off` `icon_off`, as
-  the round's). The keycap's `min_width` (36, 42 at large text) is read again after each theme change
-  (`UiParts.sized`). Every Control ignores the mouse and takes no focus, also the rows built later. Names and the
-  lobby's name are cut with an ellipsis inside the plate.
+  `Ui`, under it, the same layer as the round's): `Cross` ToyCrosshair (centre); `Aim` ToyChipPlate > `Text` ToyChipPlateText (beyond the handoff, #1408, #1411: the round HUD's Aim chip at its place, `Hud.AIM_BELOW`: the name of the item or station E uses, `HudText.aim_of`, or the hand-over's cue while `HandOverUse` names a player, the cue first; hidden when neither); `Status` ToyPlate (top centre, 36 px
+  down, 360 x 66 at least) > `Row` ToyRowTwentyFour > `Text` ToyPlateText (expanding, the same calm text in the
+  countdown) and `Pips` ToyRowFour (`P<n>`, one per player, ToyPipHealth for the ready ones first, ToyPip for the
+  rest; hidden while the host says more players are needed); `Players` ToyRoster (top right, 36 px in, 330 px) >
+  `Rows` ToyColumnEight > `Head` (ToyKicker `lobby.player_count`, uppercase), then one ToyRowTwelve per player: `Host`,
+  the own `Self`, the others `Row<n>`, each `Dot` (ToyRosterDot, the body colour), `Name` (ToyRosterName, the own
+  ToyRosterNameSelf `hud.roster.self`; expanding, cut with an ellipsis), the host's `HostTag` (ToyRosterTagHost >
+  `Text` ToyRosterTagHostText `hud.roster.host`) and `Ready` (ToyPipHealth while ready, else ToyPip); `Bottom`
+  ToyRowSixteen (bottom left, 36 px in) > `Hint` (ToyPlate > `Row` > `Key` ToyKeyOnDark > `Text`, `Text`
+  ToyPlateTextMuted `tutorial.list.menu`; `show_hint(key)`, only with no session: #1285), `Ready` (ToyPlate > `Row` >
+  `Pip` and `Text` ToyPlateText `lobby.ready_yes` or `lobby.ready_no`) and `Mic` (75 px, `Icon` 42 px: `mic` tinted
+  `icon_on`, else `mic-off` `icon_off`, as the round's). Size constants are read by `UiParts.sized` again after each
+  theme change. Every Control ignores the mouse and takes no focus, also the rows built later.
 - **What it shows** (`LobbyText`, pure, from the own `ClientModel` and the own mode): the status, the countdown while
   one runs (`lobby.countdown`, 5 to 1, from `end_tick`), else the host's shortfalls while it sends any (§4.7.45's
   `HostTextView`, one line each: `players_few` reads `lobby.need_more` with the host's `count`, an id the deck has
   no key for its neutral line; never a count of the client's own), else `lobby.waiting` (ready of all);
   `lobby.player_count` against the mode's
-  `max_players`; the lobby's name (`LobbyName`'s, else `lobby.default_name` with the host's name); the rows, the host
-  first, then the order the model got them (the Welcome's roster, then each `PlayerJoined`: the order they joined),
-  reading `player.you` for the own row, `lobby.host_mark` for the host's, else the name. All of it is the whole
-  lobby's (the roster, the ready flags, the host, the lobby's name, the countdown, the host's shortfalls, which every
+  `max_players`; the rows, the host first, then the order the model got them (the Welcome's roster, then each
+  `PlayerJoined`: the order they joined), each with its body colour, reading `hud.roster.self` for the own row, else
+  the name (the host's tag beside it). All of it is the whole
+  lobby's (the roster, the ready flags, the host, the countdown, the host's shortfalls, which every
   peer gets alike): no role, team or match fact. The
   rows are built again only when a join, leave, rename or ready changes them; the texts with data are set with
   `auto_translate_mode` DISABLED and written again on `NOTIFICATION_TRANSLATION_CHANGED`.
-- **The code** (`LobbyHud.show_code(code, gone, waiting)`, from `GameJoin.refresh`): the code to the host and every
-  code joiner, "…" while the host's code service has not made the room, "—" once it is gone (the Esc Lobby tab
-  explains it and has Copy), no row for a Direct game. **The mic**: `VoiceSender.live()` (`GameTalk.refresh`).
-- **No other key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button; the hand-over's cue (#1411) is the `Aim` chip below.
+- **The code** is not on this HUD since #1571 (s04): the Esc menu's head shows it with Copy (`EscMenu.show_code`,
+  §4.7.42) and its Lobby page the service's absence. **The mic**: `VoiceSender.live()` (`GameTalk.refresh`).
+- **No other key prompt in a session** (the boot's `Hint` names the Esc key with no session, #1285): Ready is the
+  bound `ready` key (#211) and the Esc Lobby page's button; the hand-over's cue (#1411) is the `Aim` chip below.
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
-  ready chip (plain English, as before). The round HUD's `Aim` (#1408): a ToyChipPlate > `Text` ToyChipPlateText
-  38 px under the crosshair, second child after `Cross`, hidden when empty, naming what E would use there
+  bottom row, its bottom 16 px over the row's top (plain English, as before). The round HUD's `Aim` (#1408): a
+  ToyChipPlate > `Text` ToyChipPlateText at the round HUD's place under the crosshair, second child after `Cross`, hidden when empty, naming what E would use there
   (`HudText.aim_of`, the round's own: the item's deck key, else the station's `ContentNames.station`; the lobby's
   tap reads the deck's `station.tap` "Beer tap", the mugs `item.mug` and `item.mug_empty`, #1430), fed by `GameUi.refresh_round` on the lobby screen
   from `ItemWorld.hud_local`. Besides `players_few` the status shows the host's other shortfalls, one line each by its deck key (`players_many` is `lobby.too_many`, `markers` is `lobby.need_markers`, `no_layout` and `no_task_types` their own, #718); `colours` (and `markers_exact`) have no key and stay #548's neutral line. The Esc Lobby page's Shortfalls label words them the same way.
@@ -4764,10 +4775,10 @@ at the 1920x1080 base (§4.7.24), styled by the pack's variations only (no overr
   key in the neutral line, no shortfall from the host not short, the countdown from 5 to 1 before short, the
   lobby's name, the rows' names, a role or teammates known changing nothing), `lobby_hud_layout_test.gd` (the
   handoff's tree and `Aim` (#1408, #1411: hidden with neither a text nor a cue, the text translated, the cue in code and again on a language change, the cue over the text and the text back after it), anchors, offsets, grow directions, size flags and minimum sizes; no mouse or focus; the ellipsis
-  inside 400 px; the tints; count, short, code-waiting, direct and a gone code; the rows rebuilt only on a change; a
+  inside 330 px; the mic's tints; count, short and the boot's hint; the rows rebuilt only on a change; a
   language change, seen failing without the notification; large text's keycap),
   `item_interactions_tap_network_test.gd` (`Aim` names the tap, §4.7.54), `esc_menu_input_test.gd` (no
-  prompt; the ready key's rebind reaches the chip and the check), `game_code_join_test.gd` (the code row; "—" when
+  prompt; the ready key's rebind reaches the chip and the check), `game_code_join_test.gd` (the code in the Esc head; the Lobby page's line when
   the service is gone), `game_voice_test.gd` (the voice hint; the mic follows the sender). The `shot`s, at
   `--size 1920x1080`: `client/dev/lobby_hud_preview.tscn` (`wait`, a code joiner), `lobby_hud_host_preview`,
   `lobby_hud_count_preview`, `lobby_hud_count_host_preview`, `lobby_hud_short_preview`,

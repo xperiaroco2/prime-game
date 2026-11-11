@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
-## The connecting screen (client/ui/connecting_screen.gd, #494): prime-game-ui's s3 handoff at
-## ui-0.4.0 node for node, each of its 16 states, each failure from its EndReasons id, the focus
+## The connecting screen (client/ui/connecting_screen.gd, #494, #1571): prime-game-ui's s3 handoff
+## at ui-2.5.4 node for node, each of its 16 states, each failure from its EndReasons id, the focus
 ## as drawn, the texts in both languages, the players of the loading, the card's hook, the spinner
 ## and the keycap under large text. How it looks: the `shot`s of client/dev/connecting_preview.tscn
 ## per state (the PR).
@@ -29,38 +29,52 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 	# [path, class, variation, minimum size] as the handoff's node lines give them.
 	var nodes: Array = [
 		["Night", "Panel", &"ToyBackdropNight", Vector2.ZERO],
-		["Connecting", "VBoxContainer", &"ToyColumnTwentyFour", Vector2(768, 0)],
-		["Connecting/SpinnerBox", "Control", &"", Vector2(135, 135)],
-		["Connecting/SpinnerBox/Spinner", "Panel", &"ToySpinner", Vector2(135, 135)],
-		["Connecting/Texts", "VBoxContainer", &"ToyColumnEight", Vector2.ZERO],
-		["Connecting/Texts/Title", "Label", &"ToyTitleOnDark", Vector2(768, 0)],
-		["Connecting/Texts/Step", "Label", &"ToyTextOnDark", Vector2.ZERO],
-		["Connecting/CodeRow", "HBoxContainer", &"ToyRowEight", Vector2.ZERO],
-		["Connecting/CodeRow/Label", "Label", &"ToyTextMutedOnDark", Vector2.ZERO],
-		["Connecting/CodeRow/Code", "PanelContainer", &"ToyKeyOnDark", Vector2(42, 0)],
-		["Connecting/CodeRow/Code/Text", "Label", &"ToyKeyText", Vector2.ZERO],
-		["Connecting/Elapsed", "Label", &"ToyTextMutedOnDark", Vector2.ZERO],
-		["Connecting/CancelRaised/Cancel", "Button", &"ToyButtonSecondary", Vector2.ZERO],
-		["Failure", "VBoxContainer", &"ToyColumnThirtyTwo", Vector2(848, 0)],
-		["Failure/Texts", "VBoxContainer", &"ToyColumnSixteen", Vector2.ZERO],
-		["Failure/Texts/Title", "Label", &"ToyTitleOnDark", Vector2(848, 0)],
-		["Failure/Texts/Body", "Label", &"ToyTextMutedOnDark", Vector2(848, 0)],
-		["Failure/Texts/Versions", "VBoxContainer", &"ToyColumnFour", Vector2.ZERO],
-		["Failure/Texts/Versions/Host", "Label", &"ToyTextOnDark", Vector2.ZERO],
-		["Failure/Texts/Versions/Own", "Label", &"ToyTextOnDark", Vector2.ZERO],
-		["Failure/Buttons", "HBoxContainer", &"ToyRowSixteen", Vector2.ZERO],
-		["Failure/Buttons/PrimaryRaised/Primary", "Button", &"ToyButtonPrimary", Vector2.ZERO],
-		["Failure/Buttons/BackGhost", "Button", &"ToyButtonGhostOnDark", Vector2.ZERO],
-		["Failure/Buttons/BackSoloRaised/BackSolo", "Button", &"ToyButtonSecondary", Vector2.ZERO],
-		["Loading", "VBoxContainer", &"ToyColumnSixteen", Vector2(768, 0)],
-		["Loading/Title", "Label", &"ToyTitleOnDark", Vector2.ZERO],
-		["Loading/Bar", "ProgressBar", &"ToyBarProgress", Vector2(768, 16)],
-		["Loading/Players", "VBoxContainer", &"ToyColumnEight", Vector2.ZERO],
-		["Tip", "PanelContainer", &"ToyPlate", Vector2(1072, 0)],
-		["Tip/Text", "Label", &"ToyPlateText", Vector2(1036, 0)],
-		["Head", "VBoxContainer", &"ToyColumnTwelve", Vector2(768, 0)],
-		["Head/Title", "Label", &"ToyTitleOnDark", Vector2.ZERO],
-		["Head/Bar", "ProgressBar", &"ToyBarProgress", Vector2(768, 16)],
+		["Connecting", "PanelContainer", &"ToyPanelDialog", Vector2(960, 0)],
+		["Connecting/V", "VBoxContainer", &"ToyColumnThirtyTwo", Vector2.ZERO],
+		["Connecting/V/Top", "HBoxContainer", &"ToyRowTwentyFour", Vector2.ZERO],
+		["Connecting/V/Top/SpinnerBox", "Control", &"", Vector2(135, 135)],
+		["Connecting/V/Top/SpinnerBox/Spinner", "Panel", &"ToySpinner", Vector2(135, 135)],
+		["Connecting/V/Top/Texts", "VBoxContainer", &"ToyColumnEight", Vector2.ZERO],
+		["Connecting/V/Top/Texts/Step", "Label", &"ToyKicker", Vector2.ZERO],
+		["Connecting/V/Top/Texts/Title", "Label", &"ToyTitleOnLight", Vector2(660, 0)],
+		["Connecting/V/Top/Elapsed", "Label", &"ToyTextMutedOnLight", Vector2.ZERO],
+		["Connecting/V/Foot", "HBoxContainer", &"ToyRowSixteen", Vector2.ZERO],
+		["Connecting/V/Foot/CodeRow", "HBoxContainer", &"ToyRowTwelve", Vector2.ZERO],
+		["Connecting/V/Foot/CodeRow/Label", "Label", &"ToyTextMutedOnLight", Vector2.ZERO],
+		["Connecting/V/Foot/CodeRow/Code", "PanelContainer", &"ToyKeyOnLight", Vector2(42, 0)],
+		["Connecting/V/Foot/CodeRow/Code/Text", "Label", &"ToyKeyText", Vector2.ZERO],
+		["Connecting/V/Foot/Space", "Control", &"", Vector2.ZERO],
+		["Connecting/V/Foot/CancelRaised/Cancel", "Button", &"ToyButtonSecondary", Vector2.ZERO],
+		["Failure", "PanelContainer", &"ToyPanelDialog", Vector2(1080, 0)],
+		["Failure/V", "VBoxContainer", &"ToyColumnThirtyTwo", Vector2.ZERO],
+		["Failure/V/Texts", "VBoxContainer", &"ToyColumnTwelve", Vector2.ZERO],
+		["Failure/V/Texts/Title", "Label", &"ToyTitleOnLight", Vector2(996, 0)],
+		["Failure/V/Texts/Body", "Label", &"ToyTextMutedOnLight", Vector2(996, 0)],
+		["Failure/V/Texts/Versions", "VBoxContainer", &"ToyColumnFour", Vector2.ZERO],
+		["Failure/V/Texts/Versions/Host", "Label", &"ToyTextOnLight", Vector2.ZERO],
+		["Failure/V/Texts/Versions/Own", "Label", &"ToyTextOnLight", Vector2.ZERO],
+		["Failure/V/Buttons", "HBoxContainer", &"ToyRowSixteen", Vector2.ZERO],
+		["Failure/V/Buttons/PrimaryRaised/Primary", "Button", &"ToyButtonPrimary", Vector2.ZERO],
+		["Failure/V/Buttons/BackGhost", "Button", &"ToyButtonGhostOnLight", Vector2.ZERO],
+		[
+			"Failure/V/Buttons/BackSoloRaised/BackSolo",
+			"Button",
+			&"ToyButtonSecondary",
+			Vector2.ZERO
+		],
+		["Loading", "PanelContainer", &"ToyPlate", Vector2(960, 0)],
+		["Loading/V", "VBoxContainer", &"ToyColumnThirtyTwo", Vector2.ZERO],
+		["Loading/V/Top", "VBoxContainer", &"ToyColumnTwelve", Vector2.ZERO],
+		["Loading/V/Top/Title", "Label", &"ToyPlateTitle", Vector2.ZERO],
+		["Loading/V/Top/Bar", "ProgressBar", &"ToyBarProgress", Vector2(0, 24)],
+		["Loading/V/Players", "VBoxContainer", &"ToyColumnFour", Vector2.ZERO],
+		["Loading/V/Players/Head", "Label", &"ToyKicker", Vector2.ZERO],
+		["Tip", "PanelContainer", &"ToyPlate", Vector2.ZERO],
+		["Tip/Text", "Label", &"ToyPlateTextMuted", Vector2.ZERO],
+		["Head", "PanelContainer", &"ToyPlate", Vector2(1440, 0)],
+		["Head/V", "VBoxContainer", &"ToyColumnTwelve", Vector2.ZERO],
+		["Head/V/Title", "Label", &"ToyPlateTitle", Vector2.ZERO],
+		["Head/V/Bar", "ProgressBar", &"ToyBarProgress", Vector2(0, 24)],
 	]
 	for each: Array in nodes:
 		var path := str(each[0])
@@ -85,17 +99,24 @@ func test_the_tree_matches_the_handoff_node_for_node() -> void:
 	# Anchors, offsets and grow as drawn.
 	_assert_placed(_screen.connecting, Control.PRESET_CENTER, 0, Control.GROW_DIRECTION_BOTH)
 	_assert_placed(_screen.failure, Control.PRESET_CENTER, 0, Control.GROW_DIRECTION_BOTH)
-	_assert_placed(_screen.loading, Control.PRESET_CENTER_TOP, 368, Control.GROW_DIRECTION_END)
-	_assert_placed(_screen.tip, Control.PRESET_CENTER_BOTTOM, -88, Control.GROW_DIRECTION_BOTH)
-	_assert_placed(_screen.head, Control.PRESET_CENTER_TOP, 64, Control.GROW_DIRECTION_END)
-	assert_int(_screen.connecting.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
-	assert_int(_screen.failure.alignment).is_equal(BoxContainer.ALIGNMENT_CENTER)
-	# Size flags as drawn; raised buttons on their ToyRaised with its base, Back beside flat.
-	assert_int(_screen.spinner_box.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
+	_assert_placed(_screen.loading, Control.PRESET_CENTER, 0, Control.GROW_DIRECTION_BOTH)
+	_assert_placed(_screen.tip, Control.PRESET_CENTER_BOTTOM, -132, Control.GROW_DIRECTION_BOTH)
+	_assert_placed(_screen.head, Control.PRESET_CENTER_TOP, 96, Control.GROW_DIRECTION_END)
+	# Size flags as drawn; the tile heads in small capitals (Label.uppercase).
+	assert_int(_screen.spinner_box.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
 	assert_that(_screen.spinner.pivot_offset_ratio).is_equal(Vector2(0.5, 0.5))
-	assert_int(_screen.code_row.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
+	var texts := _screen.get_node(^"Connecting/V/Top/Texts") as Control
+	assert_int(texts.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
+	assert_int(_screen.elapsed_label.size_flags_vertical).is_equal(Control.SIZE_SHRINK_BEGIN)
+	assert_int(_screen.code_row.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
 	assert_int(_screen.code_key.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
-	assert_int(_screen.cancel.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
+	var space := _screen.get_node(^"Connecting/V/Foot/Space") as Control
+	assert_int(space.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
+	assert_bool(_screen.step_label.uppercase).is_true()
+	assert_bool(_screen.players_head.uppercase).is_true()
+	assert_str(_screen.players_head.text).is_equal("lobby.players")
+	assert_int(_screen.code_label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
+	assert_int(_screen.tip_label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
 	# No base under a raised face since ui-2.0.0 (the pack: no button has a base layer, #1559).
 	for raised: ToyRaised in [_screen.cancel, _screen.primary, _screen.back_solo]:
 		assert_bool(raised.base.visible).is_false()
@@ -295,37 +316,43 @@ func test_the_loading_lists_the_host_first_the_own_row_you_and_who_has_loaded() 
 	assert_float(_screen.bar.value).is_equal_approx(62.0, 0.001)
 	assert_str(_screen.tip_label.text).is_equal("tip.two_hands")
 	var rows: Array[String] = []
-	for row: Node in _screen.players.get_children():
-		var name_label := row.get_node(^"Name") as Label
-		var state := row.get_node(^"State") as Label
+	# The players' head first, then a hairline row per player.
+	assert_object(_screen.players.get_child(0)).is_same(_screen.players_head)
+	for row: Node in _screen.players.get_children().slice(1):
+		var name_label := row.get_node(^"H/Name") as Label
+		var state := row.get_node(^"H/State") as Label
 		rows.append(
 			"%s %s %s %s" % [row.name, name_label.text, state.text, state.theme_type_variation]
 		)
-		assert_str(String(row.get_class())).is_equal("HBoxContainer")
-		assert_str(String((row as HBoxContainer).theme_type_variation)).is_equal("ToyRowTwelve")
+		assert_str(String(row.get_class())).is_equal("PanelContainer")
+		assert_str(String((row as Control).theme_type_variation)).is_equal("ToySettingRow")
+		var line := row.get_node(^"H") as HBoxContainer
+		assert_str(String(line.theme_type_variation)).is_equal("ToyRowSixteen")
 		assert_bool(name_label.clip_text).is_true()
 		assert_int(name_label.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
 	(
 		assert_array(rows)
 		. contains_exactly(
 			[
-				"HostRow Player1 loading.player_ready ToyTextOnDark",
-				"Row player.you loading.player_loading ToyTextMutedOnDark",
-				"OtherRow Player3 loading.player_loading ToyTextMutedOnDark",
-				"OtherRow2 Taras loading.player_loading ToyTextMutedOnDark",
+				"HostRow Player1 loading.player_ready ToySettingRowText",
+				"Row player.you loading.player_loading ToySettingRowValue",
+				"OtherRow Player3 loading.player_loading ToySettingRowValue",
+				"OtherRow2 Taras loading.player_loading ToySettingRowValue",
 			]
 		)
 	)
-	var host_name := _screen.players.get_child(0).get_node(^"Name") as Label
+	var host_name := _screen.players.get_child(1).get_node(^"H/Name") as Label
 	assert_int(host_name.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
-	var own_name := _screen.players.get_child(1).get_node(^"Name") as Label
+	var own_name := _screen.players.get_child(2).get_node(^"H/Name") as Label
 	assert_int(own_name.auto_translate_mode).is_not_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	# The own load confirmed: its row reads ready, as drawn.
 	model.fold(&"PlayerLoaded", {"peer": 2})
 	_screen.refresh_loading(model)
-	var own_state := _screen.players.get_child(1).get_node(^"State") as Label
+	var own_state := _screen.players.get_child(2).get_node(^"H/State") as Label
 	assert_str(own_state.text).is_equal("loading.player_ready")
-	assert_str(String(own_state.theme_type_variation)).is_equal("ToyTextOnDark")
+	assert_str(String(own_state.theme_type_variation)).is_equal("ToySettingRowText")
+	# The head stays through every rebuild.
+	assert_object(_screen.players.get_child(0)).is_same(_screen.players_head)
 
 
 func test_a_loading_draws_one_of_the_decks_tips() -> void:
@@ -352,10 +379,12 @@ func test_the_card_hook_shows_head_and_card_instead_of_the_players_and_the_tip()
 	assert_bool(made.visible).is_true()
 	assert_bool(_screen.loading.visible).is_false()
 	assert_bool(_screen.tip.visible).is_false()
-	assert_float((_screen.head.get_node(^"Bar") as ProgressBar).value).is_equal_approx(50.0, 0.001)
+	assert_float((_screen.head.get_node(^"V/Bar") as ProgressBar).value).is_equal_approx(
+		50.0, 0.001
+	)
 	assert_object(made.get_parent()).is_same(_screen)
-	_assert_placed(made, Control.PRESET_CENTER, 40, Control.GROW_DIRECTION_BOTH)
-	assert_that(made.custom_minimum_size).is_equal(Vector2(1616, 0))
+	_assert_placed(made, Control.PRESET_CENTER, 39, Control.GROW_DIRECTION_BOTH)
+	assert_that(made.custom_minimum_size).is_equal(Vector2(1440, 0))
 	_screen.show_loading("tip.two_hands")
 	assert_str(String(_screen.state())).is_equal("load")
 	assert_object(_screen.card).is_null()

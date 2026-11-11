@@ -1,14 +1,13 @@
 extends GdUnitTestSuite
 ## The lobby HUD's Controls (client/ui/LobbyHud, #495; ARCHITECTURE §4.7.47) under the shared
-## theme: the UI handoff's tree node for node (prime-game-ui `ui-0.4.0` `docs/handoff/s04-lobby.md`:
+## theme: the UI handoff's tree node for node (prime-game-ui `ui-2.5.4` `docs/handoff/s04-lobby.md`:
 ## names, classes, variations, anchors, offsets, grow directions, size flags and minimum sizes),
 ## every node ignoring the mouse and focus, the names cut with an ellipsis, the tints, each state
-## the handoff draws (wait, count, short, code-waiting, direct; the code gone), the rows rebuilt
+## the handoff draws (boot's hint, wait, count, short), the rows rebuilt
 ## only when they change, a language change and large text.
 
 const MODE := "res://content/modes/base_mode.tres"
 const NOW := 100
-const CODE := "K7Q2XR"
 
 var _mode: GameMode
 var _locale := ""
@@ -29,69 +28,83 @@ func after_test() -> void:
 
 func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	var hud := await _hud()
-	# [path, class, variation] of every node the handoff lists in `wait` (VoiceHint: M5-6's, kept;
-	# Aim: the round HUD's chip, #1408, with the hand-over's cue, #1411).
+	# [path, class, variation] of every node the handoff lists in `wait` and `boot` (VoiceHint:
+	# M5-6's, kept; Aim: the round HUD's chip, #1408, with the hand-over's cue, #1411).
 	var nodes: Array[Array] = [
 		["Cross", "Panel", &"ToyCrosshair"],
 		["Aim", "PanelContainer", &"ToyChipPlate"],
 		["Aim/Text", "Label", &"ToyChipPlateText"],
 		["Status", "PanelContainer", &"ToyPlate"],
-		["Status/Text", "Label", &"ToyPlateText"],
-		["Players", "PanelContainer", &"ToyPlate"],
-		["Players/V", "VBoxContainer", &"ToyColumnSixteen"],
-		["Players/V/Info", "VBoxContainer", &"ToyColumnEight"],
-		["Players/V/Info/LobbyName", "Label", &"ToyTextMutedOnDark"],
-		["Players/V/Info/CodeRow", "HBoxContainer", &"ToyRowEight"],
-		["Players/V/Info/CodeRow/Label", "Label", &"ToyTextMutedOnDark"],
-		["Players/V/Info/CodeRow/Code", "PanelContainer", &"ToyKeyOnDark"],
-		["Players/V/Info/CodeRow/Code/Text", "Label", &"ToyKeyText"],
-		["Players/V/List", "VBoxContainer", &"ToyColumnEight"],
-		["Players/V/List/Head", "Label", &"ToyTextOnDark"],
-		["Players/V/List/Rows", "VBoxContainer", &"ToyColumnEight"],
-		["Bottom", "VBoxContainer", &"ToyColumnTwelve"],
-		["Bottom/VoiceHint", "PanelContainer", &"ToyChipPlate"],
-		["Bottom/VoiceHint/Text", "Label", &"ToyChipPlateText"],
-		["Bottom/ReadyChip", "PanelContainer", &"ToyChipPlate"],
-		["Bottom/ReadyChip/Text", "Label", &"ToyChipPlateText"],
+		["Status/Row", "HBoxContainer", &"ToyRowTwentyFour"],
+		["Status/Row/Text", "Label", &"ToyPlateText"],
+		["Status/Row/Pips", "HBoxContainer", &"ToyRowFour"],
+		["Status/Row/Pips/P1", "Panel", &"ToyPipHealth"],
+		["Status/Row/Pips/P3", "Panel", &"ToyPipHealth"],
+		["Status/Row/Pips/P4", "Panel", &"ToyPip"],
+		["Players", "PanelContainer", &"ToyRoster"],
+		["Players/Rows", "VBoxContainer", &"ToyColumnEight"],
+		["Players/Rows/Head", "Label", &"ToyKicker"],
+		["Players/Rows/Host/HostTag", "PanelContainer", &"ToyRosterTagHost"],
+		["Players/Rows/Host/HostTag/Text", "Label", &"ToyRosterTagHostText"],
+		["Bottom", "HBoxContainer", &"ToyRowSixteen"],
+		["Bottom/Hint", "PanelContainer", &"ToyPlate"],
+		["Bottom/Hint/Row", "HBoxContainer", &"ToyRowTwelve"],
+		["Bottom/Hint/Row/Key", "PanelContainer", &"ToyKeyOnDark"],
+		["Bottom/Hint/Row/Key/Text", "Label", &"ToyKeyText"],
+		["Bottom/Hint/Row/Text", "Label", &"ToyPlateTextMuted"],
+		["Bottom/Ready", "PanelContainer", &"ToyPlate"],
+		["Bottom/Ready/Row", "HBoxContainer", &"ToyRowTwelve"],
+		["Bottom/Ready/Row/Pip", "Panel", &"ToyPip"],
+		["Bottom/Ready/Row/Text", "Label", &"ToyPlateText"],
 		["Bottom/Mic", "PanelContainer", &"ToyMic"],
 		["Bottom/Mic/Icon", "TextureRect", &""],
+		["VoiceHint", "PanelContainer", &"ToyChipPlate"],
+		["VoiceHint/Text", "Label", &"ToyChipPlateText"],
 	]
-	for row_name: String in ["HostRow", "Row2", "OwnRow", "Row4"]:
-		var path := "Players/V/List/Rows/%s" % row_name
+	for row_name: String in ["Host", "Row2", "Self", "Row4"]:
+		var path := "Players/Rows/%s" % row_name
 		nodes.append([path, "HBoxContainer", &"ToyRowTwelve"])
-		nodes.append([path + "/Name", "Label", &"ToyTextOnDark"])
-		nodes.append([path + "/Ready", "TextureRect", &""])
+		nodes.append([path + "/Dot", "Panel", &"ToyRosterDot"])
+		var own := row_name == "Self"
+		nodes.append([path + "/Name", "Label", &"ToyRosterNameSelf" if own else &"ToyRosterName"])
+		var pip := &"ToyPip" if own else &"ToyPipHealth"
+		nodes.append([path + "/Ready", "Panel", pip])
 	for node: Array in nodes:
 		var found := hud.get_node_or_null(node[0] as String) as Control
 		assert_object(found).override_failure_message(node[0] as String).is_not_null()
 		assert_str(found.get_class()).override_failure_message(node[0] as String).is_equal(node[1])
-		assert_str(found.theme_type_variation).is_equal(node[2])
-	assert_array(_names(hud)).is_equal(["Cross", "Aim", "Status", "Players", "Bottom"])
-	assert_array(_names(hud.rows)).is_equal(["HostRow", "Row2", "OwnRow", "Row4"])
-	assert_array(_names(hud.bottom)).is_equal(["VoiceHint", "ReadyChip", "Mic"])
+		assert_str(found.theme_type_variation).override_failure_message(node[0] as String).is_equal(
+			node[2]
+		)
+	assert_array(_names(hud)).is_equal(["Cross", "Aim", "Status", "Players", "Bottom", "VoiceHint"])
+	assert_array(_names(hud.rows)).is_equal(["Head", "Host", "Row2", "Self", "Row4"])
+	assert_array(_names(hud.bottom)).is_equal(["Hint", "Ready", "Mic"])
+	# Only the host's row has the tag.
+	for row_name: String in ["Row2", "Self", "Row4"]:
+		assert_bool(hud.rows.has_node("%s/HostTag" % row_name)).is_false()
 	# Texts: the deck's keys; data never translated (#208).
-	assert_str(_label(hud, "Players/V/Info/CodeRow/Label").text).is_equal("common.code")
 	assert_str(hud.ready_label.text).is_equal("lobby.ready_no")
-	var own := _label(hud, "Players/V/List/Rows/OwnRow/Name")
-	assert_str(own.text).is_equal("player.you")
-	assert_int(own.auto_translate_mode).is_not_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
-	var data: Array[Label] = [
-		hud.status_label, hud.lobby_name_label, hud.code_label, hud.head_label
-	]
-	for path: String in ["HostRow", "Row2", "Row4"]:
-		data.append(_label(hud, "Players/V/List/Rows/%s/Name" % path))
+	assert_str(_label(hud, "Bottom/Hint/Row/Text").text).is_equal("tutorial.list.menu")
+	assert_str(_label(hud, "Players/Rows/Host/HostTag/Text").text).is_equal("hud.roster.host")
+	assert_bool(hud.head_label.uppercase).is_true()
+	var data: Array[Label] = [hud.status_label, hud.head_label, hud.hint_key_label]
+	for path: String in ["Host", "Row2", "Self", "Row4"]:
+		data.append(_label(hud, "Players/Rows/%s/Name" % path))
 	for label: Label in data:
 		assert_int(label.auto_translate_mode).override_failure_message(label.name).is_equal(
 			Node.AUTO_TRANSLATE_MODE_DISABLED
 		)
 	assert_str(hud.status_label.text).is_equal("3 of 4 ready")
-	assert_str(hud.lobby_name_label.text).is_equal("Olena's lobby")
-	assert_str(hud.code_label.text).is_equal(CODE)
 	assert_str(hud.head_label.text).is_equal("Players 4 / 10")
 	assert_array(hud.row_texts()).is_equal(
-		PackedStringArray(["Olena · host", "Taras", "You", "Marko"])
+		PackedStringArray(["Olena", "Taras", "Ivan (you)", "Marko"])
 	)
 	assert_array(hud.row_checks()).is_equal([true, true, false, true])
+	# The body colours on the dots (data, as the round's roster).
+	var dot := hud.get_node("Players/Rows/Row2/Dot") as Panel
+	assert_object(dot.self_modulate).is_equal(BodyColours.of(1))
+	# No session yet in these tests: the boot's hint hides.
+	assert_bool(hud.hint.visible).is_false()
 
 
 func test_anchors_offsets_grow_sizes_and_flags_are_the_handoffs() -> void:
@@ -102,10 +115,10 @@ func test_anchors_offsets_grow_sizes_and_flags_are_the_handoffs() -> void:
 	# [node, anchors (left, top, right, bottom), offsets, grow h, grow v]
 	var placed: Array[Array] = [
 		[hud.cross, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(0, 0, 0, 0), both, both],
-		[hud.aim, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(0, 38, 0, 38), both, both],
-		[hud.status, Vector4(0.5, 0, 0.5, 0), Vector4(0, 40, 0, 40), both, end],
-		[hud.players, Vector4(1, 0, 1, 0), Vector4(-40, 40, -40, 40), begin, end],
-		[hud.bottom, Vector4(0, 1, 0, 1), Vector4(40, -40, 40, -40), end, begin],
+		[hud.aim, Vector4(0.5, 0.5, 0.5, 0.5), Vector4(0, 64, 0, 64), both, both],
+		[hud.status, Vector4(0.5, 0, 0.5, 0), Vector4(0, 36, 0, 36), both, end],
+		[hud.players, Vector4(1, 0, 1, 0), Vector4(-36, 36, -36, 36), begin, end],
+		[hud.bottom, Vector4(0, 1, 0, 1), Vector4(36, -36, 36, -36), end, begin],
 	]
 	for row: Array in placed:
 		var node: Control = row[0]
@@ -120,31 +133,42 @@ func test_anchors_offsets_grow_sizes_and_flags_are_the_handoffs() -> void:
 		assert_int(node.grow_horizontal).is_equal(row[3])
 		assert_int(node.grow_vertical).is_equal(row[4])
 	assert_vector(hud.cross.custom_minimum_size).is_equal(Vector2(12, 12))
-	assert_vector(hud.players.custom_minimum_size).is_equal(Vector2(400, 0))
-	assert_vector(hud.code_key.custom_minimum_size).is_equal(Vector2(42, 0))
+	assert_vector(hud.status.custom_minimum_size).is_equal(Vector2(360, 66))
+	assert_vector(hud.players.custom_minimum_size).is_equal(Vector2(330, 0))
+	assert_vector(hud.hint_key.custom_minimum_size).is_equal(Vector2(42, 0))
 	assert_vector(hud.mic.custom_minimum_size).is_equal(Vector2(75, 75))
-	assert_vector(hud.mic_icon.custom_minimum_size).is_equal(Vector2(28, 28))
+	assert_vector(hud.mic_icon.custom_minimum_size).is_equal(Vector2(42, 42))
+	assert_vector(hud.ready_pip.custom_minimum_size).is_equal(Vector2(23, 15))
 	var shrink_center := Control.SIZE_SHRINK_CENTER
-	var caption := hud.get_node("Players/V/Info/CodeRow/Label") as Control
-	assert_int(caption.size_flags_vertical).is_equal(shrink_center)
-	assert_int(hud.code_key.size_flags_vertical).is_equal(shrink_center)
-	assert_int(hud.code_label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
-	assert_int(hud.status_label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
-	assert_int(hud.ready_chip.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_BEGIN)
-	assert_int(hud.mic.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_BEGIN)
+	var shrink_end := Control.SIZE_SHRINK_END
+	assert_int(hud.status_label.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
+	assert_int(hud.status_label.size_flags_vertical).is_equal(shrink_center)
+	assert_int(hud.status_pips.size_flags_vertical).is_equal(shrink_center)
+	for tile: Control in [hud.hint, hud.ready_tile, hud.mic]:
+		assert_int(tile.size_flags_vertical).override_failure_message(tile.name).is_equal(
+			shrink_end
+		)
 	assert_int(hud.mic_icon.size_flags_horizontal).is_equal(shrink_center)
 	assert_int(hud.mic_icon.size_flags_vertical).is_equal(shrink_center)
-	for line: Node in hud.rows.get_children():
-		var name_label := line.get_node("Name") as Label
-		var check := line.get_node("Ready") as TextureRect
-		assert_int(name_label.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
-		assert_int(check.size_flags_vertical).is_equal(shrink_center)
-		assert_vector(check.custom_minimum_size).is_equal(Vector2(24, 24))
-		assert_int(check.expand_mode).is_equal(TextureRect.EXPAND_IGNORE_SIZE)
-		assert_int(check.stretch_mode).is_equal(TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
-		assert_object(check.texture).is_same(ToyIcons.texture(&"check"))
 	assert_int(hud.mic_icon.expand_mode).is_equal(TextureRect.EXPAND_IGNORE_SIZE)
 	assert_int(hud.mic_icon.stretch_mode).is_equal(TextureRect.STRETCH_KEEP_ASPECT_CENTERED)
+	for line: Node in hud.rows.get_children():
+		if line == hud.head_label:
+			continue
+		var name_label := line.get_node("Name") as Label
+		var dot := line.get_node("Dot") as Panel
+		var pip := line.get_node("Ready") as Panel
+		assert_int(name_label.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
+		assert_int(name_label.size_flags_vertical).is_equal(shrink_center)
+		assert_vector(dot.custom_minimum_size).is_equal(Vector2(15, 15))
+		assert_vector(pip.custom_minimum_size).is_equal(Vector2(23, 15))
+		assert_int(pip.size_flags_vertical).is_equal(shrink_center)
+	# The voice hint sits over the bottom row, never on it.
+	hud.show_voice_hint(VoicePanel.LOBBY_HINT)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var hint_bottom := hud.voice_hint.get_global_rect().end.y
+	assert_float(hint_bottom).is_less_equal(hud.bottom.get_global_rect().position.y)
 
 
 func test_no_node_takes_the_mouse_or_focus_and_names_cut_with_an_ellipsis() -> void:
@@ -157,28 +181,24 @@ func test_no_node_takes_the_mouse_or_focus_and_names_cut_with_an_ellipsis() -> v
 			Control.MOUSE_FILTER_IGNORE
 		)
 		assert_int(control.focus_mode).is_equal(Control.FOCUS_NONE)
-	var cut: Array[Label] = [hud.lobby_name_label]
 	for line: Node in hud.rows.get_children():
-		cut.append(line.get_node("Name") as Label)
-	for label: Label in cut:
+		if line == hud.head_label:
+			continue
+		var label := line.get_node("Name") as Label
 		assert_bool(label.clip_text).override_failure_message(label.name).is_true()
 		assert_int(label.text_overrun_behavior).is_equal(TextServer.OVERRUN_TRIM_ELLIPSIS)
-	# A long name stays inside the 400 px plate.
+	# A long name stays inside the 330 px tile.
 	var model := _lobby(3, ["Olena", "Taras", "Ivan", "Marko"])
 	model.roster[2].name = "Taras".repeat(12)
-	model.lobby_name = "A very long lobby name".repeat(4)
 	hud.refresh(model, _mode, NOW)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_float(hud.players.size.x).is_equal(400.0)
+	assert_float(hud.players.size.x).is_equal(330.0)
 
 
-func test_the_icons_take_their_tints() -> void:
+func test_the_mic_takes_its_tints() -> void:
 	var hud := await _hud()
 	await get_tree().process_frame
-	var ink := GameUi.THEME.get_color(&"font_color", &"ToyTextOnDark")
-	for line: Node in hud.rows.get_children():
-		assert_object((line.get_node("Ready") as TextureRect).self_modulate).is_equal(ink)
 	hud.show_mic(true)
 	assert_object(hud.mic_icon.texture).is_same(ToyIcons.texture(&"mic"))
 	assert_object(hud.mic_icon.self_modulate).is_equal(
@@ -192,66 +212,72 @@ func test_the_icons_take_their_tints() -> void:
 	)
 
 
-func test_count_lights_the_chip_and_titles_the_countdown() -> void:
+func test_count_fills_every_pip_in_the_same_calm_text() -> void:
 	var hud := await _hud()
 	var model := _lobby(3, ["Olena", "Taras", "Ivan", "Marko"], true)
 	model.fold(&"PhaseChanged", {"phase": &"countdown", "end_tick": NOW + 5 * Ticks.RATE})
 	hud.refresh(model, _mode, NOW)
-	assert_str(hud.status_label.theme_type_variation).is_equal(&"ToyTitleOnDark")
+	assert_str(hud.status_label.theme_type_variation).is_equal(&"ToyPlateText")
 	assert_str(hud.status_label.text).is_equal("Starting in 5")
-	assert_str(hud.ready_chip.theme_type_variation).is_equal(&"ToyChipLight")
-	assert_str(hud.ready_label.theme_type_variation).is_equal(&"ToyChipLightText")
+	assert_bool(hud.status_pips.visible).is_true()
+	for pip: Node in hud.status_pips.get_children():
+		assert_str((pip as Panel).theme_type_variation).is_equal(&"ToyPipHealth")
+	assert_str(hud.ready_pip.theme_type_variation).is_equal(&"ToyPipHealth")
 	assert_str(hud.ready_label.text).is_equal("lobby.ready_yes")
 	assert_array(hud.row_checks()).is_equal([true, true, true, true])
-	# An un-ready stops it: back to the plate's text and the plain chip.
+	# An un-ready stops it: the own pip empties, the plate counts again.
 	model.fold(&"ReadyChanged", {"peer": 3, "ready": false})
 	model.fold(&"PhaseChanged", {"phase": &"lobby", "end_tick": -1})
 	hud.refresh(model, _mode, NOW)
-	assert_str(hud.status_label.theme_type_variation).is_equal(&"ToyPlateText")
-	assert_str(hud.ready_chip.theme_type_variation).is_equal(&"ToyChipPlate")
+	assert_str(hud.ready_pip.theme_type_variation).is_equal(&"ToyPip")
 	assert_str(hud.ready_label.text).is_equal("lobby.ready_no")
+	assert_str(hud.status_label.text).is_equal("3 of 4 ready")
 
 
-func test_short_code_waiting_direct_and_a_gone_code() -> void:
+func test_short_hides_the_pips_and_says_how_many_more() -> void:
 	var hud := await _hud()
 	# The host's players_few (#548): one more of the four the handoff's sample needs.
 	hud.refresh(_short(_lobby(3, ["Olena", "Taras", "Ivan"]), 1), _mode, NOW)
 	assert_str(hud.status_label.text).is_equal("1 more player to start")
+	assert_bool(hud.status_pips.visible).is_false()
 	assert_str(hud.head_label.text).is_equal("Players 3 / 10")
-	assert_array(_names(hud.rows)).is_equal(["HostRow", "Row2", "OwnRow"])
-	# code-waiting: the host alone, its row `player.you` with no check, the code "…".
+	assert_array(_names(hud.rows)).is_equal(["Head", "Host", "Row2", "Self"])
+	# The host alone: its own row "(you)" with the host's tag, no pip full.
 	hud.refresh(_short(_lobby(1, ["Olena"]), 3), _mode, NOW)
-	hud.show_code("", false, true)
 	assert_str(hud.status_label.text).is_equal("3 more players to start")
-	assert_array(_names(hud.rows)).is_equal(["HostRow"])
-	assert_array(hud.row_texts()).is_equal(PackedStringArray(["You"]))
+	assert_array(_names(hud.rows)).is_equal(["Head", "Host"])
+	assert_array(hud.row_texts()).is_equal(PackedStringArray(["Olena (you)"]))
+	assert_str((hud.get_node("Players/Rows/Host/Name") as Label).theme_type_variation).is_equal(
+		&"ToyRosterNameSelf"
+	)
+	assert_bool(hud.has_node("Players/Rows/Host/HostTag")).is_true()
 	assert_array(hud.row_checks()).is_equal([false])
-	assert_bool(hud.code_row.visible).is_true()
-	assert_str(hud.code_label.text).is_equal(LobbyHud.CODE_WAITING)
-	# The service gone: "—" (the Esc Lobby tab explains it).
-	hud.show_code("", true, true)
-	assert_str(hud.code_label.text).is_equal(LobbyHud.CODE_GONE)
-	hud.show_code(CODE, true, false)
-	assert_str(hud.code_label.text).is_equal(LobbyHud.CODE_GONE)
-	# direct: no code row.
-	hud.show_code("", false, false)
-	assert_bool(hud.code_row.visible).is_false()
+
+
+func test_the_boots_hint_shows_the_menu_key_only_when_given_one() -> void:
+	var hud := await _hud()
+	hud.show_hint("Esc")
+	assert_bool(hud.hint.visible).is_true()
+	assert_str(hud.hint_key_label.text).is_equal("Esc")
+	hud.show_hint("")
+	assert_bool(hud.hint.visible).is_false()
 
 
 func test_the_rows_are_built_again_only_when_they_change() -> void:
 	var hud := await _hud()
 	var model := _lobby(3, ["Olena", "Taras", "Ivan", "Marko"])
-	var first := hud.rows.get_child(1)
+	var first := hud.rows.get_child(2)
 	hud.refresh(model, _mode, NOW + 7)
-	assert_object(hud.rows.get_child(1)).is_same(first)
+	assert_object(hud.rows.get_child(2)).is_same(first)
 	model.roster[2].name = "Taras K"
 	hud.refresh(model, _mode, NOW)
 	assert_array(hud.row_texts()).is_equal(
-		PackedStringArray(["Olena · host", "Taras K", "You", "Marko"])
+		PackedStringArray(["Olena", "Taras K", "Ivan (you)", "Marko"])
 	)
 	model.fold(&"PlayerLeft", {"peer": 4})
 	hud.refresh(model, _mode, NOW)
-	assert_array(_names(hud.rows)).is_equal(["HostRow", "Row2", "OwnRow"])
+	assert_array(_names(hud.rows)).is_equal(["Head", "Host", "Row2", "Self"])
+	assert_int(hud.status_pips.get_child_count()).is_equal(3)
 	await get_tree().process_frame
 	# Every row built later ignores the mouse and the focus too.
 	for node: Node in hud.rows.find_children("*", "Control", true, false):
@@ -264,25 +290,24 @@ func test_a_language_change_writes_the_texts_again() -> void:
 	TranslationServer.set_locale("uk")
 	await get_tree().process_frame
 	assert_str(hud.status_label.text).is_equal("Готові 3 з 4")
-	assert_str(hud.lobby_name_label.text).is_equal("Лобі: Olena")
 	assert_str(hud.head_label.text).is_equal("Гравці 4 / 10")
 	assert_array(hud.row_texts()).is_equal(
-		PackedStringArray(["Olena · хост", "Taras", "Ти", "Marko"])
+		PackedStringArray(["Olena", "Taras", "Ivan (ти)", "Marko"])
 	)
 
 
-func test_large_text_widens_the_code_key_and_back() -> void:
+func test_large_text_keeps_the_tiles_sizes_and_widens_the_key() -> void:
 	var hud := await _hud()
 	var holder := hud.get_parent() as Control
 	holder.theme = GameUi.THEME_LARGE
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_vector(hud.code_key.custom_minimum_size).is_equal(Vector2(50, 0))
-	assert_vector(hud.players.custom_minimum_size).is_equal(Vector2(400, 0))
+	assert_vector(hud.hint_key.custom_minimum_size).is_equal(Vector2(50, 0))
+	assert_vector(hud.players.custom_minimum_size).is_equal(Vector2(330, 0))
 	holder.theme = GameUi.THEME
 	await get_tree().process_frame
 	await get_tree().process_frame
-	assert_vector(hud.code_key.custom_minimum_size).is_equal(Vector2(42, 0))
+	assert_vector(hud.hint_key.custom_minimum_size).is_equal(Vector2(42, 0))
 
 
 func test_the_voice_hint_shows_only_with_a_text() -> void:
@@ -418,7 +443,6 @@ func _hud() -> LobbyHud:
 	var hud := LobbyHud.new()
 	holder.add_child(hud)
 	hud.refresh(_lobby(3, ["Olena", "Taras", "Ivan", "Marko"]), _mode, NOW)
-	hud.show_code(CODE, false, false)
 	await get_tree().process_frame
 	return hud
 

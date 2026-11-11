@@ -44,27 +44,43 @@ func after_test() -> void:
 	Controls.new().apply()
 
 
-func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab() -> void:
+func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_side_panel() -> void:
 	var game := await _lobby_game(PORT)
 	# Walking in the lobby with the mouse captured (a click): nothing clickable covers the game,
-	# only the lobby HUD, with no key prompt (#495): the own row "You" with no check, "Ready: no".
+	# only the lobby HUD, with no key prompt (#495): the own row "<name> (you)" with no full pip,
+	# "Ready: no".
 	game.pointer.capture(true)
 	assert_array(_visible_buttons(game.ui)).is_empty()
 	assert_bool(game.ui.lobby_hud.is_visible_in_tree()).is_true()
-	assert_array(game.ui.lobby_hud.row_texts()).is_equal(PackedStringArray(["You"]))
+	var own_rows := game.ui.lobby_hud.row_texts()
+	assert_int(own_rows.size()).is_equal(1)
+	assert_str(own_rows[0]).ends_with(" (you)")
 	assert_array(game.ui.lobby_hud.row_checks()).is_equal([false])
 	var chip := game.ui.lobby_hud.ready_label
 	assert_str(chip.atr(chip.text)).is_equal("Ready: no")
-	# One Esc: the menu on its Lobby tab (Ready and the host's settings), the mouse free.
+	# One Esc: the side panel alone (s05 `lobby`, #1571), the mouse free; its Lobby entry opens
+	# Ready and the host's settings beside it.
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_true()
 	assert_bool(game.pointer.captured()).is_false()
-	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
+	assert_object(game.ui.esc.page()).is_null()
 	assert_array(_visible_buttons(game.ui)).contains(
-		["esc.tab.game", "esc.tab.guide", "esc.tab.lobby", "esc.tab.settings", "esc.lobby.ready"]
+		["esc.game.resume", "esc.tab.guide", "esc.tab.lobby", "esc.tab.settings", "esc.game.quit"]
 	)
+	game.ui.esc.tab_buttons[EscMenuState.Tab.LOBBY].pressed.emit()
+	await _frames(2)
+	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
+	assert_array(_visible_buttons(game.ui)).contains(["esc.lobby.ready"])
 	assert_bool(game.ui.esc.lobby.settings_editable()).is_true()
+	# Esc closes the open page first, the panel staying (s05), its entry focused.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_true()
+	assert_object(game.ui.esc.page()).is_null()
+	assert_object(game.get_viewport().gui_get_focus_owner()).is_same(
+		game.ui.esc.tab_buttons[EscMenuState.Tab.LOBBY]
+	)
 	# Esc again: closed, the mouse captured again.
 	_press(KEY_ESCAPE)
 	await _frames(2)
@@ -81,9 +97,9 @@ func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab
 	await get_tree().process_frame
 
 
-func test_an_esc_in_the_frame_of_the_welcome_opens_the_lobby_tab() -> void:
+func test_an_esc_in_the_frame_of_the_welcome_opens_the_lobbys_menu() -> void:
 	# #204: the Welcome folds in the session's physics step and Game._process draws the lobby
-	# after it, so an Esc in between found the UI still on Connecting and opened on Resume.
+	# after it, so an Esc in between found the UI still on Connecting and opened the wrong menu.
 	var game := _game(["--host", "--local", "--no-replay", "--port=%d" % (PORT + 3)])
 	var drawn_at_esc: Array[GameFlow.Screen] = []
 	game.client().welcomed.connect(
@@ -100,10 +116,9 @@ func test_an_esc_in_the_frame_of_the_welcome_opens_the_lobby_tab() -> void:
 	assert_bool(game.ui.esc_open()).is_true()
 	# The lobby captures the mouse, but not from under the menu it kept.
 	assert_bool(game.pointer.captured()).is_false()
-	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
-	assert_array(_visible_buttons(game.ui)).contains(
-		["esc.tab.game", "esc.tab.lobby", "esc.lobby.ready"]
-	)
+	# The lobby's panel: its Lobby entry there (s05 `lobby`, #1571), no page open.
+	assert_object(game.ui.esc.page()).is_null()
+	assert_array(_visible_buttons(game.ui)).contains(["esc.game.resume", "esc.tab.lobby"])
 	game.leave()
 	await get_tree().process_frame
 
@@ -139,12 +154,12 @@ func test_esc_closes_the_hosts_question_first_and_then_the_menu() -> void:
 	game.ui.esc.press_leave()
 	await _frames(1)
 	assert_bool(game.ui.esc.state.asking()).is_true()
-	# One Esc: the question goes, the tab as it was; the menu stays, the mouse free.
+	# One Esc: the question goes, the panel as it was (no page); the menu stays, the mouse free.
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_true()
 	assert_bool(game.ui.esc.state.asking()).is_false()
-	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
+	assert_object(game.ui.esc.page()).is_null()
 	assert_bool(game.pointer.captured()).is_false()
 	assert_object(game.client()).is_not_null()
 	# The next one closes the menu and captures the mouse again.
@@ -252,8 +267,13 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	await _frames(2)
 	assert_bool(panel.is_capturing()).is_false()
 	assert_str(back.text).is_equal("S")
-	# The menu closes on Esc as before; F readies nobody now, the new key does, and the lobby HUD's
-	# chip and the own row's check follow (#495: no key prompt to name it).
+	# One Esc closes the Settings page, the next the menu (s05, #1571); F readies nobody now, the
+	# new key does, and the lobby HUD's ready tile and the own row's pip follow (#495: no key
+	# prompt to name it).
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_true()
+	assert_object(game.ui.esc.page()).is_null()
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_false()
@@ -353,11 +373,11 @@ func test_a_ready_guests_esc_menu_closes_as_the_match_leaves_the_lobby() -> void
 	_assert_menu_gone(guest)
 	assert_bool(guest.pointer.captured()).is_true()
 	assert_bool(guest.player().reads_device_input).is_true()
-	# One Esc opens it again, on Game.
+	# One Esc opens it again: the panel alone.
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(guest.ui.esc_open()).is_true()
-	assert_object(guest.ui.esc.page()).is_same(guest.ui.esc.actions)
+	assert_object(guest.ui.esc.page()).is_null()
 	guest.leave()
 	host.leave()
 	await get_tree().process_frame

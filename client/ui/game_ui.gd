@@ -45,6 +45,8 @@ const BLACK_SCREENS: Array[GameFlow.Screen] = [
 const BLACK_LAYER := 6
 ## The Esc menu's layer: above the black screens, not the table's 4 (#656, answer (b)).
 const ABOVE_LAYER := 7
+## The loading screen's how-to card: its sideways Scroll, three and a half frames (s03's Card).
+const LOADING_CARD_SCROLL := 1384.0
 
 ## The name plates over the others' heads (#257), under every screen: the lobby and the round.
 var plates := NamePlates.new()
@@ -113,6 +115,8 @@ func _init() -> void:
 	overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)
 	# Esc on the menu is its Resume: the game closes it and captures the mouse again.
 	overlays.add(&"esc_menu", UiOverlays.ESC_MENU, esc_open, esc.resume)
+	# An entry's page beside the panel closes before the menu (s05, #1571).
+	overlays.add(&"esc_page", UiOverlays.ESC_PAGE, esc_page_open, esc.close_page)
 	# The host's question over the menu (#491's confirm dialog): Esc is its Cancel, the menu stays.
 	overlays.add(&"esc_dialog", UiOverlays.ESC_DIALOG, esc.state.asking, esc.cancel)
 	# The tutorial's invite (#492): Esc is its Skip.
@@ -160,7 +164,11 @@ func show_loading_card(type: StringName) -> bool:
 	var card := HowtoCards.of_task(type)
 	if card == null:
 		return false
-	connecting.show_card(HowtoCardView.raised(card, HowtoCardView.LOADING_ART, ToyHints.DARK))
+	connecting.show_card(
+		HowtoCardView.raised(
+			card, HowtoCardView.LOADING_ART, ToyHints.DARK, false, LOADING_CARD_SCROLL
+		)
+	)
 	return true
 
 
@@ -261,6 +269,11 @@ func open_esc(
 
 func close_esc() -> void:
 	esc.close()
+
+
+## Whether the Esc menu shows an entry's page beside its panel.
+func esc_page_open() -> bool:
+	return esc_open() and esc.page_open()
 
 
 func esc_open() -> bool:
