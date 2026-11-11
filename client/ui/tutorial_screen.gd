@@ -40,8 +40,9 @@ const NAME_WIDTH := 240
 const BOX_WIDTH := 688
 const BODY_WIDTH := 480
 const CHECK_SIZE := Vector2(24, 24)
-## A plate stacked under another at the top centre: the gap of s9's Protect chip under the HUD's
-## timer (LifeScreen.PROTECT_TOP); s1 draws no dead player ("not a decision").
+## A plate stacked under another at the top centre: 24 px, the gap s9 left under the HUD's timer
+## before ui-2.5.4 (its Protect chip now sits 39 px under the anger meter, LifeScreen.PROTECT_TOP);
+## s1 draws no dead player ("not a decision").
 const STACK_GAP := 24
 ## The map's «?» (MapScreen's task rows), drawn as a step's round keycap.
 const HOWTO_TEXT := "?"

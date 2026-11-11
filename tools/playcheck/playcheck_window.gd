@@ -138,9 +138,9 @@ class GameView:
 		var hud := ui.hud
 		match field:
 			"hud.health":
-				found = ["%.2f" % hud.health.fill.value, hud.health_box.is_visible_in_tree()]
+				found = ["%.2f" % hud.health.fraction, hud.health_box.is_visible_in_tree()]
 			"hud.stamina":
-				found = ["%.2f" % hud.stamina.fill.value, hud.stamina_box.is_visible_in_tree()]
+				found = ["%.2f" % hud.stamina.fraction, hud.stamina_box.is_visible_in_tree()]
 			"hud.mic":
 				found = ["on" if hud.shows_mic_on() else "off", hud.mic.is_visible_in_tree()]
 			"hud.hand":
@@ -159,7 +159,7 @@ class GameView:
 				found = ["", hud.cross.is_visible_in_tree()]
 			"life.bleed":
 				var bleed := ui.life.bleed
-				found = ["%.2f" % bleed.fill.value, bleed.is_visible_in_tree()]
+				found = ["%.2f" % bleed.value, bleed.is_visible_in_tree()]
 			"life.raise":
 				found = ["%.2f" % ui.life.raise_bar.value, ui.life.raise_bar.is_visible_in_tree()]
 			"life.hold":
@@ -207,6 +207,7 @@ class GameView:
 			"life.watching": ui.life.watching_label,
 			"life.title": ui.life.title_label,
 			"life.left": ui.life.left_label,
+			"life.back_in": ui.life.back_in_label,
 			"life.respawn": ui.life.respawn_label,
 			"life.protected": ui.life.protect_label,
 			"lobby.aim": ui.lobby_hud.aim_label,

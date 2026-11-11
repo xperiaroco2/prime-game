@@ -1,24 +1,29 @@
 extends Node3D
-## A preview of the round HUD for `tools\run.cmd shot` (#489; the M4 ADR's §6): the UI handoff's
-## states (prime-game-ui `ui-0.4.0` `docs/handoff/s07-hud.md`) over a lit greybox room, drawn by
-## the game's GameUi from a fake ClientModel and HudText.Local, as a host would send them:
-## - `empty`: an Engineer, nothing carried, the crosshair on a package within reach;
-## - `pack`: carrying a package with both hands (the hand slot widens);
-## - `tired`: stamina at 0.18; `hurt`: health at 0.22;
-## - `mate`: a dissident with a knife on the belt looking at a teammate (the plate's mark);
+## A preview of the round HUD for `tools\run.cmd shot` (#489, #1570; the M4 ADR's §6): the UI
+## handoff's states (prime-game-ui `ui-2.5.4` `docs/handoff/s07-hud.md`) over a lit greybox room,
+## drawn by the game's GameUi from a fake ClientModel and HudText.Local, as a host would send them:
+## - `empty`: an Engineer, nothing carried, the crosshair on a package within reach, the anger calm;
+## - `carry`: a package in the hand and a knife on the belt, each with its name tag, the siren on;
+## - `human`: a dissident (the own role's players know each other: the danger role tile) with a
+##   knife in the hand, the teammate tagged in the roster and its plate marked;
+## - `hurt`: health at 0.22 and stamina at 0.18 (two pips each, the health alarm);
 ## - `raising`: holding Interact on a downed teammate (the raise bar in place of Aim);
-## - `cue`: the crosshair on a downed teammate lying ahead (the raise cue in Aim, #497, PR #721);
+## - `cops`: the anger full and the cops' minute running (the timer hidden, the danger edge);
+## - `cue`: the crosshair on a downed teammate lying ahead (the raise cue in Aim, #497, PR #721; the
+##   game's, not drawn by the handoff);
 ## and the handoff s09's (`docs/handoff/s09-downed.md`, #497), drawn by the game's LifeScreen from
 ## LifeHud over the same HUD:
 ## - `downed`: 3 s into the mode's 10 s knockdown (the bleed-out bar at 0.7, "0:07"), the mic off;
 ## - `holding`: the same, the give-up key held 0.45 s of its 1 s;
 ## - `raised`: the teammate raising the player, 0.6 of the way;
-## - `dead`: spectating the teammate, 6 s after the death (back in 0:24);
+## - `dead`: the handoff's `dead-room` (#1489's hall): 6 s after the death (back in 0:24), the mic
+##   on (the dead hear each other there) and Player2 dead too ("Also here"), the capsule note;
 ## - `back`: respawned this tick, empty hands, stamina full: the protection chip counts 3.
 ## And the ship's zap (#1585): `zapped`: the carrier's blue flash at its peak over the notice;
 ## `noticed`: the notice alone, after the flash.
-## The samples are the handoff's: 07:22 left, health 0.8, stamina 0.9, the microphone on. Dev only:
-## nothing here reaches the game.
+## The samples are the handoff's: 07:22 left, health 0.8, stamina 0.9, the microphone on, the
+## anger 0.08 (`empty`), 0.55 (the siren on) or full with 0:58 to the cops. No mode has an anger
+## yet (#1312): the preview sets it on HudText's Shown. Dev only: nothing here reaches the game.
 
 const Preview := preload("res://client/dev/screen_preview.gd")
 const MODE := "res://content/modes/base_mode.tres"
@@ -30,14 +35,16 @@ const MATE := 3
 const MATE_AT := Vector3(-1.4, 0.0, -4.0)
 const LYING := 31
 const TICK_USEC := 50000
+## The handoff's states that sample the anger meter (the rest show the game's HUD as it is).
+const SAMPLED: Array[String] = ["empty", "carry", "human", "hurt", "raising", "cops"]
 
 @export_enum(
 	"empty",
-	"pack",
-	"tired",
+	"carry",
+	"human",
 	"hurt",
-	"mate",
 	"raising",
+	"cops",
 	"cue",
 	"downed",
 	"holding",
@@ -69,7 +76,7 @@ func _ready() -> void:
 	_avatars.rules = rules
 	_avatars.clock = func() -> int: return _now
 	add_child(_avatars)
-	if state in ["mate", "cue"]:
+	if state in ["human", "cue"]:
 		for tick: int in 6:
 			_snapshot(tick + 1)
 	var camera := Camera3D.new()
@@ -86,6 +93,8 @@ func _ready() -> void:
 	ui.plates.avatars = _avatars
 	ui.show_screen(GameFlow.Screen.ROUND)
 	ui.refresh_round(_model, mode, NOW, _local())
+	if state in SAMPLED:
+		ui.hud.show_hud(_sampled(mode))
 	ui.life.show_hud(_life(mode))
 	if state == "zapped":
 		# The real flash, held at its peak (no _process) so a shot shows its strongest frame.
@@ -101,7 +110,7 @@ func _fake_round(mode: GameMode) -> ClientModel:
 	var model := Preview.fake_model(mode, true)
 	var end_tick := NOW + TIME_LEFT_S * Ticks.RATE
 	model.fold(&"PhaseChanged", {"phase": &"round", "end_tick": end_tick})
-	var dissident := state in ["mate", "dead"]
+	var dissident := state in ["human", "dead"]
 	model.fold(&"RoleAssigned", {"role": &"dissident" if dissident else &"crew"})
 	if dissident:
 		model.fold(&"Teammates", {"role": &"dissident", "peers": PackedInt32Array([1, MATE])})
@@ -114,13 +123,14 @@ func _fake_round(mode: GameMode) -> ClientModel:
 	model.fold(&"ItemSpawned", {"item": LYING, "kind": &"package", "position": at})
 	model.fold(&"ItemSpawned", {"item": Preview.KNIFE, "kind": &"knife", "position": at})
 	match state:
-		"pack":
-			model.fold(&"ItemPickedUp", {"peer": 1, "item": LYING})
-		"mate":
+		"carry":
+			model.fold(&"ItemPickedUp", {"peer": 1, "item": Preview.KNIFE, "place": 1})
+			model.fold(&"ItemPickedUp", {"peer": 1, "item": LYING, "place": 0})
+		"human":
 			model.fold(&"ItemPickedUp", {"peer": 1, "item": Preview.KNIFE})
-			model.fold(&"Swapped", {"peer": 1})
 		"dead":
 			model.fold(&"ItemPickedUp", {"peer": MATE, "item": LYING})
+			model.fold(&"Died", {"peer": 2, "position": Vector3(-3, 0, 2)})
 	for event: Array in _life_events(mode):
 		model.fold(event[1] as StringName, event[2] as Dictionary)
 	return model
@@ -128,12 +138,12 @@ func _fake_round(mode: GameMode) -> ClientModel:
 
 func _local() -> HudText.Local:
 	var local := HudText.Local.new()
-	local.stamina = 18.0 if state == "tired" else 90.0
+	local.stamina = 18.0 if state == "hurt" else 90.0
 	if state == "back":
 		local.stamina = _full_stamina()
-	# Nobody hears a downed or dead player (VoiceSender.live()).
-	local.mic = state not in ["downed", "holding", "raised", "dead"]
-	if state in ["empty", "tired", "hurt"]:
+	# Nobody hears a downed player (VoiceSender.live()); the dead in the hall hear each other.
+	local.mic = state not in ["downed", "holding", "raised"]
+	if state == "empty":
 		local.aim = LYING
 	if state == "cue":
 		local.raise_key = KeyLabel.of_action(&"interact")
@@ -141,6 +151,17 @@ func _local() -> HudText.Local:
 		local.raising = 0.6
 	local.zap_notice = state in ["zapped", "noticed"]
 	return local
+
+
+## The HUD of `state` with the handoff's anger, siren and cops' minute (no mode has them, #1312).
+func _sampled(mode: GameMode) -> HudText.Shown:
+	var shown := HudText.of(_model, mode, NOW, _local())
+	shown.anger = 0.08 if state == "empty" else 0.55
+	shown.siren = state != "empty"
+	if state == "cops":
+		shown.anger = 1.0
+		shown.cops = "0:58"
+	return shown
 
 
 ## The own life's events of `state`, [seconds before NOW, name, fields] each (the handoff's

@@ -1,23 +1,26 @@
 class_name HowtoCardView
 extends PanelContainer
-## A how-to card as drawn (#254; prime-game-ui's P8 at ui-0.4.0, the same tree in s3's loading
-## card, s8's map card and s5's Guide): the face, ToyPanelHowto, holding V with Head (the title,
-## the card's deck key, and the corner label `howto.label`) and Frames (Frame1 to Frame4, each a
-## ToyHowtoFrame, the finish frame ToyHowtoFrameDone, holding its Art), and on the map Bar with
-## Close. raised() puts it on its toy base. Wordless: a frame holds only its picture; a frame with
-## no picture yet shows its deck key's words (the Guide's basics), and a picture whose PNG is
-## missing shows a placeholder naming the file (the UI pack's cards come with #520).
+## A how-to card as drawn (#254; prime-game-ui's P8, at ui-2.5.4 the same tree in s3's loading
+## card, s8's map card and s5's Guide, #1570): the face, ToyPanelHowto, holding V with Head (a tile
+## head: `howto.label` in small capitals over the title, the card's deck key), Scroll (sideways,
+## no bar drawn, as wide as the place gives; with no width it takes its frames' width) > Frames
+## (one per frame, each a ToyHowtoFrame, the finish frame ToyHowtoFrameDone, holding its Art), and
+## on the map Bar with Close. raised() puts it on its toy base. Wordless: a frame holds only its
+## picture; a frame with no picture yet shows its deck key's words (the Guide's basics), and a
+## picture whose PNG is missing shows a placeholder naming the file (the UI pack's cards, #520).
 
 ## Close was pressed (the map's card; Esc and the map key close it there too).
 signal close_requested
 
 ## The art's size per place, 4:3 (px at the 1920x1080 base; the handoff's numbers).
-const MAP_ART := Vector2(320, 240)
+const MAP_ART := Vector2(352, 264)
 const LOADING_ART := Vector2(352, 264)
 const GUIDE_ART := Vector2(160, 120)
 
 var card: HowtoCard
 var title_label := Label.new()
+## The frames' sideways scroll and the frames in it.
+var scroll := ScrollContainer.new()
 var frames_box := HBoxContainer.new()
 ## Close, on the map's card only; null elsewhere.
 var close_button: Button
@@ -25,30 +28,42 @@ var close_button: Button
 var _words: Dictionary[int, Label] = {}
 
 
-func _init(shown: HowtoCard, art_size: Vector2, with_close := false) -> void:
+## `shown` with `art_size` art per frame; `with_close` adds Bar > Close (the map's card); a
+## `scroll_width` above 0 is the Scroll's width (the frames past it scroll sideways), else the
+## Scroll takes the frames' width.
+func _init(shown: HowtoCard, art_size: Vector2, with_close := false, scroll_width := 0.0) -> void:
 	card = shown
 	name = "Card"
 	theme_type_variation = &"ToyPanelHowto"
 	var column := VBoxContainer.new()
 	column.name = "V"
-	column.theme_type_variation = &"ToyColumnSixteen"
+	column.theme_type_variation = &"ToyColumnTwentyFour"
 	add_child(column)
-	var head := HBoxContainer.new()
+	var head := VBoxContainer.new()
 	head.name = "Head"
-	head.theme_type_variation = &"ToyRowSixteen"
+	head.theme_type_variation = &"ToyColumnEight"
 	column.add_child(head)
+	var note := UiParts.styled_label("howto.label", &"ToyKicker")
+	note.name = "Note"
+	note.uppercase = true
+	head.add_child(note)
 	title_label.name = "Title"
 	title_label.theme_type_variation = &"ToyTitleOnLight"
-	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.text = String(shown.title)
 	head.add_child(title_label)
-	var note := UiParts.styled_label("howto.label", &"ToyHowtoNote")
-	note.name = "Note"
-	note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(note)
+	scroll.name = "Scroll"
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	if scroll_width > 0.0:
+		# No bar drawn until the pack has a sideways one; the frame cut at the edge shows more.
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		scroll.custom_minimum_size = Vector2(scroll_width, 0)
+	else:
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
 	frames_box.name = "Frames"
-	frames_box.theme_type_variation = &"ToyRowTwelve"
-	column.add_child(frames_box)
+	frames_box.theme_type_variation = &"ToyRowSixteen"
+	scroll.add_child(frames_box)
 	for i in shown.frames.size():
 		frames_box.add_child(_frame(i, shown.frames[i], art_size))
 	if with_close:
@@ -74,9 +89,12 @@ static func raised(
 	return UiParts.raised(HowtoCardView.new(shown, art_size, with_close), context)
 
 
-## The face inside a card made by raised(); null for anything else.
-static func face_of(made: ToyRaised) -> HowtoCardView:
-	return made.face as HowtoCardView if made != null else null
+## The face of a card: the card itself, or the face inside one made by raised(); null for
+## anything else.
+static func face_of(made: Control) -> HowtoCardView:
+	if made is HowtoCardView:
+		return made as HowtoCardView
+	return (made as ToyRaised).face as HowtoCardView if made is ToyRaised else null
 
 
 func _notification(what: int) -> void:
