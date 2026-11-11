@@ -189,7 +189,8 @@ func _build_step() -> void:
 func _build_cards() -> void:
 	for child: Node in cards.get_children():
 		cards.remove_child(child)
-		child.free()
+		# Queued: a Mutate press that shows the choice again must not free its own button.
+		child.queue_free()
 	for mutation: Mutation in _mutations:
 		cards.add_child(_card(mutation))
 	_write_cards()

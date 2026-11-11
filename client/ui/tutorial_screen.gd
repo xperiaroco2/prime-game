@@ -365,6 +365,8 @@ static func _tint(check: TextureRect) -> void:
 func _list_label(lesson: TutorialLesson, variation: StringName) -> Label:
 	var label := UiParts.styled_label(lesson.list_key, variation)
 	label.name = "Name"
+	# The name takes the row, so a done lesson's check sits at the list's right edge.
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	if not lesson.list_action.is_empty():
 		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -403,6 +405,7 @@ func _build_step() -> void:
 	progress_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_step_column.add_child(progress_label)
 	title_label.name = "Title"
+	# Beyond the handoff: a long title wraps rather than widen the plate (large text in Ukrainian).
 	title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_step_column.add_child(title_label)
 	how = _row("How", &"ToyRowTwelve")
@@ -432,9 +435,8 @@ func _build_invite() -> void:
 	dim = UiParts.backdrop(self, &"ToyBackdrop")
 	dim.name = "Dim"
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	var face := box
-	face.name = "Box"
-	face.theme_type_variation = &"ToyPanelDialog"
+	box.name = "Box"
+	box.theme_type_variation = &"ToyPanelDialog"
 	box.set_anchors_preset(Control.PRESET_CENTER)
 	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	box.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -443,7 +445,7 @@ func _build_invite() -> void:
 	var column := VBoxContainer.new()
 	column.name = "V"
 	column.theme_type_variation = &"ToyColumnThirtyTwo"
-	face.add_child(column)
+	box.add_child(column)
 	var text := VBoxContainer.new()
 	text.name = "Text"
 	text.theme_type_variation = &"ToyColumnTwelve"

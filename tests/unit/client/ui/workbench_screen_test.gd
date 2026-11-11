@@ -47,7 +47,16 @@ func test_choose_shows_the_points_and_a_card_per_mutation() -> void:
 	assert_bool(screen.choose.visible).is_true()
 	assert_bool(screen.idle.visible or screen.step.visible).is_false()
 	assert_str(String(screen.choose.theme_type_variation)).is_equal("ToyColumnTwentyFour")
+	var top := screen.get_node("Choose/Top") as HBoxContainer
+	assert_str(String(top.theme_type_variation)).is_equal("ToyRowSixteen")
+	var top_title := top.get_node("Title") as Label
+	assert_int(top_title.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
+	assert_int(top_title.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
 	var balance := screen.get_node("Choose/Top/Balance") as PanelContainer
+	assert_str(String((balance.get_node("Row") as Control).theme_type_variation)).is_equal(
+		"ToyRowSixteen"
+	)
+	assert_int(screen.points_label.auto_translate_mode).is_equal(Node.AUTO_TRANSLATE_MODE_DISABLED)
 	assert_str(String(balance.theme_type_variation)).is_equal("ToyPlateBalance")
 	assert_str((balance.get_node("Row/Label") as Label).text).is_equal("workbench.points")
 	assert_str(String(screen.points_label.theme_type_variation)).is_equal("ToyPlateTimer")
@@ -67,6 +76,12 @@ func test_choose_shows_the_points_and_a_card_per_mutation() -> void:
 	var effect := fast.get_node("V/Effect") as Label
 	assert_str(String(effect.theme_type_variation)).is_equal("ToyMutationCardText")
 	assert_int(effect.size_flags_vertical).is_equal(Control.SIZE_EXPAND_FILL)
+	assert_vector(effect.custom_minimum_size).is_equal(Vector2(200, 0))
+	assert_int(effect.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
+	for path: String in ["V/Cost", "V/Buy"]:
+		assert_int((fast.get_node(path) as Control).auto_translate_mode).is_equal(
+			Node.AUTO_TRANSLATE_MODE_DISABLED
+		)
 	assert_str((fast.get_node("V/Cost") as Label).text).is_equal("4 points")
 	var buy := fast.get_node("V/Buy") as Button
 	assert_str(String(buy.theme_type_variation)).is_equal("ToyButtonMutate")
@@ -108,8 +123,12 @@ func test_step_names_the_mutation_and_fills_ten_pips() -> void:
 	assert_str(String(screen.chosen_label.theme_type_variation)).is_equal("ToyKicker")
 	assert_bool(screen.chosen_label.uppercase).is_true()
 	assert_str(screen.chosen_label.text).is_equal("mutation.jump.name")
+	assert_int(screen.chosen_label.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
 	var step_in := screen.get_node("Step/V/StepIn") as Label
 	assert_str(String(step_in.theme_type_variation)).is_equal("ToyTitleOnLight")
+	assert_int(step_in.horizontal_alignment).is_equal(HORIZONTAL_ALIGNMENT_CENTER)
+	assert_str(String(screen.pips.theme_type_variation)).is_equal("ToyRowFour")
+	assert_int(screen.pips.size_flags_horizontal).is_equal(Control.SIZE_SHRINK_CENTER)
 	assert_str(step_in.text).is_equal("workbench.step_in")
 	var full := 0
 	for pip: Node in screen.pips.get_children():
@@ -129,6 +148,29 @@ func test_the_words_follow_the_language() -> void:
 	assert_str((screen.card_of(&"health").get_node("V/Cost") as Label).text).is_equal("9 очок")
 	assert_str((screen.card_of(&"health").get_node("V/Buy") as Button).text).is_equal("Бракує 2")
 	assert_str((fast.get_node("V/Buy") as Button).text).is_equal("Мутувати")
+
+
+func test_every_look_it_names_is_in_the_theme() -> void:
+	# The looks the theme test's line scan misses (set through a local or a wrapped line).
+	for variation: StringName in [
+		&"ToyMutationCard",
+		&"ToyMutationCardPointed",
+		&"ToyMutationCardName",
+		&"ToyMutationCardNameOff",
+		&"ToyMutationCardCost",
+		&"ToyMutationCardCostOff",
+		&"ToyButtonMutate",
+		&"ToyPlateBalance",
+		&"ToyTitleMachine",
+		&"ToyRosterName",
+		&"ToyRosterNameSelf",
+		&"ToyRosterNameDead",
+	]:
+		(
+			assert_str(String(GameUi.THEME.get_type_variation_base(variation)))
+			. override_failure_message(variation)
+			. is_not_empty()
+		)
 
 
 ## The handoff's sample: Quick feet (4), Spring legs (3), Thick skin (9).

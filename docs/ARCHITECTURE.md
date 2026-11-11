@@ -370,7 +370,7 @@ dissidents, no crew present only once every crew member left, End widens nothing
 
 ### 3.6 Pregame, the silent intro (#213, M6.2)
 The engineer's answers on #213 (2026-10-02 and 2026-10-08): pre game is its own phase, `pregame`, between Loading and
-Round, like a film's titles: a dark screen (`EndBackdrop`, the pack's ToyBackdropNight like the end screen's `Night`, not pure black) shows each player its own role for
+Round, like a film's titles: a dark screen (`EndBackdrop`, the pack's ToyBackdropNight, not pure black) shows each player its own role for
 about 3 s, nobody hears anybody, there is no input and no movement, and the round's clock does not run yet. Neither
 screen says anything about the microphone: it is obvious nobody hears anybody. Post game is End (§3.2), already
 silent; a test keeps it so.
@@ -3800,13 +3800,14 @@ down) > `Won` (ToyTitleOnDark) and `Reason` (ToyTextMutedOnDark), and `Back` (To
 - **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by `MatchEnded`'s
   reason, the id of the win condition that ended the round (`REASON_KEYS`: `every_task_done`, `time_up`, #548); any
   other id, `no_crew_present` too (the deck at ui-0.4.0 has no key for it), and a `MatchEnded` without one hide the
-  line (and its `Result` box with it, so no empty gap is left). `refresh` takes the reason and the time from the
+  line. `refresh` takes the reason and the time from the
   model (`ClientModel.ended_by`, `round_seconds`) through `show_reason(id, seconds)`. Hiding the screen clears the reason, the round's time and the
   countdown, so the next End starts without the last round's.
 - **The title.** How the round ended, by the same reason id (`TITLE_KEYS`, the deck's keys since ui-2.5.1 and the
   handoff at ui-2.5.4, #1559): `end.title.party` for `every_task_done`, `end.title.time_up` for `time_up`; any other
-  id keeps `end.title` ("End of the round"). The handoff's band and hero title around it are #1319's.
-- **The countdown.** `end.back_to_lobby` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
+  id keeps `end.title` ("End of the round"). The band's and the title's colour follow the winning side
+  (`ALERT_SIDES`), not the reason as the handoff's per-title ink does (the same result for the two reasons built).
+- **The countdown.** `end.back_to_ship` with End's seconds left, 3, 2, 1 (never 0: at the end tick the lobby takes
   over, #212); hidden when End has none. It and the reason are set with `tr()` and `format()`
   (`auto_translate_mode` DISABLED) and rebuilt on `NOTIFICATION_TRANSLATION_CHANGED`; the other lines are keys
   Godot translates.
@@ -3817,7 +3818,7 @@ down) > `Won` (ToyTitleOnDark) and `Reason` (ToyTextMutedOnDark), and `Back` (To
 - **Layer.** The handoff's black-screen CanvasLayer 6: `GameUi.black`, shared with #494's connecting, failure and
   loading screen and the pregame (#656), the last on it; the Esc menu opens over it on `GameUi.above` (§4.7.32).
 Tests: `tests/unit/client/ui/end_screen_test.gd` (the tree: names, classes, variations, anchors, size flags and
-minimum sizes; the pack's variations only; the plate for a win and plain text for a loss from each team's view and
+minimum sizes; the pack's variations only; one winner line for everyone, the band and title by the winning side, and
 without a role; a side with no key; each reason, its title, the m:ss time and an unknown id; the countdown 3, 2, 1 for host and
 client; a language switch; no focus or input; the fade, its cut and the outro hook once per End; the outro sound on the UI bus once per End, #657, started as a new playback each End: not `playing`, which the 0.12 s file loses on the headless driver's mixing thread under load, #948),
 `tests/integration/client/app/game_loop_test.gd` (each Game's shown winner line in a real match). The `shot`s, at
@@ -4857,22 +4858,23 @@ The UI handoff's s1 (prime-game-ui `ui-2.5.4` `docs/handoff/s01-tutorial.md`, #1
   key named by its `Controls.ACTIONS` row (`Sprint`, `Jump`). A step with neither (title only; no lesson since
   #900) hides How. Lesson 8's Esc keycap reads Godot's key name ("Escape"): the deck has no `key.esc`.
 - **List:** one ToyRowTwelve row `<Name>` per lesson in the roster's looks: a done lesson's `Name` in ToyRosterName
-  with the 27 px `check` after it, tinted with ToyRosterName's `font_color`; the current one in ToyRosterNameSelf (the
-  accent); the rest in ToyRosterNameDead (dim); `<Name>` is the list key's last part in PascalCase (the handoff names lesson 2
+  with the 27 px `check` at the right edge, tinted with ToyRosterName's `font_color`; the current one in ToyRosterNameSelf (the
+  accent); the rest in ToyRosterNameDead (dim); the name takes the row, so a done lesson's check sits at the right edge; `<Name>` is the list key's last part in PascalCase (the handoff names lesson 2
   `PickUpNext` in one state and `HandBelt` in another: one rule here). `tutorial.list.map`'s `{key}` is the bound
   `list_action`. Every plate node ignores the mouse and takes no focus. Texts with data or in pieces are set from
   code (`auto_translate_mode` DISABLED) and rebuilt on NOTIFICATION_TRANSLATION_CHANGED.
 - **Placement:** `GameUi.show_screen` shows the screen in the round while the tutorial runs (`set_tutorial`, which
   also clears it at the end) and hides the HUD and the life plates under the invite (s1's `invite`). While the dead
-  player's Spectate plate shows (lesson 6) the Step plate sits 24 px under it (`set_step_under`; s9's Protect gap,
-  not a decision: s1 draws no dead player).
+  player's DeadTop tile shows (lesson 7) the Step plate sits 24 px under it (`set_step_under`; s9's Protect gap,
+  not a decision: s1 draws no dead player). Where a wide step (lesson 1's keys at large text in Ukrainian) would reach
+  the list, the list moves 24 px under the Step plate, and back to 39 px with a narrower step (`_place_list`; not
+  drawn by the handoff). The step's title wraps rather than widen the plate (beyond the handoff).
 - **The game** (`GameTutorial`): once the room is in with `invite_open`, `open_invite()` (Start focused) and the
   mouse freed; `GameUi.blocks_keys()` (the Esc menu or the invite) and `frees_mouse()` (the map or the invite) feed
   `GamePlayer.apply_flags`, so no key counts under the invite and a click does not recapture; the map key is
   ignored there. Esc is the invite's Skip through a `UiOverlays` entry (`INVITE`, layer 2). Start writes
   `tutorial_seen`, closes the invite, `begin()`s lesson 1 and captures the mouse (focused windows only); Skip writes
-  it and leaves (`EndReasons.CLOSED`: the main menu, no failure). A chip calls `GameSettings.choose_language`
-  (applied and saved; the invite's texts follow). The main menu's Tutorial is enabled and starts it with no invite.
+  it and leaves (`EndReasons.CLOSED`: the main menu, no failure). The main menu's Tutorial is enabled and starts it with no invite.
 - Shots: `client/dev/tutorial_preview.gd` (the tutorial room from its start spot, the HUD without timer and role):
   `tutorial_invite_preview`, `tutorial_step_preview`, `tutorial_step_keys_preview`, each with a `_uk` twin, and
   `tutorial_invite_large_uk_preview`, `tutorial_step_large_uk_preview` (the «?» step's `tutorial_step_howto_preview`
@@ -4882,7 +4884,7 @@ The UI handoff's s1 (prime-game-ui `ui-2.5.4` `docs/handoff/s01-tutorial.md`, #1
 - Tests: `tests/unit/client/ui/tutorial_screen_test.gd` (the tree of each state, a title-only step it builds, the
   list, no mouse, a rebind, Ukrainian, large text on screen for every step, the step under the Spectate plate),
   `tests/integration/client/app/game_tutorial_invite_test.gd` (the invite over the room with no key, no map and a
-  free mouse; Start, Esc, Skip and a chip; the menu's Tutorial with plates and no invite, seen failing without
+  free mouse; Start, Esc, Skip, and no language chips; the menu's Tutorial with plates and no invite, seen failing without
   `blocks_keys`' invite), `game_tutorial_test.gd` (the flag only from Start and Skip), `main_menu_test.gd`.
 #### 4.7.50 The bodies in their players' colours (#551)
 The client half of §3.5's body colours. `ClientModel.Member.colour` follows `Welcome`'s roster, `PlayerJoined` and

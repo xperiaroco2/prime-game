@@ -108,6 +108,7 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	)
 	_assert_node(screen.title_label, "Title", "Label", &"ToyPlateTitle")
 	assert_str(screen.title_label.text).is_equal("tutorial.step.pick_up.title")
+	assert_int(screen.title_label.autowrap_mode).is_equal(TextServer.AUTOWRAP_WORD_SMART)
 	_assert_node(screen.how, "How", "HBoxContainer", &"ToyRowTwelve")
 	var lead := screen.how.get_node("Before") as Label
 	_assert_node(lead, "Before", "Label", &"ToyPlateText")
@@ -151,6 +152,10 @@ func test_step_is_lesson_2s_sentence_with_its_keycap() -> void:
 	_assert_node(done, "Move", "HBoxContainer", &"ToyRowTwelve")
 	var done_name := done.get_node("Name") as Label
 	_assert_node(done_name, "Name", "Label", &"ToyRosterName")
+	# Every name takes its row: a done lesson's check sits at the right edge.
+	for row_name: String in ["Move", "PickUp", "HandBelt"]:
+		var row_label := screen.rows.get_node(row_name + "/Name") as Label
+		assert_int(row_label.size_flags_horizontal).is_equal(Control.SIZE_EXPAND_FILL)
 	assert_str(done_name.text).is_equal("tutorial.list.move")
 	var check := done.get_node("Check") as TextureRect
 	assert_object(check.texture).is_not_null()
@@ -342,6 +347,14 @@ func test_texts_rebuild_in_ukrainian_and_large_text_keeps_every_plate_on_screen(
 				)
 			var apart := not screen.step.get_global_rect().intersects(screen.list.get_global_rect())
 			assert_bool(apart).override_failure_message("lesson %d.%d" % [lesson, number]).is_true()
+	# A narrow step after a wide one: the list back at its place, 39 px down.
+	_show(screen, 1, 1, 0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_show(screen, 2, 1, 1)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_float(screen.list.offset_top).is_equal(39.0)
 	screen.open_invite()
 	await get_tree().process_frame
 	await get_tree().process_frame

@@ -4,7 +4,7 @@ extends Control
 ## as the UI track drew it (prime-game-ui `docs/handoff/s10-post-game.md` at ui-2.5.4, #498, #1572).
 ## `Night` (ToyBackdropFullScreen) fades in when End starts and holds the texts: `Band` across the
 ## whole width, 300 to 615 px down (ToyBand, ToyBandAlert when a side in ALERT_SIDES won) with
-## `Title`, how the round ended in hero capitals ("Great party!", "Time's up", or "End of the
+## `Title`, how the round ended at the hero size ("Great party!", "Time's up", or "End of the
 ## round" for a reason with no title); `Lines` 672 px down: `Won`, the winning side, and `Reason`,
 ## why; `Back`, 72 px over the bottom: the seconds until everyone is back on the ship, the lobby
 ## (#212). The same for every player: no names, no roles, no button, no input, no word about voice
@@ -119,7 +119,8 @@ func _init() -> void:
 	outro_began.connect(_play_outro)
 
 
-## `host_tick`: the newest host tick known (-1: none yet).
+## `host_tick`: the newest host tick known (-1: none yet). The mode stays in GameUi's call shape;
+## nothing on the screen reads it since one line names the winner for everyone (#1572).
 func refresh(model: ClientModel, _mode: GameMode, host_tick: int) -> void:
 	_show_winner(model.winner)
 	if model.ended_by != reason or model.round_seconds != round_seconds:
@@ -141,14 +142,6 @@ func show_reason(reason_id: StringName, seconds: int) -> void:
 ## The winner line: the same for every player (no plate for a win or a loss since ui-2.0.0).
 func winner_shown() -> Label:
 	return winner_label
-
-
-## Whether the own role's side is the winning one; false before MatchEnded or without a role.
-static func own_team_won(model: ClientModel, mode: GameMode) -> bool:
-	if model.winner.is_empty() or model.role.is_empty():
-		return false
-	var role := mode.find_role(model.role)
-	return role != null and role.side == model.winner
 
 
 ## The seconds the countdown shows: End's end tick less the host tick, 3, 2, 1 (at the end tick
