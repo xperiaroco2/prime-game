@@ -190,6 +190,7 @@ FIELDS = (
     "life.raise",
     "life.give_up",
     "life.hold",
+    "life.back_in",
     "life.respawn",
     "life.watching",
     "life.protected",
