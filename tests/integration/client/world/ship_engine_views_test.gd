@@ -610,12 +610,23 @@ func test_a_slit_opened_puffs_steam_and_all_five_open_leave_a_mist() -> void:
 	var cloud := found as CPUParticles3D
 	assert_bool(cloud.one_shot and cloud.emitting).is_true()
 	assert_int(cloud.amount).is_greater(10)
+	# Emitted within (1 - explosiveness) of a lifetime, nothing stretching it (randomness delays an
+	# emission, a slower speed_scale ages slower, preprocess starts it old).
 	assert_float(cloud.lifetime * (2.0 - cloud.explosiveness)).is_less_equal(
 		ShipEngineViews.MIST_SECONDS + 1e-4
 	)
+	assert_float(cloud.randomness).is_zero()
+	assert_float(cloud.speed_scale).is_equal(1.0)
+	assert_float(cloud.preprocess).is_zero()
 	assert_float(cloud.color_ramp.get_color(cloud.color_ramp.get_point_count() - 1).a).is_zero()
 	var puff := (cloud.mesh as QuadMesh).material as StandardMaterial3D
 	assert_object(puff.albedo_texture).is_instanceof(GradientTexture2D)
+	# Soft where a puff meets the wall, and that only for the mist: the board's smoke keeps its own.
+	assert_bool(puff.proximity_fade_enabled).is_true()
+	assert_float(puff.proximity_fade_distance).is_equal_approx(
+		ShipEngineViews.MIST_WALL_FADE_M, 1e-6
+	)
+	assert_bool(ShipBoardSmoke.puff_material().proximity_fade_enabled).is_false()
 	_view._process(ShipEngineViews.MIST_SECONDS)
 	assert_int(_view.steam().size()).is_equal(0)
 	assert_int(_view.mist().size()).is_equal(0)

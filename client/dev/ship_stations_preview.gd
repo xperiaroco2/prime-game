@@ -187,7 +187,8 @@ func _gills(camera: Camera3D, room: Node3D) -> void:
 			_model.fold(&"GillFlipped", {"station": buttons[i], "slit": slit, "open": true})
 		if view == "mist":
 			_model.fold(&"EngineProblemFixed", {"problem": i + 1})
-	_run(0.3 if view == "steam" else 1.0)
+	# The mist's particles age on real frames only: start its countdown with them.
+	_run(0.3 if view == "steam" else FRAME_S)
 	var shown := _views.steam().size() if view == "steam" else _views.mist().size()
 	if shown == 0:
 		push_error("ship_stations_preview: no %s at the gills" % view)

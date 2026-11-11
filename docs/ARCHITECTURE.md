@@ -9311,8 +9311,8 @@ plays it on the estate (#1462, "The estate and the content" below).
   Their `shot`s: `client/dev/ship_stations_preview_<view>.tscn` (`board`, `socket`, `socket_spent`, `charger`,
   `flash`) in the estate's ship room, every station at its marker; the same preview shows the engine made readable
   (#1500): `call` and `call_dim` (the call at a pulse's height and between pulses), `wiring` (started, the ring half
-  full, two problems open, the countdown), `steam` and `mist` (at the first gill set; the mist is particles, so
-  `shot --frames 90` shows it grown).
+  full, two problems open, the countdown), `steam` and `mist` (at the first gill set; the mist's particles grow on real
+  frames, so its `shot` takes `--frames` 60 to 90, before the cloud is freed at `MIST_SECONDS`).
   The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
   **The finish** (GDD §8): the last stage passing has no ceremony of its own, no mesh, light or sound (the
