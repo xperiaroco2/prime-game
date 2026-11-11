@@ -3,9 +3,10 @@ extends VBoxContainer
 ## Settings › Controls (#211; the Toy look of #491, prime-game-ui handoff s05 `settings-controls`
 ## at ui-0.4.0): a 64 px ToySettingRow per rebindable action (Controls.ACTIONS) with its name, the
 ## ToyChipAlert "Same key" when another action of one of its phases has that key (the same chip
-## reads "Reserved key" on the row whose capture just met a key the game keeps, #1248), and a wide
-## ToyKeyButton with the bound key's label (KeyLabel); ResetGap and Reset to defaults below. A
-## SettingsPage holds it, in the Esc menu and in the main menu's Settings (each its own).
+## reads "Reserved key", `settings.controls.reserved`, on the row whose capture just met a key the
+## game keeps, #1248), and a wide ToyKeyButton with the bound key's label (KeyLabel); ResetGap and
+## Reset to defaults below. A SettingsPage holds it, in the Esc menu and in the main menu's
+## Settings (each its own).
 ##
 ## A click on a key button (or ui_accept on it) starts a capture: the button reads "Press a key…"
 ## and the next key press or mouse button press binds, applied to the InputMap and saved at once
@@ -57,8 +58,8 @@ var clash_labels: Dictionary[StringName, Label] = {}
 var reset_button := Button.new()
 ## The action a capture binds; &"" while none runs.
 var capturing: StringName = &""
-## The action whose last pressed key was refused (a reserved one, #1248): its chip reads "Reserved
-## key" until the next capture, a binding, a reset or a cancel; &"" while none.
+## The action whose last pressed key was refused (a reserved one, #1248): its chip reads the deck's
+## "Reserved key" until the next capture, a binding, a reset or a cancel; &"" while none.
 var refused: StringName = &""
 
 
@@ -178,8 +179,8 @@ func refresh() -> void:
 		key.set_pressed_no_signal(on)
 		key.text = KeyLabel.word(&"settings.controls.press_key") if on else _label(action)
 		var reserved := action == refused
-		clash_labels[action].text = (
-			_reserved_word() if reserved else KeyLabel.word(&"settings.controls.same_key")
+		clash_labels[action].text = KeyLabel.word(
+			&"settings.controls.reserved" if reserved else &"settings.controls.same_key"
 		)
 		clash_chips[action].visible = reserved or not controls.clashes_of(action).is_empty()
 
@@ -213,14 +214,6 @@ func _bind(event: InputEvent) -> void:
 	else:
 		refused = action
 		refresh()
-
-
-## The "Reserved key" chip's text: the deck's, else the English line until prime-game-ui #116 lands
-## the key (a missing key translates to itself).
-func _reserved_word() -> String:
-	var deck_key := &"settings.controls.reserved"
-	var word := KeyLabel.word(deck_key)
-	return "Reserved key" if word == String(deck_key) else word
 
 
 func _save() -> void:
