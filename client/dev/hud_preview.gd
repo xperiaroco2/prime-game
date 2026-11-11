@@ -16,7 +16,8 @@ extends Node3D
 ## - `downed`: 3 s into the mode's 10 s knockdown (the bleed-out bar at 0.7, "0:07"), the mic off;
 ## - `holding`: the same, the give-up key held 0.45 s of its 1 s;
 ## - `raised`: the teammate raising the player, 0.6 of the way;
-## - `dead`: spectating the teammate, 6 s after the death (back in 0:24);
+## - `dead`: the handoff's `dead-room` (#1489's hall): 6 s after the death (back in 0:24), the mic
+##   on (the dead hear each other there) and Player2 dead too ("Also here"), the capsule note;
 ## - `back`: respawned this tick, empty hands, stamina full: the protection chip counts 3.
 ## And the ship's zap (#1585): `zapped`: the carrier's blue flash at its peak over the notice;
 ## `noticed`: the notice alone, after the flash.
@@ -129,6 +130,7 @@ func _fake_round(mode: GameMode) -> ClientModel:
 			model.fold(&"ItemPickedUp", {"peer": 1, "item": Preview.KNIFE})
 		"dead":
 			model.fold(&"ItemPickedUp", {"peer": MATE, "item": LYING})
+			model.fold(&"Died", {"peer": 2, "position": Vector3(-3, 0, 2)})
 	for event: Array in _life_events(mode):
 		model.fold(event[1] as StringName, event[2] as Dictionary)
 	return model
@@ -139,8 +141,8 @@ func _local() -> HudText.Local:
 	local.stamina = 18.0 if state == "hurt" else 90.0
 	if state == "back":
 		local.stamina = _full_stamina()
-	# Nobody hears a downed or dead player (VoiceSender.live()).
-	local.mic = state not in ["downed", "holding", "raised", "dead"]
+	# Nobody hears a downed player (VoiceSender.live()); the dead in the hall hear each other.
+	local.mic = state not in ["downed", "holding", "raised"]
 	if state == "empty":
 		local.aim = LYING
 	if state == "cue":

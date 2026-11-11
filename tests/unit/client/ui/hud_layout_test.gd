@@ -66,6 +66,8 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 		["Vitals/Suit/Rows/Stamina/Pips/P10", "Panel", &"ToyPip"],
 		["Vitals/Mic", "PanelContainer", &"ToyMic"],
 		["Vitals/Mic/Icon", "TextureRect", &""],
+		["Vitals/Others", "PanelContainer", &"ToyChipPlate"],
+		["Vitals/Others/Text", "Label", &"ToyChipPlateText"],
 		["Slots", "HBoxContainer", &"ToyRowSixteen"],
 		["Slots/Place1", "PanelContainer", &"ToySlotHand"],
 		["Slots/Place1/V", "VBoxContainer", &"ToyColumnFour"],
@@ -336,6 +338,30 @@ func test_human_takes_the_danger_tile() -> void:
 	assert_bool(hud.role.visible).is_true()
 
 
+func test_the_halls_others_chip_names_the_other_dead_beside_the_mic() -> void:
+	# s09's dead-room: Vitals shows the mic and "Also here: …" beside it, the suit hidden.
+	TranslationServer.set_locale(Languages.ENGLISH)
+	var hud := await _hud()
+	assert_bool(hud.others.visible).is_false()
+	var shown := HudText.Shown.new()
+	shown.vitals = true
+	shown.mic = true
+	shown.others = PackedStringArray(["Bulk", "Zinga"])
+	hud.show_hud(shown)
+	assert_bool(hud.others.visible).is_true()
+	assert_bool(hud.suit.visible).is_false()
+	assert_bool(hud.mic.visible).is_true()
+	assert_int(hud.others.size_flags_vertical).is_equal(Control.SIZE_SHRINK_CENTER)
+	assert_str(hud.others_label.text).is_equal("Also here: Bulk, Zinga")
+	TranslationServer.set_locale(Languages.UKRAINIAN)
+	await get_tree().process_frame
+	assert_str(hud.others_label.text).is_equal("Тут також: Bulk, Zinga")
+	TranslationServer.set_locale(Languages.ENGLISH)
+	shown.others = PackedStringArray()
+	hud.show_hud(shown)
+	assert_bool(hud.others.visible).is_false()
+
+
 func test_the_zap_notice_shows_only_with_its_text() -> void:
 	var hud := await _hud()
 	assert_bool(hud.notice.visible).is_false()
@@ -441,7 +467,9 @@ func test_the_mic_off_is_mic_off_tinted_icon_off() -> void:
 
 
 func test_the_downed_see_the_mic_alone_and_a_spectator_nothing() -> void:
-	# The handoff s09 (#497): `down` keeps Vitals/Mic (off) only; `dead` hides all of the HUD.
+	# The handoff s09 (#497): `down` keeps Vitals/Mic (off) only; `dead` in the round's hall
+	# (#1489, `dead-room`) keeps Vitals/Mic only, the suit hidden; a dead spectator (a phase with no
+	# hall) sees nothing of the HUD.
 	var hud := await _hud()
 	var model := Preview.fake_model(_mode, true)
 	Preview.fold_round(model)
@@ -455,6 +483,16 @@ func test_the_downed_see_the_mic_alone_and_a_spectator_nothing() -> void:
 	for hidden: Control in downed_hidden:
 		assert_bool(hidden.is_visible_in_tree()).override_failure_message(hidden.name).is_false()
 	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
+	assert_bool(model.waits_in_hall()).is_true()
+	hud.show_hud(HudText.of(model, _mode, 100, HudText.Local.new()))
+	assert_bool(hud.mic.is_visible_in_tree()).is_true()
+	var hall_hidden: Array[Control] = [
+		hud.timer, hud.role, hud.roster, hud.suit, hud.slots, hud.aim, hud.raising, hud.others
+	]
+	for hidden: Control in hall_hidden:
+		assert_bool(hidden.is_visible_in_tree()).override_failure_message(hidden.name).is_false()
+	model.phase = &"lobby"
+	assert_bool(model.waits_in_hall()).is_false()
 	hud.show_hud(HudText.of(model, _mode, 100, HudText.Local.new()))
 	var dead_hidden: Array[Control] = [
 		hud.timer, hud.role, hud.roster, hud.vitals, hud.slots, hud.aim, hud.raising

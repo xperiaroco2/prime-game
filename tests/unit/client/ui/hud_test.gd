@@ -210,6 +210,10 @@ func test_a_dead_spectator_sees_nothing_of_the_hud() -> void:
 	var model := _round_model()
 	_arm_player2(model)
 	model.fold(&"Died", {"peer": model.own_peer, "position": Vector3.ZERO})
+	# The base mode's round has the dead's hall since #1489 (its own test below): a dead player
+	# spectates in a phase with no hall.
+	model.phase = &"lobby"
+	assert_bool(model.waits_in_hall()).is_false()
 	var local := HudText.Local.new()
 	local.stamina = 61.2
 	local.aim = Preview.KNIFE
@@ -226,6 +230,37 @@ func test_a_dead_spectator_sees_nothing_of_the_hud() -> void:
 	assert_float(shown.raising).is_negative()
 	assert_str(shown.role).is_empty()
 	assert_str(shown.time).is_empty()
+
+
+func test_the_dead_in_the_hall_see_the_mic_and_who_else_waits_there() -> void:
+	# s09's dead-room (#1489's hall, #1570): the mic alone, with the other dead beside it (deaths
+	# are public: the roster's), since only the dead hear each other there.
+	var model := ClientModel.new(FixtureHallModes.mode())
+	for peer: int in [1, 2, 3, 4]:
+		model.roster[peer] = ClientModel.Member.new()
+		model.roster[peer].name = "Player%d" % peer
+	model.own_peer = 1
+	model.phase = &"round"
+	model.lives[1] = ClientModel.Life.DEAD
+	model.lives[3] = ClientModel.Life.DEAD
+	model.lives[4] = ClientModel.Life.LEFT
+	var local := HudText.Local.new()
+	local.mic = true
+	local.stamina = 61.2
+	var shown := HudText.of(model, _mode, NOW, local)
+	assert_bool(shown.vitals).is_true()
+	assert_bool(shown.mic).is_true()
+	assert_array(Array(shown.others)).contains_exactly(["Player3"])
+	for hidden: bool in [shown.bars, shown.slots]:
+		assert_bool(hidden).is_false()
+	assert_str(shown.role).is_empty()
+	assert_str(shown.time).is_empty()
+	assert_bool(shown.roster.is_empty()).is_true()
+	# Alone there: no chip; outside a hall phase: nothing at all.
+	model.lives[3] = ClientModel.Life.ALIVE
+	assert_bool(HudText.of(model, _mode, NOW, local).others.is_empty()).is_true()
+	model.phase = &"lobby"
+	assert_bool(HudText.of(model, _mode, NOW, local).vitals).is_false()
 
 
 func test_a_dead_spectator_sees_nothing_private_of_the_target() -> void:

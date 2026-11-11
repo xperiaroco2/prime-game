@@ -10,7 +10,9 @@ extends RefCounted
 ##   and as m:ss, and the give-up hold's progress with its key.
 ## - Raised (`raise`): the raiser's name and the raise's progress (the knockdown is paused).
 ## - Dead: the time to respawn as m:ss and the watched player's name; nothing of the target's (no
-##   health, stamina, role or private event), and no key (the tutorial teaches them).
+##   health, stamina, role or private event), and no key (the tutorial teaches them). In a phase
+##   with the dead's hall (#1489, s09's `dead-room`) nobody is watched: the room's name and the
+##   respawn's protection seconds instead.
 ## - Living after a respawn (`back`): the protection's whole seconds left, 3, 2, 1; nothing after a
 ##   raise, as drawn.
 ## Never who knocked the player down: the model does not say, and nothing here asks.
@@ -39,6 +41,10 @@ class Shown:
 	## nobody).
 	var respawn := ""
 	var watching := ""
+	## DEAD: whether the player waits in the dead's hall (ClientModel.waits_in_hall), and the whole
+	## seconds of protection the return brings (the capsule note's count).
+	var hall := false
+	var protection_s := 0
 	## Living after a respawn: the protection's whole seconds left; 0 hides the chip.
 	var protected := 0
 
@@ -75,7 +81,11 @@ static func of(model: ClientModel, countdowns: LifeCountdowns, tick: float, loca
 			shown.state = State.DEAD
 			var left := countdowns.respawn_left_s(tick)
 			shown.respawn = clock_text(ceili(left)) if left >= 0.0 else ""
-			shown.watching = name_of(model, local.watching) if local.watching != 0 else ""
+			shown.hall = model.waits_in_hall()
+			if shown.hall:
+				shown.protection_s = countdowns.protection_s()
+			elif local.watching != 0:
+				shown.watching = name_of(model, local.watching)
 	return shown
 
 

@@ -15,6 +15,9 @@ extends RefCounted
 ## The downed and the dead (the handoff s09, #497; LifeScreen draws the rest): downed, only the
 ## microphone shows; dead (spectating, #168) nothing of the HUD shows (no time, role, bars, slots or
 ## mic), so nothing of the watched player's either (the M4 ADR's §3 item 2): its name is LifeHud's.
+## Dead in the dead's hall (#1489, s09's `dead-room`, #1570): only the microphone, with the other
+## dead waiting there beside it (`others`; deaths are public, the roster's `dead`), since the dead
+## hear and talk to each other there.
 
 ## The UI pack's icon of an item kind whose line icon is not `item-<kind>` (ToyIcons; the handoff
 ## s07 draws the item line icons, `icons/item-*.svg`); a kind with neither shows its name alone.
@@ -107,7 +110,7 @@ class Row:
 	extends RefCounted
 	var peer := 0
 	var name := ""
-	var colour := Color.WHITE
+	var colour: Color
 	## The own row (first, hud.roster.self).
 	var own := false
 	## Dead as the public events say (hud.roster.dead).
@@ -144,6 +147,9 @@ class Shown:
 	var stamina := 1.0
 	## Whether anyone hears the own player.
 	var mic := false
+	## Dead in the dead's hall: the names of the other dead waiting there (the mic's `Others`
+	## chip, `dead.also_here`); empty hides the chip.
+	var others := PackedStringArray()
 	## The own three places show (GDD §6: the hand and the two belt slots, numbered 1 to 3).
 	var slots := false
 	## Each place's item, in place order (0 to 2).
@@ -185,6 +191,10 @@ class Shown:
 static func of(model: ClientModel, mode: GameMode, host_tick: float, local: Local) -> Shown:
 	var shown := Shown.new()
 	if spectates(model):
+		if model.waits_in_hall():
+			shown.vitals = true
+			shown.mic = local.mic
+			shown.others = others_in_hall(model)
 		return shown
 	if model.life_of(model.own_peer) == ClientModel.Life.DOWNED:
 		# The handoff s09's `down` and `raise`: the plates and the microphone (off) alone.
@@ -318,6 +328,16 @@ static func roster_of(model: ClientModel, mode: GameMode) -> Array[Row]:
 		row.tag = tag if row.own or known.has(peer) else ""
 		rows.append(row)
 	return rows
+
+
+## The other dead of the session, in its order: who else waits in the dead's hall (deaths are
+## public, the roster's `dead`; a player who left is gone).
+static func others_in_hall(model: ClientModel) -> PackedStringArray:
+	var names := PackedStringArray()
+	for peer: int in model.roster:
+		if peer != model.own_peer and model.life_of(peer) == ClientModel.Life.DEAD:
+			names.append(model.roster[peer].name)
+	return names
 
 
 ## The own health as a fraction of the mode's; full before the first SelfStatus.

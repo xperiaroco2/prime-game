@@ -100,6 +100,30 @@ func test_the_dead_see_the_respawn_and_whom_they_watch_only() -> void:
 	assert_str(LifeHud.clock_text(65)).is_equal("1:05")
 
 
+func test_the_dead_in_the_hall_watch_nobody_and_see_the_returns_protection() -> void:
+	# s09's dead-room (#1489, #1570): a phase whose dead walk the hall.
+	var roster := _model.roster
+	_model = ClientModel.new(FixtureHallModes.mode())
+	_model.own_peer = OWN
+	_model.roster = roster
+	_model.phase = &"round"
+	_fold(&"Died", {"peer": OWN, "position": Vector3.ZERO}, 0.0)
+	_local.watching = 1
+	var shown := _shown(120.0)
+	assert_int(shown.state).is_equal(LifeHud.State.DEAD)
+	assert_bool(shown.hall).is_true()
+	assert_str(shown.respawn).is_equal("0:24")
+	assert_str(shown.watching).is_empty()
+	assert_int(shown.protection_s).is_equal(_countdowns.protection_s())
+	assert_int(shown.protection_s).is_equal(roundi(FixtureModes.player_rules().invulnerable_s))
+	# A phase whose dead do not move: no hall, the spectator's line.
+	_model.phase = &"lobby"
+	shown = _shown(120.0)
+	assert_bool(shown.hall).is_false()
+	assert_int(shown.protection_s).is_equal(0)
+	assert_str(shown.watching).is_equal("Player1")
+
+
 func test_back_counts_the_respawns_protection_and_a_raise_shows_none() -> void:
 	_fold(&"Died", {"peer": OWN, "position": Vector3.ZERO}, 0.0)
 	_fold(&"Respawned", {"peer": OWN, "position": Vector3.ZERO}, 600.0)

@@ -30,6 +30,9 @@ const CODE_WAITING := "…"
 const CODE_GONE := "—"
 ## The HUD's distance from the screen's edges and the players' plate's width, px (the handoff).
 const EDGE := 40
+## Aim's distance below the centre, px (the lobby handoff of ui-0.4.0; s04 at ui-2.5.4 draws none,
+## #1571).
+const AIM_BELOW := 38
 const PLAYERS_WIDTH := 400
 ## The ready check's and the mic icon's size, px (the handoff).
 const CHECK_SIZE := Vector2(24, 24)
@@ -265,7 +268,7 @@ func _build_cross() -> void:
 func _build_aim() -> void:
 	aim.name = "Aim"
 	aim.theme_type_variation = &"ToyChipPlate"
-	var below := Vector2(0, Hud.AIM_BELOW)
+	var below := Vector2(0, AIM_BELOW)
 	_pin(aim, Control.PRESET_CENTER, below, GROW_DIRECTION_BOTH, GROW_DIRECTION_BOTH)
 	aim_label.name = "Text"
 	aim.add_child(aim_label)

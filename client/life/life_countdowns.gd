@@ -135,6 +135,12 @@ func protection_left_s(tick: float) -> float:
 	return _left_s(_protection_end, tick)
 
 
+## The whole seconds of a respawn's protection (the mode's `invulnerable_s`), as the dead's room
+## promises it (s09's capsule note).
+func protection_s() -> int:
+	return roundi(_invulnerable_ticks / Ticks.RATE)
+
+
 ## The raise naming the own player (raising or raised) done, from 0 to 1; NONE when none runs.
 func raise_progress(tick: float) -> float:
 	if _raise_start < 0.0 or _raise_ticks <= 0.0:

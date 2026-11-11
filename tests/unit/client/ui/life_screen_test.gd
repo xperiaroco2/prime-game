@@ -44,12 +44,15 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 		["GiveUp/V/Line/After", "Label", &"ToyPlateText"],
 		["GiveUp/V/Hold", "ProgressBar", &"ToyBarProgress"],
 		["GiveUp/V/Pad", "Control", &""],
-		["Spectate", "PanelContainer", &"ToyPlate"],
-		["Spectate/V", "VBoxContainer", &"ToyColumnFour"],
-		["Spectate/V/Return", "HBoxContainer", &"ToyRowSixteen"],
-		["Spectate/V/Return/Label", "Label", &"ToyHudCaption"],
-		["Spectate/V/Return/Time", "Label", &"ToyTimer"],
-		["Spectate/V/Watching", "Label", &"ToyPlateText"],
+		["DeadTop", "PanelContainer", &"ToyPlate"],
+		["DeadTop/V", "VBoxContainer", &"ToyColumnFour"],
+		["DeadTop/V/Room", "Label", &"ToyKicker"],
+		["DeadTop/V/Return", "HBoxContainer", &"ToyRowSixteen"],
+		["DeadTop/V/Return/Label", "Label", &"ToyHudCaption"],
+		["DeadTop/V/Return/Time", "Label", &"ToyTimer"],
+		["DeadTop/V/Watching", "Label", &"ToyPlateText"],
+		["Capsule", "PanelContainer", &"ToySticker"],
+		["Capsule/Text", "Label", &"ToyStickerText"],
 		["Protect", "PanelContainer", &"ToyChipLight"],
 		["Protect/Text", "Label", &"ToyChipLightText"],
 	]
@@ -63,7 +66,7 @@ func test_the_tree_is_the_handoffs_node_for_node() -> void:
 	for child: Node in screen.get_node("Downed/V").get_children():
 		order.append(child.name)
 	assert_array(order).contains_exactly(["Title", "Bleed", "Left", "Raise", "Pad"])
-	assert_int(screen.get_child_count()).is_equal(4)
+	assert_int(screen.get_child_count()).is_equal(5)
 	# Every text here holds data or is drawn in pieces: set from code, never translated again.
 	for label: Node in screen.find_children("*", "Label", true, false):
 		(
@@ -87,6 +90,7 @@ func test_anchors_offsets_grow_and_sizes_are_the_handoffs() -> void:
 		[screen.give_up, Vector4(0.5, 1, 0.5, 1), Vector4(0, -192, 0, -192), both, begin],
 		[screen.spectate, Vector4(0.5, 0, 0.5, 0), Vector4(0, 36, 0, 36), both, end],
 		[screen.protect, Vector4(0.5, 0, 0.5, 0), Vector4(0, 165, 0, 165), both, end],
+		[screen.capsule, Vector4(1, 1, 1, 1), Vector4(-39, -39, -39, -39), begin, begin],
 	]
 	for row: Array in placed:
 		var node: Control = row[0]
@@ -227,6 +231,45 @@ func test_dead_shows_the_spectate_plate_only() -> void:
 	screen.show_hud(dead)
 	assert_bool(screen.respawn_row.visible).is_false()
 	assert_bool(screen.watching_label.visible).is_true()
+	# Outside the dead's hall: no room name and no capsule note.
+	assert_bool(screen.room_label.visible).is_false()
+	assert_bool(screen.capsule.visible).is_false()
+
+
+func test_the_dead_s_hall_shows_the_room_the_return_and_the_capsule_note() -> void:
+	# s09's dead-room (#1489's hall): the room's name over the return, the capsule note at the
+	# bottom right; nobody watched, no killer.
+	var screen := await _screen()
+	var dead := LifeHud.Shown.new()
+	dead.state = LifeHud.State.DEAD
+	dead.respawn = "0:24"
+	dead.hall = true
+	dead.protection_s = 3
+	screen.show_hud(dead)
+	assert_bool(screen.spectate.visible).is_true()
+	assert_bool(screen.room_label.visible).is_true()
+	assert_str(screen.room_label.text).is_equal("The dead's room")
+	assert_bool(screen.room_label.uppercase).is_true()
+	assert_bool(screen.respawn_row.visible).is_true()
+	assert_bool(screen.watching_label.visible).is_false()
+	assert_bool(screen.capsule.visible).is_true()
+	# The deck keeps the count and its unit together with a no-break space (U+00A0).
+	assert_str(screen.capsule_label.text).is_equal(
+		"Random capsule · 3" + char(0xA0) + "s protection"
+	)
+	TranslationServer.set_locale(Languages.UKRAINIAN)
+	await get_tree().process_frame
+	assert_str(screen.capsule_label.text).is_equal(
+		"Випадкова капсула · 3" + char(0xA0) + "с захисту"
+	)
+	assert_str(screen.room_label.text).is_equal("Кімната мертвих")
+	assert_str(screen.back_in_label.text).is_equal("Повернення через")
+	TranslationServer.set_locale(Languages.ENGLISH)
+	for hidden: Control in [screen.downed, screen.give_up, screen.protect]:
+		assert_bool(hidden.visible).override_failure_message(hidden.name).is_false()
+	# Back in the round: the capsule note goes with the tile.
+	screen.show_hud(LifeHud.Shown.new())
+	assert_bool(screen.capsule.visible).is_false()
 
 
 func test_back_counts_the_protection_down_then_hides_it() -> void:

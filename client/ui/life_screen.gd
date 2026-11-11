@@ -10,9 +10,12 @@ extends Control
 ## - `GiveUp` (bottom centre, 192 px up): the deck's sentence in pieces around the keycap of the
 ##   give-up key bound now, and the hold's bar, empty at rest so the plate never changes size;
 ##   hidden while raised.
-## - `Spectate` (top centre, 36 px down, while dead): the game's plate (the handoff draws a dead's
-##   room the game has not, #1570) in the handoff's DeadTop tile: "Back in" and the time to respawn
-##   as the tile's Return row, then whom the player watches.
+## - `DeadTop` (top centre, 36 px down, while dead; the var `spectate`): in the dead's hall
+##   (#1489, the handoff's `dead-room`) the room's name (`Room`, small capitals) over "Back in" and
+##   the time to respawn (`Return`); in a phase with no hall the game's spectator's line instead of
+##   the name, under the Return row: whom the player watches (`Watching`).
+## - `Capsule` (bottom right, 39 px in, in the dead's hall): where and how the player comes back,
+##   a random capsule with the respawn's protection seconds.
 ## - `Protect` (165 px down, 39 px under the anger meter): the respawn's protection, 3, 2, 1, then
 ##   hidden.
 ## Styled only through the shared theme's variations (no override; the keycap's `min_width`, or
@@ -27,6 +30,7 @@ const DOWNED_TOP := 228
 const DOWNED_WIDTH := 900
 const GIVE_UP_BOTTOM := -192
 const SPECTATE_TOP := 36
+const CAPSULE_EDGE := 39
 const PROTECT_TOP := 165
 const LINE_WIDTH := 810
 const LINE_BAR := Vector2(LINE_WIDTH, 24)
@@ -51,11 +55,14 @@ var key_label := UiParts.styled_label("", &"ToyKeyText")
 var after_label := UiParts.styled_label("", &"ToyPlateText")
 var hold_bar := ProgressBar.new()
 var spectate := PanelContainer.new()
+var room_label := UiParts.styled_label("", &"ToyKicker")
 ## The DeadTop tile's Return row: "Back in" and the time to respawn.
 var respawn_row := HBoxContainer.new()
 var back_in_label := UiParts.styled_label("", &"ToyHudCaption")
 var respawn_label := UiParts.styled_label("", &"ToyTimer")
 var watching_label := UiParts.styled_label("", &"ToyPlateText")
+var capsule := PanelContainer.new()
+var capsule_label := UiParts.styled_label("", &"ToyStickerText")
 var protect := PanelContainer.new()
 var protect_label := UiParts.styled_label("", &"ToyChipLightText")
 ## The last state shown (a translation change writes its texts again).
@@ -70,6 +77,7 @@ func _init() -> void:
 	_build_downed()
 	_build_give_up()
 	_build_spectate()
+	_build_capsule()
 	_build_protect()
 	for label: Label in [
 		title_label,
@@ -80,6 +88,8 @@ func _init() -> void:
 		back_in_label,
 		respawn_label,
 		watching_label,
+		room_label,
+		capsule_label,
 		protect_label,
 	]:
 		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -111,9 +121,12 @@ func show_hud(shown: LifeHud.Shown) -> void:
 		_key_wide = shown.give_up_wide
 		_size_key()
 	hold_bar.value = shown.give_up
-	spectate.visible = shown.state == LifeHud.State.DEAD
+	var dead := shown.state == LifeHud.State.DEAD
+	spectate.visible = dead
+	room_label.visible = shown.hall
 	respawn_row.visible = not shown.respawn.is_empty()
 	watching_label.visible = not shown.watching.is_empty()
+	capsule.visible = dead and shown.hall
 	protect.visible = shown.protected > 0
 	_write()
 
@@ -150,9 +163,11 @@ func _write() -> void:
 	before_label.visible = not pieces[0].is_empty()
 	after_label.text = pieces[1]
 	after_label.visible = not pieces[1].is_empty()
+	room_label.text = tr("dead.room.title")
 	back_in_label.text = tr("dead.back_in")
 	respawn_label.text = _shown.respawn
 	watching_label.text = tr("dead.watching").format({"name": _shown.watching})
+	capsule_label.text = tr("dead.capsule_note").format({"count": str(_shown.protection_s)})
 	protect_label.text = tr("respawn.protected").format({"count": str(_shown.protected)})
 
 
@@ -220,11 +235,15 @@ func _build_give_up() -> void:
 
 
 func _build_spectate() -> void:
-	spectate.name = "Spectate"
+	spectate.name = "DeadTop"
 	spectate.theme_type_variation = &"ToyPlate"
 	var top := Vector2(0, SPECTATE_TOP)
 	_pin(spectate, Control.PRESET_CENTER_TOP, top, GROW_DIRECTION_BOTH, GROW_DIRECTION_END)
 	var column := _column(spectate, &"ToyColumnFour")
+	room_label.name = "Room"
+	room_label.uppercase = true
+	room_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(room_label)
 	respawn_row.name = "Return"
 	respawn_row.theme_type_variation = &"ToyRowSixteen"
 	respawn_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -238,6 +257,15 @@ func _build_spectate() -> void:
 	watching_label.name = "Watching"
 	watching_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(watching_label)
+
+
+func _build_capsule() -> void:
+	capsule.name = "Capsule"
+	capsule.theme_type_variation = &"ToySticker"
+	var corner := Vector2(-CAPSULE_EDGE, -CAPSULE_EDGE)
+	_pin(capsule, Control.PRESET_BOTTOM_RIGHT, corner, GROW_DIRECTION_BEGIN, GROW_DIRECTION_BEGIN)
+	capsule_label.name = "Text"
+	capsule.add_child(capsule_label)
 
 
 func _build_protect() -> void:

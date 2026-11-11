@@ -18,7 +18,8 @@ extends Control
 ##   #1420); `Raising`, the own raise's progress, replaces Aim (the engineer, 2026-10-06).
 ## - `Vitals` (bottom left, 39 px in): `Suit` (ToyPlate > `Rows`: `Title`, `Health` and `Stamina`,
 ##   each a caption and ten pips, ToyPips) and `Mic` beside it (on: `mic` tinted `icon_on`; off:
-##   `mic-off` tinted `icon_off`).
+##   `mic-off` tinted `icon_off`); in the dead's hall the mic alone with `Others` beside it (s09's
+##   `dead-room`: ToyChipPlate, who else waits there).
 ## - `Notice` (under the top tile): the ship zap's notice (#1585), hidden but for its seconds; not
 ##   in the handoff (the engineer approved it on #1585's card).
 ## - `Slots` (bottom right, 36 px in): the three places, the one in the hand the handoff's Hand
@@ -77,6 +78,9 @@ var stamina_box := HBoxContainer.new()
 var stamina := ToyPips.new(ToyPips.STAMINA)
 var mic := PanelContainer.new()
 var mic_icon := TextureRect.new()
+## The dead's hall: who else waits there, beside the mic (s09).
+var others := PanelContainer.new()
+var others_label := UiParts.styled_label("", &"ToyChipPlateText")
 var slots := HBoxContainer.new()
 ## The three places (GDD §6), numbered 1 to 3, the one in the hand lit (HudSlot).
 var places: Array[HudSlot] = [HudSlot.new(1), HudSlot.new(2), HudSlot.new(3)]
@@ -153,6 +157,8 @@ func show_hud(shown: HudText.Shown) -> void:
 	)
 	stamina.set_fraction(shown.stamina)
 	mic_icon.texture = ToyIcons.texture(&"mic" if shown.mic else &"mic-off")
+	others.visible = not shown.others.is_empty()
+	_show_others()
 	slots.visible = shown.slots
 	for place in places.size():
 		places[place].light(place == shown.selected)
@@ -226,6 +232,11 @@ func _show_roster() -> void:
 		(tag.get_node(^"Text") as Label).text = row.tag
 
 
+## The hall's `Others` chip: "Also here: <names>" in the language now (names are data).
+func _show_others() -> void:
+	others_label.text = tr("dead.also_here").format({"names": ", ".join(_shown.others)})
+
+
 ## Whether Aim shows a cue with a key in it (the rescuer's, the hand-over's #1411 or the chair's
 ## #1420).
 func _keyed() -> bool:
@@ -259,6 +270,7 @@ func _notification(what: int) -> void:
 	if _keyed():
 		_show_aim_text()
 	_show_roster()
+	_show_others()
 
 
 ## The icons' tints from the theme (the mic's on and off colours; the siren keeps its own colours).
@@ -269,21 +281,20 @@ func _tint() -> void:
 	mic_icon.self_modulate = mic_icon.get_theme_color(colour, &"ToyMic")
 
 
-## The timer's width: the handoff's 120 px, or the widest m:ss of the theme's digits when that is
-## wider (Unbounded's digits differ in width), so the centred tile never changes width with the
-## time (#489).
+## The timer's width: the handoff's 120 px, or the widest "dd:dd" the label draws in the theme
+## now when that is wider (Unbounded's digits differ in width), so the centred tile never changes
+## width with the time (#489). Measured through the label itself (no font lookups in a screen).
 func _fit_timer() -> void:
 	if not time_label.is_inside_tree():
 		return
-	var font := time_label.get_theme_font(&"font")
-	var font_size := time_label.get_theme_font_size(&"font_size")
-	var widest := 0.0
+	var shown := time_label.text
+	time_label.custom_minimum_size.x = 0.0
+	var widest := float(TIME_WIDTH)
 	for digit in 10:
-		widest = maxf(
-			widest, font.get_string_size(str(digit), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-		)
-	var colon := font.get_string_size(":", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	time_label.custom_minimum_size.x = maxf(TIME_WIDTH, ceilf(widest * 4.0 + colon))
+		time_label.text = "%d%d:%d%d" % [digit, digit, digit, digit]
+		widest = maxf(widest, time_label.get_minimum_size().x)
+	time_label.text = shown
+	time_label.custom_minimum_size.x = ceilf(widest)
 
 
 func _build_edge() -> void:
@@ -443,6 +454,14 @@ func _build_vitals() -> void:
 	_icon(mic_icon)
 	mic.add_child(mic_icon)
 	vitals.add_child(mic)
+	others.name = "Others"
+	others.theme_type_variation = &"ToyChipPlate"
+	others.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	others.visible = false
+	others_label.name = "Text"
+	others_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	others.add_child(others_label)
+	vitals.add_child(others)
 
 
 ## A pips row `box` named `box_name` in `rows`: its caption `label` (150 px) and its pips.
