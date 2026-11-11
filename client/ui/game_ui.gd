@@ -145,6 +145,11 @@ func show_screen(which: GameFlow.Screen) -> void:
 	end.visible = which == GameFlow.Screen.END
 	life.visible = hud.visible
 	tutorial.visible = which == GameFlow.Screen.ROUND and esc.state.tutorial
+	# The mirror's colour menu is the lobby's: leaving it (a match, the main menu after a leave)
+	# hides it and gives the mouse back (refresh() shows it only while a session draws the lobby).
+	if which != GameFlow.Screen.LOBBY and mirror.visible:
+		mirror.visible = false
+		mirror_toggled.emit(false)
 	if which != GameFlow.Screen.ROUND:
 		close_map()
 	_show_map()

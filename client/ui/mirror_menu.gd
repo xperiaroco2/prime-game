@@ -55,12 +55,15 @@ func _init() -> void:
 	visible = false
 
 
-## Whether the menu shows on screen `now` for `model`'s own player: the lobby screen, holding a
-## mirror place.
+## Whether the menu shows on screen `now` for `model`'s own player: the lobby screen, in a phase
+## whose own copy takes SetProfile from a player (not the countdown, where a click would be
+## refused), holding a mirror place.
 static func shown_for(model: ClientModel, now: GameFlow.Screen) -> bool:
 	return (
 		model != null
 		and now == GameFlow.Screen.LOBBY
+		and model.phase_spec() != null
+		and model.phase_spec().senders_of(Intents.SET_PROFILE) != 0
 		and model.mirror.place_of(model.own_peer) >= 0
 	)
 

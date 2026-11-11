@@ -1,6 +1,6 @@
 class_name ClientMirror
 extends RefCounted
-## The lobby mirror's places as the own client knows them (#1394; ARCHITECTURE §7.1.23), folded
+## The lobby mirror's places as the own client knows them (#1394; ARCHITECTURE §7.1.24), folded
 ## from its public MirrorPlaces alone: ClientModel.fold hands it every event and it keeps the last
 ## list whole. A match fact that clear_match forgets (the host's ResetMatch starts every place
 ## free). The own peer holding one opens the mirror's colour menu (MirrorMenu).
