@@ -9250,7 +9250,8 @@ plays it on the estate (#1462, "The estate and the content" below).
   (yellow charging, green a crystal waiting); each gill set's slits open or shut and the white bar from the opening
   tick (the view's own copy of `GillsProblem.bar_slit`'s steps, held equal to it tick by tick by
   `ship_engine_views_test.gd`); at each gill set a puff of steam per slit a press opens while a problem holds it and a
-  cloud of mist when all five open fix it (edges seen frame to frame, none on a blast); and the blast (once per
+  cloud of mist when all five open fix it (one burst of soft particle puffs that drift off the wall and fade, #1596;
+  edges seen frame to frame, none on a blast); and the blast (once per
   `EngineBlast`; a view built again plays none of these), an orange sphere from the console. Its child
   `ShipEngineHologram` (#1500, GDD §8 "The spin-up, made readable") draws round the hologram's centre the call while
   the engine is off (never pressed, its bar empty and still, no problem open: the turbines pulse orange with
@@ -9310,7 +9311,8 @@ plays it on the estate (#1462, "The estate and the content" below).
   Their `shot`s: `client/dev/ship_stations_preview_<view>.tscn` (`board`, `socket`, `socket_spent`, `charger`,
   `flash`) in the estate's ship room, every station at its marker; the same preview shows the engine made readable
   (#1500): `call` and `call_dim` (the call at a pulse's height and between pulses), `wiring` (started, the ring half
-  full, two problems open, the countdown), `steam` and `mist` (at the first gill set).
+  full, two problems open, the countdown), `steam` and `mist` (at the first gill set; the mist's particles grow on real
+  frames, so its `shot` takes `--frames` 60 to 90, before the cloud is freed at `MIST_SECONDS`).
   The how-to card `content/howto/tasks/engine.tres`
   shows the deck's keys alone (`task.engine`); the task's description is in no copy-deck key yet.
   **The finish** (GDD §8): the last stage passing has no ceremony of its own, no mesh, light or sound (the

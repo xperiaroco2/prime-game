@@ -77,9 +77,17 @@ const BLAST := Color(1.0, 0.55, 0.15, 0.45)
 const STEAM_SECONDS := 0.8
 const STEAM_RADIUS_M := 0.25
 const STEAM_RISE_M := 0.5
-## The cloud of mist over a gill set: its seconds and its largest radius.
+## The cloud of mist over a gill set (#1596): faint soft puffs started across the five slits (a box
+## of half-extents MIST_SPAN_M in the set's frame, its x along the wall), mostly at once
+## (MIST_BURST), that swell, drift off the wall and fade out, the last gone MIST_SECONDS after the
+## fix; each fades where it meets the wall (MIST_WALL_FADE_M), so none shows a cut edge.
 const MIST_SECONDS := 3.0
-const MIST_RADIUS_M := 1.2
+const MIST_SPAN_M := Vector3(0.8, 0.45, 0.05)
+const MIST_WALL_FADE_M := 0.2
+const MIST_PUFFS := 48
+const MIST_PUFF_M := 0.8
+const MIST_BURST := 0.8
+const MIST_ALPHA := 0.5
 const VAPOUR := Color(0.92, 0.95, 1.0, 0.6)
 
 var model: ClientModel
@@ -118,7 +126,7 @@ var _sounds := ShipEngineSounds.new()
 ## The gills' puffs and clouds, under one node of their own, each with its seconds left.
 var _vapour: Node3D
 var _steam: Dictionary[MeshInstance3D, float] = {}
-var _mist: Dictionary[MeshInstance3D, float] = {}
+var _mist: Dictionary[CPUParticles3D, float] = {}
 ## Per bound gill button's station: its open slits and whether a problem held it last frame.
 var _was_open: Dictionary[int, int] = {}
 var _was_held: Dictionary[int, bool] = {}
@@ -144,8 +152,8 @@ func steam() -> Array[MeshInstance3D]:
 
 
 ## The clouds of mist showing now.
-func mist() -> Array[MeshInstance3D]:
-	var found: Array[MeshInstance3D] = []
+func mist() -> Array[CPUParticles3D]:
+	var found: Array[CPUParticles3D] = []
 	found.assign(_mist.keys())
 	return found
 
@@ -551,7 +559,7 @@ func _puff_gills(gills: Node3D, station: int, held: bool, open: int, blasted: bo
 					var cut := gills.get_node_or_null("Slit%d" % (slit + 1)) as Node3D
 					_steam[_vapour_at(cut if cut != null else gills)] = STEAM_SECONDS
 		if was_held and not held and open == GillsProblem.ALL_OPEN:
-			_mist[_vapour_at(gills, _slits_middle(gills))] = MIST_SECONDS
+			_mist[_mist_at(gills, _slits_middle(gills))] = MIST_SECONDS
 	_was_open[station] = open
 	_was_held[station] = held
 
@@ -568,8 +576,8 @@ func _slits_middle(gills: Node3D) -> Vector3:
 	return sum / count if count > 0 else gills.global_position
 
 
-## A puff or a cloud at `at` (else at `over`'s place), with a material of its own to fade.
-func _vapour_at(over: Node3D, at := Vector3.INF) -> MeshInstance3D:
+## A puff of steam at `over`'s place, with a material of its own to fade.
+func _vapour_at(over: Node3D) -> MeshInstance3D:
 	var look := StandardMaterial3D.new()
 	look.albedo_color = VAPOUR
 	look.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -579,12 +587,56 @@ func _vapour_at(over: Node3D, at := Vector3.INF) -> MeshInstance3D:
 	part.mesh = SphereMesh.new()
 	part.material_override = look
 	_vapour.add_child(part)
-	part.global_position = at if at != Vector3.INF else over.global_position
+	part.global_position = over.global_position
 	part.scale = Vector3.ONE * 0.001
 	return part
 
 
-## Each puff swells, rises and fades over STEAM_SECONDS, each cloud over MIST_SECONDS; then freed.
+## A cloud of mist at `at`, facing out of gill set `gills`' wall: one burst of soft puffs in the
+## vapour's colour that swell, drift and fade out (ShipBoardSmoke's puff; the numbers are
+## placeholders, "not a decision"). Its emission ends so the last puff is gone at MIST_SECONDS.
+func _mist_at(gills: Node3D, at: Vector3) -> CPUParticles3D:
+	var mesh := QuadMesh.new()
+	mesh.size = Vector2.ONE * MIST_PUFF_M
+	var puff := ShipBoardSmoke.puff_material()
+	puff.proximity_fade_enabled = true
+	puff.proximity_fade_distance = MIST_WALL_FADE_M
+	mesh.material = puff
+	var cloud := CPUParticles3D.new()
+	cloud.name = "Mist"
+	cloud.mesh = mesh
+	cloud.one_shot = true
+	cloud.amount = MIST_PUFFS
+	cloud.explosiveness = MIST_BURST
+	cloud.lifetime = MIST_SECONDS / (2.0 - MIST_BURST)
+	cloud.lifetime_randomness = 0.3
+	cloud.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	cloud.emission_box_extents = MIST_SPAN_M
+	# Out of the wall (the gill set's +z, toward the throat) and a little up.
+	cloud.direction = Vector3(0.0, 0.4, 1.0)
+	cloud.spread = 60.0
+	cloud.initial_velocity_min = 0.3
+	cloud.initial_velocity_max = 0.6
+	cloud.gravity = Vector3(0.0, 0.03, 0.0)
+	cloud.damping_min = 0.15
+	cloud.damping_max = 0.25
+	var swell := Curve.new()
+	swell.add_point(Vector2(0.0, 0.6))
+	swell.add_point(Vector2(1.0, 2.2))
+	cloud.scale_amount_curve = swell
+	var fade := Gradient.new()
+	var faint := Color(VAPOUR, MIST_ALPHA)
+	fade.offsets = PackedFloat32Array([0.0, 0.15, 1.0])
+	fade.colors = PackedColorArray([Color(VAPOUR, 0.0), faint, Color(VAPOUR, 0.0)])
+	cloud.color_ramp = fade
+	cloud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_vapour.add_child(cloud)
+	cloud.global_transform = Transform3D(gills.global_basis.orthonormalized(), at)
+	cloud.emitting = true
+	return cloud
+
+
+## Each puff swells, rises and fades over STEAM_SECONDS; each cloud is freed after MIST_SECONDS.
 func _draw_vapour(delta: float) -> void:
 	for part: MeshInstance3D in _steam.keys():
 		_steam[part] -= delta
@@ -593,11 +645,11 @@ func _draw_vapour(delta: float) -> void:
 		)
 		if _steam[part] <= 0.0:
 			_steam.erase(part)
-	for part: MeshInstance3D in _mist.keys():
-		_mist[part] -= delta
-		_fade(part, _mist[part], MIST_SECONDS, MIST_RADIUS_M, 0.0)
-		if _mist[part] <= 0.0:
-			_mist.erase(part)
+	for cloud: CPUParticles3D in _mist.keys():
+		_mist[cloud] -= delta
+		if _mist[cloud] <= 0.0:
+			cloud.queue_free()
+			_mist.erase(cloud)
 
 
 func _fade(part: MeshInstance3D, left: float, seconds: float, radius: float, rise: float) -> void:
