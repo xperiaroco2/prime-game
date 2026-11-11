@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="StationKind" format=3 uid="uid://bnda4cg356rq5"]
+
+[ext_resource type="Script" uid="uid://bdcmbmmn1hkcr" path="res://core/content/station_kind.gd" id="1_station"]
+[ext_resource type="Script" uid="uid://cy0046m38wqxk" path="res://core/content/rule.gd" id="2_rule"]
+[ext_resource type="Script" uid="uid://dsggw51c5ve1q" path="res://core/content/condition.gd" id="3_condition"]
+[ext_resource type="Script" uid="uid://cxlhc27do1bp5" path="res://core/content/rule_effect.gd" id="4_effect"]
+[ext_resource type="Script" uid="uid://oy01r2qafwmr" path="res://core/tasks/at_station.gd" id="5_at_station"]
+[ext_resource type="Script" uid="uid://b82d0e0mv2cse" path="res://core/tasks/station_in_sight.gd" id="6_in_sight"]
+[ext_resource type="Script" uid="uid://2376egmr2vxy" path="res://core/mirror/mirror_free.gd" id="7_free"]
+[ext_resource type="Script" uid="uid://bo5h5m5ga21p6" path="res://core/combat/cooldown.gd" id="8_cooldown"]
+[ext_resource type="Script" uid="uid://dyy650ow61c8w" path="res://core/mirror/use_mirror.gd" id="9_use"]
+
+[sub_resource type="Resource" id="Place_at"]
+script = ExtResource("5_at_station")
+
+[sub_resource type="Resource" id="Place_sight"]
+script = ExtResource("6_in_sight")
+
+[sub_resource type="Resource" id="Place_free"]
+script = ExtResource("7_free")
+
+[sub_resource type="Resource" id="Place_cooldown"]
+script = ExtResource("8_cooldown")
+key = &"mirror_place"
+seconds = 0.5
+
+[sub_resource type="Resource" id="Place_use"]
+script = ExtResource("9_use")
+
+[sub_resource type="Resource" id="Rule_place"]
+script = ExtResource("2_rule")
+trigger = &"Interact"
+conditions = Array[ExtResource("3_condition")]([SubResource("Place_at"), SubResource("Place_sight"), SubResource("Place_free"), SubResource("Place_cooldown")])
+effects = Array[ExtResource("4_effect")]([SubResource("Place_use")])
+
+[resource]
+script = ExtResource("1_station")
+id = &"mirror"
+spawn_tag = &"mirror"
+radius_m = 0.6
+height_m = 2.5
+palette = null
+actions = Array[ExtResource("2_rule")]([SubResource("Rule_place")])
+metadata/note = "A place at the lobby's mirror (GDD 3 \"The mirror\", #1394): one station per `mirror` marker of the hall (StationTicks every_marker); E at a free place takes it, which lets its player change the body colour there (SetProfile), E again gives it up, and walking off gives it up. In M8 only the colour changes (the M8 sit-down, 2026-11-08). The number of places (3 on the greybox mirror, 0.65 m apart), the radius (0.6 m), the height (the mirror's 2.5 m) and the Cooldown (0.5 s, the pinball's) are provisional, not a decision."

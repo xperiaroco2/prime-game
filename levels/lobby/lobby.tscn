@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bcg1h5y3n86jg"]
 
 [ext_resource type="PackedScene" path="res://levels/lobby/lobby_hall.tscn" id="1_hall"]
-[ext_resource type="Script" path="res://levels/lobby/lobby_render.gd" id="2_render"]
+[ext_resource type="Script" uid="uid://dhb4r6d6y5bb1" path="res://levels/lobby/lobby_render.gd" id="2_render"]
 [ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="3_yellow"]
 [ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="4_green"]
 [ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="5_white"]
@@ -96,7 +96,6 @@ shape = SubResource("Shape_mirror")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 1.25, 1)
 mesh = SubResource("Mesh_mirror")
 
-
 [node name="LobbyPlayer01" type="Marker3D" parent="." unique_id=144394002 groups=["spawn_lobby_player"]]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -9, 0, 2.5)
 
@@ -135,3 +134,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 2.2)
 
 [node name="Booth" type="Marker3D" parent="." unique_id=1396139601 groups=["spawn_booth"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.5, 0, -9.5)
+
+[node name="MirrorPlace1" type="Marker3D" parent="." unique_id=145746120 groups=["spawn_mirror"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.2, 0, 7.35)
+
+[node name="MirrorPlace2" type="Marker3D" parent="." unique_id=262856641 groups=["spawn_mirror"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.2, 0, 8)
+
+[node name="MirrorPlace3" type="Marker3D" parent="." unique_id=2016308213 groups=["spawn_mirror"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.2, 0, 8.65)
