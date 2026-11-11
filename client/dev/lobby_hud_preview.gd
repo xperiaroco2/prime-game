@@ -5,20 +5,18 @@ extends "res://client/dev/hud_preview.gd"
 ## handoff's lobby: Olena hosts (peer 1), Taras (2), the third player (3) and Marko (4); Taras
 ## stands in view with no name over his head. Seen by a code joiner (peer 3), or with `hosting` by
 ## Olena:
-## - `wait`: three of four ready, the own player not; the code K7Q2XR;
+## - `wait`: three of four ready, the own player not;
 ## - `count`: everyone ready, the countdown at 5;
 ## - `short`: Marko gone and the host saying one more player of four is needed (its players_few,
 ##   #548; the handoff's sample, not a decision): one more player to start;
 ## - `code-waiting`: the host alone before the code service made the room (always hosting; four
 ##   needed as in `short`: three more to start);
-## - `direct`: `wait` joined directly, with no code.
 ## With `hand_over`, Aim shows the hand-over's cue under the crosshair (#1411: E would hand the
 ## hand item to a living player there). The microphone on. Dev only: nothing here reaches the game.
 
 ## The players the host's shortfall counts against in `short` and `code-waiting`: the handoff's
 ## sample, not a decision.
 const SHORT_MIN_PLAYERS := 4
-const CODE := "K7Q2XR"
 ## Taras, in view to the right (the handoff's plate sits right of the centre).
 const TARAS := 2
 const TARAS_AT := Vector3(1.4, 0.0, -4.0)
@@ -26,7 +24,7 @@ const TARAS_AT := Vector3(1.4, 0.0, -4.0)
 ## the hint's margin), where the cue really shows.
 const TARAS_HANDED_AT := Vector3(0.0, 0.0, -1.4)
 
-@export_enum("wait", "count", "short", "code-waiting", "direct") var lobby_state := "wait"
+@export_enum("wait", "count", "short", "code-waiting") var lobby_state := "wait"
 ## The host's own view (its own row reads `player.you`) instead of a code joiner's.
 @export var hosting := false
 ## The hand-over's cue in Aim (#1411).

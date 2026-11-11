@@ -14,8 +14,8 @@ extends RefCounted
 ## A player's Leave and Quit act at once, and so do the tutorial's; the host's ask first, since
 ## they end the session for every player: confirm() answers the question, cancel() drops it.
 
-## The pages; GAME is none open (ROLE is kept for the old saves of the remembered page, never
-## shown).
+## The pages; GAME is none open. ROLE is never shown since #1571; it keeps the numbers the
+## previews' `esc_tab` (client/dev/esc_*_preview.tscn) store.
 enum Tab { GAME, ROLE, GUIDE, LOBBY, SETTINGS }
 ## What a press or a confirmation asks the game to do.
 enum Action { NONE, RESUME, LEAVE, QUIT }
@@ -26,11 +26,12 @@ var selected := Tab.GAME
 var over_screen := GameFlow.Screen.MENU
 ## The own player hosts: Leave and Quit end the session for everyone and ask first.
 var hosting := false
-## The lobby screen (the lobby and the countdown phases): the Lobby tab is the default.
+## The lobby screen (the lobby and the countdown phases): the Lobby entry and the code's head.
 var in_lobby := false
-## The round: the Role tab exists, and the Lobby tab reads the settings.
+## The round: the panel's Resume, Guide, Settings, Leave and Quit (s05 `round`).
 var in_round := false
-## The tutorial's menu (#601 sets it): Game, Guide and Settings; Leave goes back to the main menu.
+## The tutorial's menu (#601 sets it): Guide and Settings, no Quit; Leave goes back to the main
+## menu.
 var tutorial := false
 ## The own player may change the match settings: the host, in a phase that accepts the host's
 ## ChangeSettings (the lobby, not the countdown); for everyone else they are read-only.

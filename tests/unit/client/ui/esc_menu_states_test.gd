@@ -28,6 +28,8 @@ const BASE: Dictionary[String, bool] = {
 	"Menu/Side/V/Bottom/Quit": true,
 	"Menu/Page": false,
 	"Menu/Page/V/HostRow": false,
+	"Menu/Page/V/HostRow/HostNote": false,
+	"Menu/Page/V/HostRow/HostOnly": false,
 	"Menu/Page/V/Guide": false,
 	"Menu/Page/V/Lobby": false,
 	"Menu/Page/V/Settings": false,
@@ -42,7 +44,21 @@ const IN_ROUND: Array[String] = ["Menu/Side/V/Head", "Menu/Side/V/Entries/Lobby"
 var states: Dictionary[String, Dictionary] = {
 	"lobby": {},
 	"lobby-page":
-	{"tab": TAB.LOBBY, "shown": ["Menu/Page", "Menu/Page/V/Lobby", "Menu/Page/V/HostRow"]},
+	{
+		"tab": TAB.LOBBY,
+		"shown":
+		["Menu/Page", "Menu/Page/V/Lobby", "Menu/Page/V/HostRow", "Menu/Page/V/HostRow/HostNote"],
+	},
+	# A guest reads the settings: the lock line naming the host, no host note.
+	"lobby-page-guest":
+	{
+		"hosting": false,
+		"tab": TAB.LOBBY,
+		"shown":
+		["Menu/Page", "Menu/Page/V/Lobby", "Menu/Page/V/HostRow", "Menu/Page/V/HostRow/HostOnly"],
+	},
+	# The code service gone: no dead code in the head (the Lobby page says so).
+	"lobby-no-code": {"code_gone": true, "hidden": ["Menu/Side/V/Head"]},
 	"round": {"round": true, "hidden": IN_ROUND},
 	"round-confirm":
 	{"round": true, "question": true, "hidden": IN_ROUND, "shown": ["ConfirmDim", "Confirm"]},
@@ -58,7 +74,8 @@ var states: Dictionary[String, Dictionary] = {
 	"settings-display": _settings(PAGE.DISPLAY),
 	"settings-access": _settings(PAGE.ACCESS),
 	"settings-language": _settings(PAGE.LANGUAGE),
-	"tutorial": {"round": true, "tutorial": true, "hidden": IN_ROUND},
+	# Quit is not in the tutorial: leave it first (s05 `tutorial`).
+	"tutorial": {"round": true, "tutorial": true, "hidden": IN_ROUND + ["Menu/Side/V/Bottom/Quit"]},
 }
 var _mode: GameMode
 var _keys := RegEx.create_from_string("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$")
@@ -73,7 +90,7 @@ func after_test() -> void:
 
 
 func test_every_state_shows_and_hides_what_the_handoff_lists() -> void:
-	assert_int(states.size()).is_equal(11)
+	assert_int(states.size()).is_equal(13)
 	for id: String in states:
 		var spec := states[id]
 		var menu := _build(spec)
@@ -163,7 +180,7 @@ func _build(spec: Dictionary) -> EscMenu:
 	menu.guide.set_mode(_mode)
 	var hosting: bool = spec.get("hosting", true)
 	var model := Preview.fake_model(_mode, hosting)
-	menu.show_code(JoinProgress.code_text(CODE, false), CODE)
+	menu.show_code(JoinProgress.code_text(CODE, spec.get("code_gone", false) as bool), CODE)
 	var screen := S.LOBBY
 	if spec.get("round", false):
 		Preview.fold_round(model, false)

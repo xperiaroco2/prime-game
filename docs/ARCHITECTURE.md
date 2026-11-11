@@ -2999,7 +2999,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   read-only settings), `game_flow_test.gd`, `input_actions_test.gd`, and
   `tests/integration/client/app/esc_menu_input_test.gd`: a host's `Game` alone over the loopback, with keys sent
   through `Input.parse_input_event` (headless, it reaches `_input`, `_unhandled_input` and the action states): one
-  Esc opens the Lobby tab with the mouse free, another closes it and captures the mouse, W held under the menu is
+  Esc opens the side panel with the mouse free (its Lobby entry the page with Ready, #1571), Esc closes an open page
+  first, another the menu, capturing the mouse, W held under the menu is
   released, F under the menu readies nobody, F and the Ready toggle both set the own ready flag. Seen failing first
   with the lobby panel's Ready and settings shown over the game, and with the re-capture planted out. The `shot`s:
   `client/dev/lobby_preview.tscn` (the lobby HUD) and `esc_<lobby|lobby_guest|game_host|game_confirm>_preview.tscn` (since #491, §4.7.42).
@@ -3036,8 +3037,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   playtest. `tools\run.cmd playcheck esc_menu` drives both windows' menus; since #204 its guest presses Esc as soon
   as its screen is the lobby, with no frames between, and readies with the Lobby tab's Ready button, which only that
   tab shows.
-- Since #491 the menu is the Toy one of §4.7.42: the tabs Game, Role, Guide, Lobby and Settings; the host's
-  question is a dialog.
+- Since #1571 the menu is s05's side panel (§4.7.42): Resume, Guide, Lobby (the lobby only), Settings, Leave and
+  Quit; the host's question is a dialog.
 
 #### 4.7.12 Spectating from the target's eyes (#168, PR #167)
 - The spectate camera has no offset: it is the target's interpolated eye transform every physics frame, so it
@@ -3823,8 +3824,8 @@ client; a language switch; no focus or input; the fade, its cut and the outro ho
 own: `tools\run.cmd playcheck end`.
 
 #### 4.7.32 The connecting, failure and loading screen (#494)
-prime-game-ui's s3 at `ui-0.4.0` (its handoff `docs/handoff/s03-connecting.md`; the issue linked `ui-0.2.0`, and
-where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_screen.gd`.
+prime-game-ui's s3 at `ui-2.5.4` (its handoff `docs/handoff/s03-connecting.md`; #1571, after `ui-0.4.0` in #494), node
+for node, in `client/ui/connecting_screen.gd`; the loading card's frames scroll sideways in 1384 px (§4.7.36).
 - **One screen, three parts.** `ConnectingScreen` (GameUi's `connecting`) draws GameFlow's `CONNECTING`, `FAILURE` and
   `LOADING`: under `Night` (ToyBackdropNight, `mouse_filter` STOP) one of `Connecting`, `Failure`, or `Loading` and
   `Tip` (or `Head` and the how-to card) shows. `LoadingScreen` is gone. It is on the handoff's black-screen
@@ -3840,11 +3841,12 @@ where they differ `ui-0.4.0` is built), node for node, in `client/ui/connecting_
   not drawn today: the frame that folds a Welcome in the Lobby already picks the lobby screen (`GameFlow.screen`),
   so the name shows in the Esc menu's Lobby tab and (#495) the lobby HUD instead; showing it on this screen (a
   short beat after Welcome, or the name in the signalling `found`) is the engineer's call on #214. Then the step
-  from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnDark`'s `min_width` through
+  from `JoinProgress.step()`, a code join's code in a keycap (`ToyKeyOnLight`'s `min_width` through
   `UiParts.sized`, 42 under large text) and the time since Join (m:ss, `GameJoin.refresh`); a Direct join and a
   host show no code row and no address. The spinner turns once a second about its centre, half as fast under
   `UiPrefs.reduced_motion`; it sits in a plain `Control` (`SpinnerBox`, the column's child, the one node beyond the
-  handoff's tree), because a container resets a child's rotation at every sort. Cancel is focused; Esc on this screen is Cancel (`Game._input`): it leaves, and the menu's
+  handoff's tree), because a container resets a child's rotation at every sort. Cancel takes the focus with its ring hidden until an arrow or the d-pad moves it
+  (`grab_focus(true)`); Esc on this screen is Cancel (`Game._input`): it leaves, and the menu's
   fields keep what was typed (a command-line join fills them first, `GameJoin.fill_menu`).
 - **Failures.** `EndReasons.FAILURE_STATES` maps every end reason to the handoff's state but `left` and `closed`
   (`NO_FAILURE`); `ConnectingScreen.FAILURES` gives each state its title, body and action. `Game._show_end` keeps the
@@ -4752,13 +4754,14 @@ the Esc menu's Lobby page holds the settings (§4.7.42).
   `max_players`; the rows, the host first, then the order the model got them (the Welcome's roster, then each
   `PlayerJoined`: the order they joined), each with its body colour, reading `hud.roster.self` for the own row, else
   the name (the host's tag beside it). All of it is the whole
-  lobby's (the roster, the ready flags, the host, the lobby's name, the countdown, the host's shortfalls, which every
+  lobby's (the roster, the ready flags, the host, the countdown, the host's shortfalls, which every
   peer gets alike): no role, team or match fact. The
   rows are built again only when a join, leave, rename or ready changes them; the texts with data are set with
   `auto_translate_mode` DISABLED and written again on `NOTIFICATION_TRANSLATION_CHANGED`.
 - **The code** is not on this HUD since #1571 (s04): the Esc menu's head shows it with Copy (`EscMenu.show_code`,
   §4.7.42) and its Lobby page the service's absence. **The mic**: `VoiceSender.live()` (`GameTalk.refresh`).
-- **No other key prompt:** Ready is the bound `ready` key (#211) and the Esc Lobby tab's button; the hand-over's cue (#1411) is the `Aim` chip below.
+- **No other key prompt in a session** (the boot's `Hint` names the Esc key with no session, #1285): Ready is the
+  bound `ready` key (#211) and the Esc Lobby page's button; the hand-over's cue (#1411) is the `Aim` chip below.
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
   bottom row, its bottom 16 px over the row's top (plain English, as before). The round HUD's `Aim` (#1408): a
   ToyChipPlate > `Text` ToyChipPlateText at the round HUD's place under the crosshair, second child after `Cross`, hidden when empty, naming what E would use there

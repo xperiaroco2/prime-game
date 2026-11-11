@@ -31,6 +31,10 @@ shot esc_lobby_panel_host
 button esc.tab.lobby
 frames 5
 shot esc_lobby_tab_host
+# Esc closes the open page first, then the menu (s05).
+press ui_cancel
+frames 5
+wait esc open
 press ui_cancel
 wait esc closed
 wait pointer captured

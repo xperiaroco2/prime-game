@@ -35,6 +35,10 @@ const DIALOG_TEXT_WIDTH := Vector2(900, 0)
 const LOCK_SIZE := Vector2(20, 20)
 const LOCK := preload("res://assets/ui/toy_pack/icons/lock.svg")
 const HOST_ONLY_KEY := "esc.lobby.host_only"
+## How long Copy reads "Copied" (s05's head, as the Lobby page's).
+const COPIED_SECONDS := 2.0
+## The head's code while the code service has not made the room (s05).
+const CODE_WAITING := "…"
 
 var state := EscMenuState.new()
 ## The full-rect root and the side panel.
@@ -70,8 +74,11 @@ var confirm_body := UiParts.styled_label("esc.game.leave_host_note", &"ToyTextMu
 var confirm_button := Button.new()
 var cancel_button := Button.new()
 
-## The room's code the head shows ("" hides it).
+## The room's code Copy copies ("" for none), and what the head shows: the code, "…" while the
+## code service has not made the room ("" hides the head: no code, a Direct game, the service gone).
 var _code := ""
+var _head_text := ""
+var _copied_timer: SceneTreeTimer
 ## The last model the menu was given: the host's name of the host-only line.
 var _model: ClientModel
 
@@ -153,10 +160,31 @@ func refresh(
 ## The room's code for the head (s05 `lobby`: the code and Copy) and the Lobby page: `line` the
 ## page's words for it (JoinProgress.code_text), `code` the code itself ("" for none).
 func show_code(line: String, code: String) -> void:
-	_code = code
-	code_label.text = code
+	var gone := line == JoinProgress.CODE_GONE
+	var waiting := line == JoinProgress.CODE_WAITING
+	_code = "" if gone or waiting else code
+	_head_text = CODE_WAITING if waiting else _code
+	code_label.text = _head_text
+	copy_button.visible = not _code.is_empty()
 	lobby.show_code(line, code)
 	_sync()
+
+
+## Closes the open page, the panel staying (s05: Esc with a page open closes the page); its
+## entry takes the focus back.
+func close_page() -> void:
+	var open := state.selected
+	if not tab_buttons.has(open):
+		return
+	state.press(open)
+	_sync()
+	if is_inside_tree():
+		tab_buttons[open].grab_focus.call_deferred(true)
+
+
+## Whether an entry's page is open beside the panel.
+func page_open() -> bool:
+	return page() != null
 
 
 ## A press on `tab`'s entry: its page opens beside the panel, or closes on a second press.
@@ -250,8 +278,10 @@ func _sync() -> void:
 	host_row.visible = host_note.visible or host_only.visible
 	_retext()
 	# The head: the room's code in the lobby (none in a round, the tutorial or a Direct game).
-	head.visible = state.in_lobby and not state.tutorial and not _code.is_empty()
+	head.visible = state.in_lobby and not state.tutorial and not _head_text.is_empty()
 	leave_button.text = "esc.game.leave_tutorial" if state.tutorial else "esc.game.leave"
+	# Not in the tutorial: leave it first (s05 `tutorial`); the window's close still quits.
+	quit_button.visible = not state.tutorial
 	var asking := state.asking()
 	confirm_dim.visible = asking
 	confirm_box.visible = asking
@@ -263,14 +293,15 @@ func _sync() -> void:
 	confirm_button.text = "esc.game.quit" if quitting else "esc.game.leave"
 
 
-## The focus on opening: Cancel under the question, else Resume (or the first entry).
+## The focus on opening: Cancel under the question, else Resume with its ring hidden until an
+## arrow or the d-pad moves it (s05: the mouse's view draws no ring).
 func _focus() -> void:
 	if not is_inside_tree() or not state.is_open:
 		return
 	if state.asking():
 		cancel_button.grab_focus.call_deferred()
 	else:
-		resume_button.grab_focus.call_deferred()
+		resume_button.grab_focus.call_deferred(true)
 
 
 func _notification(what: int) -> void:
@@ -357,10 +388,25 @@ func _build_head() -> PanelContainer:
 	copy_button.text = "esc.lobby.copy"
 	copy_button.theme_type_variation = &"ToyButtonSecondary"
 	copy_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	copy_button.pressed.connect(func() -> void: DisplayServer.clipboard_set(_code))
+	copy_button.pressed.connect(_copy)
 	ToyPress.attach(copy_button)
 	row.add_child(copy_button)
 	return head
+
+
+func _copy() -> void:
+	DisplayServer.clipboard_set(_code)
+	copy_button.text = "esc.lobby.copied"
+	if is_inside_tree():
+		var timer := get_tree().create_timer(COPIED_SECONDS)
+		_copied_timer = timer
+		timer.timeout.connect(_end_copied.bind(timer))
+
+
+## Takes the "Copied" text back, unless a later press started a timer of its own.
+func _end_copied(timer: SceneTreeTimer) -> void:
+	if timer == _copied_timer:
+		copy_button.text = "esc.lobby.copy"
 
 
 func _build_page() -> void:

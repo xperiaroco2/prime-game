@@ -56,6 +56,21 @@ func test_the_hosts_question_closes_before_the_menu_and_the_menu_closes_as_resum
 	assert_int(resumed[0]).is_equal(1)
 
 
+func test_an_open_page_closes_before_the_esc_menu() -> void:
+	# s05 at ui-2.5.4 (#1571): Esc with an entry's page open closes the page, the panel staying.
+	var ui := _ui()
+	ui.show_screen(S.ROUND)
+	ui.open_esc(false)
+	assert_str(String(ui.overlays.top())).is_equal("esc_menu")
+	ui.esc.press(EscMenuState.Tab.SETTINGS)
+	assert_str(String(ui.overlays.top())).is_equal("esc_page")
+	assert_str(String(ui.overlays.close_top())).is_equal("esc_page")
+	assert_bool(ui.esc_open()).is_true()
+	assert_object(ui.esc.page()).is_null()
+	assert_str(String(ui.overlays.close_top())).is_equal("esc_menu")
+	assert_bool(ui.esc_open()).is_false()
+
+
 func test_the_map_key_toggles_the_map_and_is_ignored_under_the_esc_menu() -> void:
 	var ui := _ui()
 	ui.show_screen(S.ROUND)

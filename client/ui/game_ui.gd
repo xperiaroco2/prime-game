@@ -115,6 +115,8 @@ func _init() -> void:
 	overlays.add(&"howto_card", UiOverlays.CARD, map.howto_open, map.close_howto, true)
 	# Esc on the menu is its Resume: the game closes it and captures the mouse again.
 	overlays.add(&"esc_menu", UiOverlays.ESC_MENU, esc_open, esc.resume)
+	# An entry's page beside the panel closes before the menu (s05, #1571).
+	overlays.add(&"esc_page", UiOverlays.ESC_PAGE, esc_page_open, esc.close_page)
 	# The host's question over the menu (#491's confirm dialog): Esc is its Cancel, the menu stays.
 	overlays.add(&"esc_dialog", UiOverlays.ESC_DIALOG, esc.state.asking, esc.cancel)
 	# The tutorial's invite (#492): Esc is its Skip.
@@ -267,6 +269,11 @@ func open_esc(
 
 func close_esc() -> void:
 	esc.close()
+
+
+## Whether the Esc menu shows an entry's page beside its panel.
+func esc_page_open() -> bool:
+	return esc_open() and esc.page_open()
 
 
 func esc_open() -> bool:

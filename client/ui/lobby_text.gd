@@ -17,7 +17,6 @@ enum Status { WAITING, SHORT, COUNTDOWN }
 const WAITING_KEY := "lobby.waiting"
 const COUNTDOWN_KEY := "lobby.countdown"
 const PLAYER_COUNT_KEY := "lobby.player_count"
-const YOU_KEY := "player.you"
 ## The roster's own row and the host's tag (the handoff s04, as the round's s07).
 const SELF_KEY := "hud.roster.self"
 const HOST_TAG_KEY := "hud.roster.host"

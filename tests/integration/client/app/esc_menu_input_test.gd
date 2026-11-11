@@ -44,7 +44,7 @@ func after_test() -> void:
 	Controls.new().apply()
 
 
-func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab() -> void:
+func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_side_panel() -> void:
 	var game := await _lobby_game(PORT)
 	# Walking in the lobby with the mouse captured (a click): nothing clickable covers the game,
 	# only the lobby HUD, with no key prompt (#495): the own row "<name> (you)" with no full pip,
@@ -73,6 +73,14 @@ func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_lobby_tab
 	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
 	assert_array(_visible_buttons(game.ui)).contains(["esc.lobby.ready"])
 	assert_bool(game.ui.esc.lobby.settings_editable()).is_true()
+	# Esc closes the open page first, the panel staying (s05), its entry focused.
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_true()
+	assert_object(game.ui.esc.page()).is_null()
+	assert_object(game.get_viewport().gui_get_focus_owner()).is_same(
+		game.ui.esc.tab_buttons[EscMenuState.Tab.LOBBY]
+	)
 	# Esc again: closed, the mouse captured again.
 	_press(KEY_ESCAPE)
 	await _frames(2)
@@ -259,8 +267,13 @@ func test_the_controls_tab_rebinds_ready_through_real_keys_and_esc_cancels_a_cap
 	await _frames(2)
 	assert_bool(panel.is_capturing()).is_false()
 	assert_str(back.text).is_equal("S")
-	# The menu closes on Esc as before; F readies nobody now, the new key does, and the lobby HUD's
-	# chip and the own row's check follow (#495: no key prompt to name it).
+	# One Esc closes the Settings page, the next the menu (s05, #1571); F readies nobody now, the
+	# new key does, and the lobby HUD's ready tile and the own row's pip follow (#495: no key
+	# prompt to name it).
+	_press(KEY_ESCAPE)
+	await _frames(2)
+	assert_bool(game.ui.esc_open()).is_true()
+	assert_object(game.ui.esc.page()).is_null()
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_false()
