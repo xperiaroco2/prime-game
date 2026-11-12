@@ -194,6 +194,38 @@ class WorkflowReadTest(unittest.TestCase):
         self.assertEqual(verdict, "FAIL")
         self.assertIn("request.model", why)
 
+    def test_picked_effort_model_is_no_request(self) -> None:
+        """#1613: Claude Code 2.1.321 writes the model it picked the effort for, the session's, not the request."""
+        hand = self.folder / "s4" / "subagents"
+        # Keys and values copied from the engineer's 2026-11-11 hand-run reviewers (toolUseId shortened).
+        meta = {
+            "isBuiltIn": False, "launchedWithDefaults": True, "toolUseId": "toolu_01", "spawnDepth": 1,
+            "requestShape": "background", "requestNonInteractive": True, "pickedEffortModel": "claude-opus-5-5",
+            "finished": True,
+        }  # fmt: skip
+        transcript(hand, "p1", {"agentType": "code-reviewer", **meta}, "claude-opus-5-5")
+        transcript(hand, "p2", {"agentType": "godot-api-checker", **meta}, "claude-sonnet-5-5")
+        transcript(hand, "p3", {"agentType": "code-reviewer", "model": "sonnet", **meta}, "claude-sonnet-5-5")
+        transcript(hand, "p4", {"agentType": "godot-api-checker", **meta}, "claude-opus-5-5")
+        run = self.folder / "s4" / "subagents" / "workflows" / "wf_x"
+        meta = workflow_meta("code-reviewer", "review:code:#188", "Review", pickedEffortModel="claude-opus-5-5")
+        transcript(run, "p5", meta, "claude-opus-5-5")
+        found = {x.agent_id: x for x in agents_check.read(self.folder, "s4")}
+        self.assertEqual([x.unread_keys for x in found.values()], [()] * 5)
+        self.assertEqual(found["p3"].requested, "sonnet")
+        verdicts = {k: agents_check.judge(x, AGENTS, ALLOWED)[0] for k, x in found.items()}
+        # p4: the effort's opus stands in for no request, so the agent file's sonnet is still what must serve.
+        self.assertEqual(verdicts, {"p1": "ok", "p2": "ok", "p3": "ok", "p4": "FAIL", "p5": "ok"})
+
+    def test_picked_effort_model_is_known_only_at_the_top_level(self) -> None:
+        run = self.folder / "s1" / "subagents" / "workflows" / "wf_0407695f-d88"
+        meta = workflow_meta("code-reviewer", "review:code:#188", "Review", pickedEffortModel="claude-opus-5-5")
+        meta.update(requestedModel="sonnet", request={"pickedEffortModel": "claude-opus-5-5"})
+        transcript(run, "w5", meta, "claude-opus-5-5")
+        w5 = next(x for x in agents_check.read(self.folder, "s1") if x.agent_id == "w5")
+        self.assertEqual(w5.unread_keys, ("request.pickedEffortModel", "requestedModel"))
+        self.assertEqual(agents_check.judge(w5, AGENTS, ALLOWED)[0], "FAIL")
+
     def test_odd_lines_and_a_broken_meta_file_are_skipped(self) -> None:
         run = self.folder / "s3" / "subagents" / "workflows" / "wf_x"
         run.mkdir(parents=True)
