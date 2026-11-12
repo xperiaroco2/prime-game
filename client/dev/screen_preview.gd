@@ -64,9 +64,10 @@ const FAKE_OWN_HEADING := 0.6
 @export var esc_tutorial := false
 ## The own ship's menu (`ship`, #1285): Game, Find a lobby, Host, Tutorial, Guide and Settings;
 ## with esc_tab Find, `find_state` shows its page: `empty` (`ship-find`, `ship-empty`: nothing
-## nearby), `code` (`ship-code`: a full code typed) or `direct` (`ship-direct`: an address).
+## nearby), `code` (`ship-code`: a full code typed), `direct` (`ship-direct`: an address) or
+## `nearby` (`ship-find`'s list, #1316: the handoff's three lobbies, the last one full).
 @export var esc_ship := false
-@export_enum("empty", "code", "direct") var find_state := "empty"
+@export_enum("empty", "code", "direct", "nearby") var find_state := "empty"
 ## Settings > Controls with Interact capturing a key (`settings-controls`).
 @export var esc_capture := false
 ## The code service closed: the lobby shows its line in place of the code (`lobby-no-code`).
@@ -266,6 +267,32 @@ static func show_find_state(find: FindPage, state: String) -> void:
 		"direct":
 			find.set_address(PREVIEW_ADDRESS)
 			find.show_direct(true)
+		"nearby":
+			find.show_lobbies(fake_lobbies())
+
+
+## The handoff's lobbies nearby (s05 `ship-find`): Glorp's 6 of 10 at 24 ms (chosen), Zinga's 3 of
+## 10 at 41 ms, Bulk's full; the names in the language now.
+static func fake_lobbies() -> Array[LobbyFinder.Found]:
+	var uk := TranslationServer.get_locale() == Languages.UKRAINIAN
+	var names: Array[String] = ["Glorp", "Zinga", "Bulk"]
+	if uk:
+		names = ["Ґлорп", "Зінґа", "Бульк"]
+	var players: Array[int] = [6, 3, 10]
+	var pings: Array[int] = [24, 41, 18]
+	var found: Array[LobbyFinder.Found] = []
+	for i: int in names.size():
+		var lobby := LobbyFinder.Found.new()
+		lobby.answer = LobbyBeacon.Answer.new()
+		lobby.answer.host = i + 1
+		lobby.answer.host_name = names[i]
+		lobby.answer.players = players[i]
+		lobby.answer.most = 10
+		lobby.answer.port = LaunchOptions.DEFAULT_PORT
+		lobby.address = "192.168.1.%d" % (20 + i)
+		lobby.ping_ms = pings[i]
+		found.append(lobby)
+	return found
 
 
 ## The Voice tab's facts (M5-6): two microphones besides the Windows default, a headset picked,
