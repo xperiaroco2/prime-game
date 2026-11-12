@@ -12,7 +12,7 @@
 # every start marker on the clearing reaches straight, then the ramp's walk (estate_walk_test walks
 # both: SHIP_ROUTE_START from each marker, and "ship, ramp to hall"); `to_breakers` is the third
 # waypoint of the walk "ship, hall to the east lens room", and `east` is near its second (no walk test
-# covers that one).
+# covers the leg from the east gill set to `to_breakers`).
 # Each step back lasts until the HUD no longer names the station, then `seconds 0.3` (#1530): a
 # count of frames walks a distance that depends on the frame rate (40 frames were 6 m at 7 fps,
 # 0.2 m at 190).

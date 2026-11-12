@@ -388,9 +388,10 @@ func _assert_near(at: Vector3, art: Vector3, what: String) -> void:
 ## Where a ball of a player's capsule's radius dropped from `from` comes to rest, at its bottom:
 ## NAN when it starts inside a collider or falls more than DROP_M.
 ## The floor plates the estate's ship turns off (#1499: the hall disc's hub and bolts, 1.204 and
-## 1.211 under the console's use spot, which the host snaps its marker onto, so a player on the
-## deck beside it stood under the station's floor), each its plan rect in the ship's frame and how
-## far its top stands over the deck.
+## 1.211, were under the console's use spot, which the host snaps its marker onto, so a player on
+## the deck beside it stood under the station's floor; since the ship package v9 they lie under the
+## console itself, #1573), each its plan rect in the ship's frame and how far its top stands over
+## the deck.
 func _levelled_plates() -> Dictionary[Rect2, float]:
 	var found: Dictionary[Rect2, float] = {}
 	for node: Node in _root.find_children("*", "CollisionShape3D", true, false):

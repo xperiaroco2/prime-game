@@ -101,8 +101,8 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   #1095 comment 6522811252): a gill set of five slits cut into the panel, a light bar over each and
   one round button at the set's hall end, all flush, so the whole pass stays open.
 - **The central hall**, round, 8 m across (50 m²), its wall 3.2 m high all round, 3.8 m at the apex: **the start
-  console** at its centre (the engineer, 2026-11-02, #507 comment 6573041745; it stood 1 m aft before): a low ring pedestal (Ø 1.2 m,
-  0.6 m high) with the start button and three stage strips, and above it a hologram of the hull, level, fixed to the
+  console** at its centre (the engineer, 2026-11-02, #507 comment 6573041745; it stood 1 m aft before): a low ring
+  pedestal (Ø 1.2 m, 0.6 m high) with the start button and three stage strips, and above it a hologram of the hull, level, fixed to the
   ship's axes, whose wings carry the eight lamps of both breaker boards (GDD §8; no lever, no battery, no button for
   the order); **four cartridge sockets** on its wall (the engineer, 2026-10-22: more places to burn, the same problem
   count), two on the back wall beside the vault's hatch and two at the front sides, beside the throat and clear of
@@ -124,15 +124,15 @@ lens-diamond hull P and the tip rooms became lens rooms with windows; the number
   (±2.751, -3.750), along each wall from the mouth corner at s 2.07, 2.44, 2.80, 3.16 and 3.53 m, their chords 1.08,
   0.99, 0.90, 0.82 and 0.74 m, 15 cm deep, between h 0.82 and 1.90 m, each light bar 12 x 1.4 cm, 6 cm over its slit's top tip, the buttons (±2.856, -3.433) at
   h 1.15 m;
-  the back sockets (±1.800, 3.112), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902), each hung from its spot
-  at the package's `mount_h_m` (0.333 m over the deck, #507 comment 6573041745) on a plain wall panel up to 1.80 m that
-  the package draws; the lens rooms'
-  centres (±10.5, 1.2), the chargers (±10.269, 3.237), 0.9 m deep. Each wall spot is flat on a plain wall with a 1.6 m
-  band. The game's markers (#1499) stand on the deck in front of each spot (the console's 1 m fore of it), the boards' and their breakers'
-  0.85 m (#1535: a player's 0.4 m circle clear of the board art, 0.38 m deep); the hologram's centre 1.457 m over
+  the back sockets (±1.800, 3.112), the front sockets (±3.426, -2.358); the boards (±6.664, -0.902), each hung
+  from its spot at the package's `mount_h_m` (0.333 m over the deck, #507 comment 6573041745) on a plain wall panel
+  up to 1.80 m that the package draws; the lens rooms' centres (±10.5, 1.2), the chargers (±10.269, 3.237), 0.9 m deep. Each wall spot is flat on a plain wall with a 1.6 m
+  band. The game's markers (#1499) stand on the deck in front of each spot (the console's 1 m fore of it), the boards'
+  and their breakers' 0.85 m (#1535: a player's 0.4 m circle clear of the board art, 0.38 m deep); the hologram's centre 1.457 m over
   the deck (the start console package's hall disc), its turbines at the three nozzle pods and its button at the
   package's button. The station art (#1535) stands on the spots themselves: the console, the sockets and the
-  chargers with their origin on the spot, the boards 0.07 m out of the wall and `mount_h_m` over the deck (each package's HANDOFF "Placement").
+  chargers with their origin on the spot, the boards 0.07 m out of the wall and `mount_h_m` over the deck (each
+  package's HANDOFF "Placement").
 - **The start clearing** (the M8 slice, GDD §3, #1492; the spots a level choice, "not a decision"): the crew starts
   together on the open ground before the ramp's foot, world (116, 59.4), between the creek's south bank and the
   hull, and comes back there after a respawn. As built (`levels/estate/rooms/markers.tscn`), world x and z: the ten
