@@ -58,28 +58,27 @@ func test_the_lobby_shows_no_panel_over_the_game_and_one_esc_opens_the_side_pane
 	assert_array(game.ui.lobby_hud.row_checks()).is_equal([false])
 	var chip := game.ui.lobby_hud.ready_label
 	assert_str(chip.atr(chip.text)).is_equal("Ready: no")
-	# One Esc: the side panel alone (s05 `lobby`, #1571), the mouse free; its Lobby entry opens
-	# Ready and the host's settings beside it.
+	# One Esc: the side panel alone (s05 `lobby`, #1571), the mouse free; no Lobby entry since
+	# #1604 (the match settings are the ship's console, s04); its Guide opens beside it.
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_true()
 	assert_bool(game.pointer.captured()).is_false()
 	assert_object(game.ui.esc.page()).is_null()
 	assert_array(_visible_buttons(game.ui)).contains(
-		["esc.game.resume", "esc.tab.guide", "esc.tab.lobby", "esc.tab.settings", "esc.game.quit"]
+		["esc.game.resume", "esc.tab.guide", "esc.tab.settings", "esc.game.quit"]
 	)
-	game.ui.esc.tab_buttons[EscMenuState.Tab.LOBBY].pressed.emit()
+	assert_array(_visible_buttons(game.ui)).not_contains(["esc.tab.lobby"])
+	game.ui.esc.tab_buttons[EscMenuState.Tab.GUIDE].pressed.emit()
 	await _frames(2)
-	assert_object(game.ui.esc.page()).is_same(game.ui.esc.lobby)
-	assert_array(_visible_buttons(game.ui)).contains(["esc.lobby.ready"])
-	assert_bool(game.ui.esc.lobby.settings_editable()).is_true()
+	assert_object(game.ui.esc.page()).is_same(game.ui.esc.guide)
 	# Esc closes the open page first, the panel staying (s05), its entry focused.
 	_press(KEY_ESCAPE)
 	await _frames(2)
 	assert_bool(game.ui.esc_open()).is_true()
 	assert_object(game.ui.esc.page()).is_null()
 	assert_object(game.get_viewport().gui_get_focus_owner()).is_same(
-		game.ui.esc.tab_buttons[EscMenuState.Tab.LOBBY]
+		game.ui.esc.tab_buttons[EscMenuState.Tab.GUIDE]
 	)
 	# Esc again: closed, the mouse captured again.
 	_press(KEY_ESCAPE)
@@ -116,9 +115,11 @@ func test_an_esc_in_the_frame_of_the_welcome_opens_the_lobbys_menu() -> void:
 	assert_bool(game.ui.esc_open()).is_true()
 	# The lobby captures the mouse, but not from under the menu it kept.
 	assert_bool(game.pointer.captured()).is_false()
-	# The lobby's panel: its Lobby entry there (s05 `lobby`, #1571), no page open.
+	# The lobby's panel (s05 `lobby`, #1571), no page open: the menu follows the lobby (no Lobby
+	# entry to tell it by since #1604).
 	assert_object(game.ui.esc.page()).is_null()
-	assert_array(_visible_buttons(game.ui)).contains(["esc.game.resume", "esc.tab.lobby"])
+	assert_bool(game.ui.esc.state.in_lobby).is_true()
+	assert_array(_visible_buttons(game.ui)).contains(["esc.game.resume"])
 	game.leave()
 	await get_tree().process_frame
 

@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://c6qqs85fhn26q"]
+
+[ext_resource type="Script" uid="uid://dhpnx17e28ijw" path="res://client/dev/console_preview.gd" id="1_preview"]
+
+[node name="ConsolePreview" type="Node3D" unique_id=1814042692]
+script = ExtResource("1_preview")
+view = "world"

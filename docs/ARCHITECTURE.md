@@ -3033,8 +3033,8 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   rebuilt by `set_mode`) in the row right under the name, out of the settings box: the two things that name the
   match side by side. Its label is plain "Map" until the UI deck has a key for it. `Game.change_map` sends it.
   Tests: `screens_test.gd` (#627's two map tests, and the row's place and a rebuilt list) and
-  `game_map_choice_test.gd` (every `Game` loads the host's map). The `shot`s: `esc_lobby_preview.tscn` and
-  `esc_lobby_uk_preview.tscn` (the host's tab in Ukrainian).
+  `game_map_choice_test.gd` (every `Game` loads the host's map). The `shot`s were
+  `esc_lobby_preview.tscn` and its `_uk` twin until #1604 took the Lobby page out of the menu.
 - #767 (the engineer's option (a)): players always play one map, since the M8 slice (#1496, the engineer's word
   on #507) the forest estate (the House until then). `GameMode.bench_maps` marks the maps of
   `maps` that are test benches only (the base mode's: the flat greybox, for the bot scenarios and the leak test,
@@ -4455,7 +4455,10 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   in the tutorial (a solo session its player hosts), which quits at once.
 - `RoleFacts` stays (its test too, `role_facts_test.gd`) but no menu shows it since #1571; the Role page that drew
   it (`RolePage`) went with #1422, as it read a retired copy key (`esc.role.teammates`).
-- Lobby (`LobbyPanel`, the plainest stand-in until the ship's match console of s04 (#1285), with `HostRow` over it:
+- Lobby (`LobbyPanel`): no menu shows it since #1604 (s05 has no Lobby entry: the match settings are the ship's match
+  console, §4.7.67, Ready its key, the code's Copy the head's, the host's tag the lobby HUD's roster); its code and
+  tests stay, as `RoleFacts`', and which rows show is `MatchRows`', shared with the console. As it was (the plainest
+  stand-in until the console, with `HostRow` over it:
   the host's `HostNote` or a player's `HostOnly` lock line, its signals, name logic and statics kept): the preset cards (`LobbyPresets`: Standard, Quick,
   No knives, the own preset and Save your own; a card changing a setting the mode lacks or no part reads has none, #1525; the values are placeholders, "not a decision"), a 784 px
   `SettingList` (the lobby's name, the map, then a row per `SettingSpec`: a `SettingStepper` for a number, whose
@@ -4488,9 +4491,10 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   closes only the dialog), `role_facts_test.gd`, `lobby_panel_roster_test.gd`, `settings_page_test.gd`, `setting_stepper_test.gd` (seen failing
   with the focus hand-over planted out), `lobby_presets_test.gd`, `game_settings_test.gd`, `user_settings_test.gd`,
   `hud_test.gd`, and the Voice and Controls suites. The `shot`s: `client/dev/esc_<state>_preview.tscn` (`lobby_panel` the
-  panel alone in the lobby, `lobby` and `lobby_guest` its Lobby page, `lobby_no_code`, `game_host` and `game_guest`
+  panel alone in the lobby, `lobby_no_code`, `game_host` and `game_guest`
   the round's panel, `game_confirm`, `guide`, `guide_basics`, `settings_sound`, `settings_controls`,
-  `settings_display`, `settings_access`, `settings_language`, `tutorial_game`), each with a `_uk` twin, and `esc_lobby_large_preview.tscn`, `esc_settings_sound_large_preview.tscn`.
+  `settings_display`, `settings_access`, `settings_language`, `tutorial_game`), each with a `_uk` twin, and `esc_settings_sound_large_preview.tscn` (the Lobby page's `lobby`, `lobby_guest`
+  and `esc_lobby_large` went with it in #1604).
   The playcheck scenarios `esc_menu` (the round's tabs too) and `main_menu` press the deck keys' buttons.
 #### 4.7.43 Basic sound from Kenney's CC0 packs (#525)
 No new event, row or rule: a client plays a sound only for the events and the snapshots it already receives, and
@@ -5697,6 +5701,52 @@ of the mode, never `core/` state (§9.5.27's client).
   `ship_engine_views_test.gd` (the cues, none at the last stage), `sfx_set_test.gd` (the five
   files exist) and `tests/unit/tools/sfx/engine_synth_test.gd` (peak, no DC offset, the task band, the same render, the WAV format).
 
+#### 4.7.67 The ship's match console (#1604)
+prime-game-ui's s04 `console-host` and `console-guest` at `ui-2.5.4`: the match settings are a screen on a console by
+the lobby's spawn (the engineer, #1095 comment 6799556655: the console now, the workbench later), not a page of the Esc
+menu, which has had no Lobby entry since (§4.7.42).
+- **The level:** `levels/lobby/match_console.tscn`, the plainest greybox box (1.2 x 1.6 x 0.3 m, the hall's white
+  station material) with a `Screen` Marker3D in `match_console_screen` (the screen's centre, facing its +Z), placed in
+  `lobby.tscn` 4.5 m in front of the spawn row's first markers, facing them: the first players, the host and the
+  player alone in the own ship, start there, and every spawn keeps 4 m clear (`lobby_view_test.gd`). Its look is a
+  placeholder (the PR asks).
+- **The screen** (`ConsoleScreen`, `client/ui/console_screen.gd`): `Console` (ToyPanelDialog, 960 x 540) > `V` >
+  `Top` (`Title` ToyTitleMachine `console.title`; the host's `HostNote` `esc.lobby.you_host`, 420 px; everyone
+  else's `HostOnly`: the lock and `esc.lobby.host_only` with the host's name, 378 px), `Rows` (ToyColumnFour: a
+  72 px ToySettingRow per setting, `H` ToyRowSixteen > `Name` 240 px and a `SettingStepper` in the console's look:
+  ToyRowTwelve at the end, the pack's minus and plus, the arrows the ToyStepper's size constants, the 156 px Value; the
+  banned types' chips, the host's, or plates, everyone else's) and `Code` (`common.code` and the code, "…" while
+  the service makes the room, `esc.lobby.code_gone` in its place; no Copy). Which rows show and their names are
+  `MatchRows`' (`client/ui/match_rows.gd`, from #1601's Lobby page): on the Estate the duration, the engine's chip
+  and the dissidents. The host of a shared session's lobby (`Game.hosting()`, `EscMenuState.settings_by_host`)
+  gets the steppers and chips, and the host's note shows to the host also in the countdown (read-only values there);
+  everyone else reads the values and the lock line; the own ship and the tutorial show the values with no host to name
+  (`Game._refresh_console`, every frame on the lobby screen). A change is `setting_changed`, sent as
+  ChangeSettings (`Game.change_setting`); the host checks it and the model brings the value back.
+- **The machine** (`MatchConsole`, `client/world/match_console.gd`, an `ItemWorld` child placed by `set_level`):
+  a SubViewport (960 x 540, no 3D, drawn only with a marker and the own eye within 12 m: farther its last frame
+  stays) whose root is the screen (the base theme: the large
+  text theme is not swapped in there) and an unshaded quad (0.96 x 0.54 m) showing its texture at the marker. Each
+  physics step the own eye's ray meets the screen's plane (`ray_hit`: from the front, within 2.5 m, inside the
+  quad; no level or other player's capsule on the way: WORLD, LIVING and DOWNED), and `aim` pushes the hit's pixel (`pixel_of`) into the SubViewport as
+  mouse motion (entering and leaving it with `notify_mouse_*`), so the control under the crosshair hovers;
+  Interact (`press_interact`, `click`) pushes a left press and release there, unless another E target claims the
+  press (`yields`, set by `Game`: an item or station target, the open viewfinder, a hand-over or a raise target), so
+  one press sends one intent. It listens in the lobby only, not under the Esc menu
+  (`GamePlayer.apply_flags`), for the living own player; while it is aimed at, E poses on no chair
+  (`ItemInteractions.pose_yields`). The numbers are placeholders.
+- **Not built here:** the handoff's frame drawing the screen at its own size where the player looks (the game draws
+  it on the console only); the s04 rows the M8 mode lacks (Humans, Anger, Wi-Fi passwords); the lobby's name, the
+  presets and the map pick (the Lobby page had them; s04 leaves the name open).
+- Tests: `tests/unit/client/ui/console_screen_test.gd` (the tree, host and guest, the own ship, the Estate's rows and
+  the House's, a chip's bans, the language, the code), `tests/unit/client/world/match_console_test.gd` (the ray and
+  the pixel, a click on the host's screen changes the setting under the crosshair and on a guest's nothing, the
+  lobby's console by the spawn facing it, E left to another target),
+  `tests/integration/client/app/game_console_test.gd` (a host and a guest in the lobby level: the crosshair's ray
+  through the level's physics, the host's Interact changing the duration for both, the guest's changing nothing, no
+  key under the Esc menu). Previews: `client/dev/console_{host,guest}{,_uk}_preview.tscn` (the
+  screen), `console_world_preview.tscn` and `console_spawn_preview.tscn` (in the lobby hall).
+
 #### 4.7.66 Booting into the own ship (#1285)
 prime-game-ui's s04 `boot` and s05 `ship` at `ui-2.5.4`, approved at the M8 sit-down (2026-11-08): the launched game
 has no main menu on the way; it boots straight into the aliens' ship and comes back to it whenever a session ends.
@@ -5725,8 +5775,8 @@ has no main menu on the way; it boots straight into the aliens' ship and comes b
   `find.none`: no discovery yet, #1316), `Code` (420 px: the code field of the code alphabet, Join at six, the quiet
   Join by address) or, in its place, `Address` (the address, the default port line, Join, Host and Back; Esc closes it
   first, `EscMenu.close_page`).
-- **Not built here:** the in-world screens (s04's match console and s11's workbench on a machine: the Esc menu's Lobby
-  page holds the settings, `WorkbenchScreen` stays standalone, §4.7.65), the own code in the ship.
+- **Not built here:** s11's workbench on a machine (`WorkbenchScreen` stays standalone, §4.7.65; the engineer: later,
+  with its mechanic), the own code in the ship. The match console: §4.7.67.
 - Tests: `tests/integration/client/app/game_ship_test.gd` (the boot, Find's Host and the way back, the tutorial, the
   Ready key, an address that does not parse, a failure's Join directly, `homes()`, the main menu without a ship),
   `tests/unit/client/ui/find_page_test.gd`, `esc_menu_state_test.gd`. Previews:

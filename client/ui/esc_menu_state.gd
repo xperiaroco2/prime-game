@@ -6,16 +6,17 @@ extends RefCounted
 ## page. Pure, so the menu and its unit test read the same rules; EscMenu draws it.
 ##
 ## The pages: GAME is none open (the panel alone: Resume, Leave, Quit are its own entries), Guide
-## (#254), Lobby (on the lobby screen, the lobby and the countdown: Ready and the match settings,
-## the plainest stand-in until the ship's match console, s04, #1285), Settings. No Role page: the
-## HUD shows the role (s05 at ui-2.3.0). The tutorial shows Guide and Settings. Character waits for
+## (#254), Settings. No Lobby page since #1604: the match settings are on the ship's match
+## console (s04, MatchConsole), Ready is its key and the code's Copy the head's; LOBBY keeps its
+## number and LobbyPanel its code, as ROLE does. No Role page: the HUD shows the role (s05 at
+## ui-2.3.0). The tutorial shows Guide and Settings. Character waits for
 ## the mirror (#1394, the engineer 2026-10-28). Opening shows the page chosen last on this kind of
 ## screen (the lobby screen or any other), else none.
 ## A player's Leave and Quit act at once, and so do the tutorial's; the host's ask first, since
 ## they end the session for every player: confirm() answers the question, cancel() drops it.
 
-## The pages; GAME is none open. ROLE is never shown since #1571; it keeps the numbers the
-## previews' `esc_tab` (client/dev/esc_*_preview.tscn) store.
+## The pages; GAME is none open. ROLE is never shown since #1571, LOBBY since #1604; they keep the
+## numbers the previews' `esc_tab` (client/dev/esc_*_preview.tscn) store.
 enum Tab { GAME, ROLE, GUIDE, LOBBY, SETTINGS, FIND }
 ## What a press or a confirmation asks the game to do.
 enum Action { NONE, RESUME, LEAVE, QUIT }
@@ -90,11 +91,7 @@ func tabs() -> Array[Tab]:
 		return [Tab.GAME, Tab.GUIDE, Tab.SETTINGS]
 	if ship:
 		return [Tab.GAME, Tab.FIND, Tab.GUIDE, Tab.SETTINGS]
-	var shown: Array[Tab] = [Tab.GAME, Tab.GUIDE]
-	if in_lobby:
-		shown.append(Tab.LOBBY)
-	shown.append(Tab.SETTINGS)
-	return shown
+	return [Tab.GAME, Tab.GUIDE, Tab.SETTINGS]
 
 
 func has_tab(tab: Tab) -> bool:

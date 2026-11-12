@@ -18,12 +18,13 @@ func before() -> void:
 
 
 func test_it_starts_closed_and_opens_the_panel_alone_in_the_lobby() -> void:
-	# s05 at ui-2.5.4 (#1571): the side panel with nothing open; the lobby has its Lobby entry.
+	# s05 at ui-2.5.4 (#1571): the side panel with nothing open; no Lobby entry since #1604 (the
+	# match settings are the ship's console, s04).
 	var menu := EscMenuState.new()
 	assert_bool(menu.is_open).is_false()
 	menu.open(S.LOBBY, Preview.fake_model(_mode, false), false)
 	assert_bool(menu.is_open).is_true()
-	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.GUIDE, TAB.LOBBY, TAB.SETTINGS])
+	assert_array(menu.tabs()).is_equal([TAB.GAME, TAB.GUIDE, TAB.SETTINGS])
 	assert_int(menu.selected).is_equal(TAB.GAME)
 	menu.close()
 	assert_bool(menu.is_open).is_false()
@@ -74,12 +75,16 @@ func test_the_tutorial_shows_game_guide_and_settings_and_leaves_at_once() -> voi
 func test_a_page_that_goes_away_gives_way_to_the_default() -> void:
 	var menu := EscMenuState.new()
 	var model := Preview.fake_model(_mode, true)
-	menu.open(S.LOBBY, model, true)
-	menu.press(TAB.LOBBY)
-	assert_int(menu.selected).is_equal(TAB.LOBBY)
-	menu.follow(S.END, model, true)
+	# The own ship's Find (#1285) goes when a session takes the ship's place (the Lobby page's
+	# going at the round's end did until #1604).
+	menu.ship = true
+	menu.open(S.LOBBY, model, false)
+	menu.press(TAB.FIND)
+	assert_int(menu.selected).is_equal(TAB.FIND)
+	menu.ship = false
+	menu.follow(S.LOBBY, model, true)
 	assert_bool(menu.has_tab(TAB.ROLE)).is_false()
-	assert_bool(menu.has_tab(TAB.LOBBY)).is_false()
+	assert_bool(menu.has_tab(TAB.FIND)).is_false()
 	assert_int(menu.selected).is_equal(TAB.GAME)
 	# A tab the screen lacks cannot be pressed.
 	menu.press(TAB.LOBBY)
@@ -104,9 +109,9 @@ func test_the_last_tab_is_kept_on_the_same_kind_of_screen() -> void:
 	# Back in the lobby, a page chosen in the round does not carry over: the panel alone.
 	menu.open(S.LOBBY, null, false)
 	assert_int(menu.selected).is_equal(TAB.GAME)
-	menu.press(TAB.LOBBY)
+	menu.press(TAB.GUIDE)
 	menu.open(S.LOBBY, null, false)
-	assert_int(menu.selected).is_equal(TAB.LOBBY)
+	assert_int(menu.selected).is_equal(TAB.GUIDE)
 
 
 func test_a_players_leave_and_quit_act_at_once_and_resume_closes() -> void:
@@ -193,7 +198,7 @@ func test_only_the_host_changes_the_settings_and_only_in_the_lobby_phase() -> vo
 	# The countdown accepts no ChangeSettings: the host reads them too.
 	host.fold(&"PhaseChanged", {"phase": &"countdown", "end_tick": 160})
 	menu.open(S.LOBBY, host, true)
-	assert_bool(menu.has_tab(TAB.LOBBY)).is_true()
+	assert_bool(menu.has_tab(TAB.LOBBY)).is_false()
 	assert_bool(menu.may_change_settings).is_false()
 	# No model yet (connecting): nobody changes anything.
 	menu.open(S.CONNECTING, null, true)

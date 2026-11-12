@@ -21,7 +21,8 @@ const BASE: Dictionary[String, bool] = {
 	"Menu/Side/V/Head/V/Row/Copy": true,
 	"Menu/Side/V/Entries/Resume": true,
 	"Menu/Side/V/Entries/Guide": true,
-	"Menu/Side/V/Entries/Lobby": true,
+	# No Lobby entry since #1604: s05 has none, the match settings are the ship's console (s04).
+	"Menu/Side/V/Entries/Lobby": false,
 	"Menu/Side/V/Entries/Settings": true,
 	"Menu/Side/V/Rule": true,
 	"Menu/Side/V/Bottom/Leave": true,
@@ -43,21 +44,7 @@ const IN_ROUND: Array[String] = ["Menu/Side/V/Head", "Menu/Side/V/Entries/Lobby"
 ## mirror (#1394, the engineer 2026-10-28) and the ship's states (no session) for #1285.
 var states: Dictionary[String, Dictionary] = {
 	"lobby": {},
-	"lobby-page":
-	{
-		"tab": TAB.LOBBY,
-		"shown":
-		["Menu/Page", "Menu/Page/V/Lobby", "Menu/Page/V/HostRow", "Menu/Page/V/HostRow/HostNote"],
-	},
-	# A guest reads the settings: the lock line naming the host, no host note.
-	"lobby-page-guest":
-	{
-		"hosting": false,
-		"tab": TAB.LOBBY,
-		"shown":
-		["Menu/Page", "Menu/Page/V/Lobby", "Menu/Page/V/HostRow", "Menu/Page/V/HostRow/HostOnly"],
-	},
-	# The code service gone: no dead code in the head (the Lobby page says so).
+	# The code service gone: no dead code in the head (the ship's console says so, #1604).
 	"lobby-no-code": {"code_gone": true, "hidden": ["Menu/Side/V/Head"]},
 	"round": {"round": true, "hidden": IN_ROUND},
 	"round-confirm":
@@ -90,7 +77,8 @@ func after_test() -> void:
 
 
 func test_every_state_shows_and_hides_what_the_handoff_lists() -> void:
-	assert_int(states.size()).is_equal(13)
+	# 13 until #1604 took the Lobby page's two states (s05 has no Lobby entry).
+	assert_int(states.size()).is_equal(11)
 	for id: String in states:
 		var spec := states[id]
 		var menu := _build(spec)

@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://cdgdi26xsd1gj"]
+
+[ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="1_white"]
+
+[sub_resource type="BoxShape3D" id="Shape_console"]
+size = Vector3(1.2, 1.6, 0.3)
+
+[sub_resource type="BoxMesh" id="Mesh_console"]
+material = ExtResource("1_white")
+size = Vector3(1.2, 1.6, 0.3)
+
+[node name="MatchConsole" type="StaticBody3D" unique_id=1653058794]
+
+[node name="Shape" type="CollisionShape3D" parent="." unique_id=1392512155]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+shape = SubResource("Shape_console")
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=1910635503]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+mesh = SubResource("Mesh_console")
+
+[node name="Screen" type="Marker3D" parent="." unique_id=812431073 groups=["match_console_screen"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0.16)

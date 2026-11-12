@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://bxt4b47i30wih"]
+
+[ext_resource type="Script" uid="uid://dhpnx17e28ijw" path="res://client/dev/console_preview.gd" id="1_preview"]
+
+[node name="ConsolePreview" type="Node3D" unique_id=313049376]
+script = ExtResource("1_preview")
+hosting = false

@@ -6,6 +6,7 @@
 [ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="4_green"]
 [ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="5_white"]
 [ext_resource type="Material" uid="uid://c857ea2kxqs27" path="res://levels/kit/greybox_station_blue.tres" id="7_blue"]
+[ext_resource type="PackedScene" uid="uid://cdgdi26xsd1gj" path="res://levels/lobby/match_console.tscn" id="8_console"]
 
 [sub_resource type="BoxShape3D" id="Shape_bar"]
 size = Vector3(1, 1.1, 6)
@@ -84,6 +85,9 @@ transform = Transform3D(-1, 0, 0, 0, 0.573576, 0.819152, 0, 0.819152, -0.573576,
 
 [node name="Display" type="Marker3D" parent="Pinball" unique_id=1400140003 groups=["pinball_display"]]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1, 1.55, 1.2)
+
+[node name="MatchConsole" parent="." unique_id=642946917 instance=ExtResource("8_console")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -7, 0, 7.2)
 
 [node name="Mirror" type="StaticBody3D" parent="." unique_id=921110573]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 0, 7)

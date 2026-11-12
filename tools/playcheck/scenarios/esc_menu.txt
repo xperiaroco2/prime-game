@@ -1,11 +1,11 @@
 # The Esc menu as the side panel (#169, PR #172; s05 at ui-2.5.4, #1571) and the Ready key in the
 # game's real windows. Window 1 hosts and window 2 joins it. In the lobby each opens its Esc menu
-# with one Esc: the panel alone, the pointer freed; its Lobby entry opens the page with the settings
-# the host may change and the guest sees read-only. Esc again closes it and captures the pointer
-# again (as the game asks; playcheck never captures the real mouse). F under the menu readies
-# nobody; F in the lobby readies its player. The guest presses Esc as soon as it is welcomed (#204:
-# the menu still opens as the lobby's, its Lobby entry there) and readies with the Lobby page's
-# Ready toggle. It leaves the menu open: the countdown keeps it (still the lobby's screen), and the
+# with one Esc: the panel alone, the pointer freed; no Lobby entry since #1604 (the match settings
+# are the ship's console, s04), its Guide opens beside it. Esc again closes it and captures the
+# pointer again (as the game asks; playcheck never captures the real mouse). F under the menu
+# readies nobody; F in the lobby readies its player. The guest presses Esc as soon as it is welcomed
+# (#204: the menu still opens as the lobby's), closes it, readies with F and opens it again. It
+# leaves the menu open: the countdown keeps it (still the lobby's screen), and the
 # match's first screen closes it, so the pregame and the round show no menu (#726). Its off-screen
 # window lacks the focus, so the pointer stays free there (#517: a screen change captures only a
 # focused window). In the round the panel has Resume, Guide, Settings, Leave and Quit, no Lobby
@@ -24,13 +24,13 @@ shot lobby_host
 press ui_cancel
 wait esc open
 wait pointer free
-wait text esc.tabs has esc.tab.lobby
+wait text esc.tabs lacks esc.tab.lobby
 wait text esc.tabs has esc.tab.settings
 frames 5
 shot esc_lobby_panel_host
-button esc.tab.lobby
+button esc.tab.guide
 frames 5
-shot esc_lobby_tab_host
+shot esc_lobby_guide_host
 # Esc closes the open page first, then the menu (s05).
 press ui_cancel
 frames 5
@@ -72,19 +72,22 @@ wait players 2
 wait screen lobby
 press ui_cancel
 wait esc open
-button esc.tab.lobby
+wait text esc.tabs lacks esc.tab.lobby
 frames 5
-shot esc_lobby_tab_guest
+shot esc_lobby_panel_guest
 # F under the menu readies nobody: on loopback a ready reaches the model well within 60 frames.
 press ready
 frames 60
 wait ready off
 wait text lobby.roster has (you) not ready
-button esc.lobby.ready
+press ui_cancel
+wait esc closed
+press ready
 wait ready on
 wait text lobby.status has Starting in
-frames 10
+press ui_cancel
 wait esc open
+frames 10
 shot esc_countdown_guest
 wait screen pregame timeout=60
 wait esc closed

@@ -150,6 +150,7 @@ func _ready() -> void:
 	if mode == null:
 		mode = load(MODE_PATH) as GameMode
 	ui.esc.lobby.set_mode(mode)
+	_items.console.screen.set_mode(mode)
 	ui.plates.avatars = _avatars
 	ui.plates.hider = _life.hider()
 	ui.menu.host_requested.connect(func(port: int) -> void: host(port))
@@ -166,6 +167,7 @@ func _ready() -> void:
 	ui.esc.lobby.settings_changed.connect(change_settings)
 	ui.esc.lobby.lobby_name_changed.connect(change_lobby_name)
 	ui.esc.lobby.map_changed.connect(change_map)
+	_items.console.setting_changed.connect(change_setting)
 	ui.esc.resume_requested.connect(close_esc)
 	ui.esc.leave_requested.connect(leave)
 	ui.esc.quit_requested.connect(quit)
@@ -189,8 +191,18 @@ func _ready() -> void:
 	_items.hand_over.raise_target = _life.raise_target
 	# ...and the chair gives way to both (#1403): a hand-over target includes the cancel of the own
 	# open offer (#1434), so E cancels first and sits on the next press.
+	# The match console's screen under the crosshair takes E as its click (#1604).
+	# ...and the console's screen to every other E target (#1604): one press, one intent.
+	_items.console.yields = func() -> bool:
+		return (
+			_items.interactions.target() >= 0
+			or _items.interactions.station_target() >= 0
+			or _items.interactions.viewing()
+			or _items.hand_over.target() != 0
+			or _life.raise_target() != 0
+		)
 	_items.interactions.pose_yields = func() -> bool:
-		return _life.raise_target() != 0 or _items.hand_over.target() != 0
+		return _life.raise_target() != 0 or _items.hand_over.target() != 0 or _items.console.aimed()
 	GameSettings.ready_settings(self)
 	ui.menu.bind_name(settings)
 	_voice_control = GameSettings.start_voice(self, _world)
@@ -576,6 +588,8 @@ func _process(delta: float) -> void:
 	if _client != null:
 		_join.refresh(self)
 		ui.refresh(_client.model, mode, _avatars.host_tick(), hosting())
+		if now == GameFlow.Screen.LOBBY:
+			_refresh_console(now)
 		if now == GameFlow.Screen.LOADING:
 			ui.connecting.set_load_fraction(_client.load_progress())
 		if now == GameFlow.Screen.ROUND:
@@ -651,6 +665,17 @@ func _notification(what: int) -> void:
 		ui.esc.ask_quit(screen(), _welcomed_model())
 	else:
 		quit()
+
+
+## The match console's screen (#1604) follows the own model: the host of a shared session's lobby
+## works it (as the Esc menu's Lobby page took the host's changes); in the own ship and the
+## tutorial it shows the values alone, with no host to name.
+func _refresh_console(now: GameFlow.Screen) -> void:
+	var may_change := (
+		now == GameFlow.Screen.LOBBY and hosting() and EscMenuState.settings_by_host(_client.model)
+	)
+	var shared := not ship.running and not tutorial.running
+	_items.console.screen.refresh(_client.model, may_change, hosting(), shared)
 
 
 ## The own ClientModel once welcomed; null before and without a session.

@@ -38,6 +38,7 @@ func refresh(game: Game) -> void:
 		code = target.code
 	var line := JoinProgress.code_text(code, room != null and room.gone(), room != null)
 	game.ui.esc.show_code(line, code)
+	game.items().console.screen.show_code(line, code)
 
 
 ## Keeps the code or the address a join used as the settings' last one (#640): the menu's fields

@@ -29,21 +29,6 @@ const NAME_LABEL := "lobby.setting.name"
 ## Plain text, as before: the UI deck has no key for it yet (a change goes to prime-game-ui).
 const MAP_LABEL := "Map"
 const DEFAULT_NAME := "lobby.default_name"
-## Each known setting's row: its node name, its deck key ("": the spec's name) and the key its
-## value reads with ("": the number).
-const ROWS: Dictionary[StringName, Array] = {
-	&"match_duration": ["Duration", "lobby.setting.duration", "unit.minutes"],
-	&"packages": ["Packages", "lobby.setting.packages", ""],
-	&"dissidents": ["Dissidents", "lobby.setting.dissidents", ""],
-	&"knives": ["Knives", "lobby.setting.knives", ""],
-	&"tasks": ["TaskCount", "", ""],
-	&"banned_task_types": ["Tasks", "lobby.setting.tasks", ""],
-}
-## The task count's setting (DealTasks' `tasks_setting` in the base mode): one per task type the
-## picked map plays, so with one such type it has nothing to choose (#1601).
-const TASK_COUNT := &"tasks"
-## A task type's own step count with no row key of its own: "<the task>: step count" (#1601).
-const STEPS_LABEL := "lobby.setting.task_steps"
 ## Sizes in px at the 1920x1080 base (the handoff's; layout).
 const LIST_WIDTH := Vector2(784, 0)
 const CARD_SIZE := Vector2(184, 96)
@@ -97,14 +82,9 @@ var _ban_boxes: Dictionary[StringName, Array] = {}
 var _maps := PackedStringArray()
 ## The map's row: hidden with one map to play, nothing to pick (#1601).
 var _map_row: PanelContainer
-## Each whole-number setting's row, and whether it shows on any map (bounds and a reader).
+## Each whole-number setting's row; which show and what they read: MatchRows (#1601, #1604).
 var _rows: Dictionary[StringName, PanelContainer] = {}
-var _row_shown: Dictionary[StringName, bool] = {}
-## A task type's own setting (TaskType.subtasks_setting) -> the types reading it: its row shows
-## only on a map one of them plays (#1601), as their chips do.
-var _types_of: Dictionary[StringName, Array] = {}
-## A row named after its one task type (STEPS_LABEL) -> that type's id, written in the language now.
-var _step_rows: Dictionary[StringName, StringName] = {}
+var _match_rows: MatchRows
 ## The code Copy puts on the clipboard; empty hides the row.
 var _code := ""
 ## The roster as the rows show it, so a frame's refresh rebuilds them only on a change.
@@ -179,27 +159,16 @@ func set_mode(mode: GameMode) -> void:
 	_plates.clear()
 	_ban_boxes.clear()
 	_rows.clear()
-	_row_shown.clear()
-	_types_of.clear()
-	_step_rows.clear()
+	_match_rows = MatchRows.new(mode)
 	# The maps players play: never a test bench (GameMode.bench_maps, #767).
 	_maps = mode.player_maps()
 	map_picker.clear()
 	for map in _maps:
 		map_picker.add_item(map_name(map))
 	_map_row.visible = _maps.size() > 1
-	for task: TaskType in mode.task_types:
-		if task != null and not task.subtasks_setting.is_empty():
-			if not _types_of.has(task.subtasks_setting):
-				_types_of[task.subtasks_setting] = []
-			_types_of[task.subtasks_setting].append(task)
-	var read := mode.read_settings()
 	for spec: SettingSpec in mode.settings:
-		var row: Array = ROWS.get(spec.id, [String(spec.id).to_pascal_case(), "", ""])
-		var key := str(row[1]) if not str(row[1]).is_empty() else spec.display_name
-		var types: Array = _types_of.get(spec.id, [])
-		if str(row[1]).is_empty() and types.size() == 1:
-			_step_rows[spec.id] = (types[0] as TaskType).id
+		var row := MatchRows.row_of(spec.id)
+		var key := _match_rows.label(spec.id)
 		if spec.is_number():
 			var stepper := SettingStepper.new()
 			stepper.format_key = str(row[2])
@@ -209,10 +178,6 @@ func set_mode(mode: GameMode) -> void:
 			stepper.stepped.connect(func(value: int) -> void: _send(id, value))
 			_steppers[spec.id] = stepper
 			var made := SettingRows.row(str(row[0]), key, stepper)
-			# A setting with one allowed value (the base mode's task count) has nothing to show,
-			# nor one no part of the mode reads (the base mode's knives in the M8 slice, #1525).
-			_row_shown[spec.id] = spec.min_value < spec.max_value and read.has(spec.id)
-			made.visible = _row_shown[spec.id]
 			_rows[spec.id] = made
 			settings_box.add_child(made)
 		else:
@@ -296,38 +261,23 @@ static func default_name(model: ClientModel) -> String:
 	return String(TranslationServer.translate(DEFAULT_NAME)).format({"name": host})
 
 
-## The number rows on `on_map` (#1601): a task type's own setting only where one of its types
-## plays, the task count only with more types playing there than its least value.
+## The number rows on `on_map` (MatchRows.shown_on, #1601).
 func _show_rows(on_map: String) -> void:
-	if _mode == null:
+	if _match_rows == null:
 		return
-	var playing := 0
-	for task: TaskType in _mode.task_types:
-		if task != null and task.plays_on(on_map):
-			playing += 1
 	for id: StringName in _rows:
-		var shown := _row_shown[id]
-		if _types_of.has(id):
-			shown = (
-				shown
-				and _types_of[id].any(func(task: TaskType) -> bool: return task.plays_on(on_map))
-			)
-		if id == TASK_COUNT:
-			shown = shown and playing > _mode.find_setting(id).min_value
-		_rows[id].visible = shown
+		_rows[id].visible = _match_rows.shown_on(id, on_map)
 
 
 ## The rows named after their one task type, in the language now: "<the task>: step count".
 func _write_steps() -> void:
-	if _mode == null:
+	if _match_rows == null:
 		return
-	for id: StringName in _step_rows:
-		if not _rows.has(id):
-			continue
-		var label := SettingRows.name_of(_rows[id])
-		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		var task := ContentNames.text(ContentNames.task(_step_rows[id], _mode))
-		label.text = String(TranslationServer.translate(STEPS_LABEL)).format({"task": task})
+	for id: StringName in _rows:
+		if _match_rows.names_task(id):
+			var label := SettingRows.name_of(_rows[id])
+			label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+			label.text = _match_rows.label(id)
 
 
 ## A map's name for the picker (ContentNames.map: its scene's file name, "House").
