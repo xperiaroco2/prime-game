@@ -25,11 +25,12 @@ its .meta.json, the layout `metrics` reads (whose meta reader this module reuses
 `agentType` (a project agent such as code-reviewer, judged by its file's `model:`; else `workflow-subagent`, which
 inherits the session's model), `description` (the workflow's label, such as review:code:#188), `workflowPhase`,
 `spawnDepth`, `requestShape` and `requestNonInteractive`, and no model.
-A launch that passes `models` is expected to record the requested model as `model`, as the Agent tool's meta file
-does; until such a launch has shown it, any other meta key that names a model (`MODEL_KEY_RE`, at any depth, such as
-`request.model`) fails, so a different key cannot pass silently as an unrequested model.
-One such key is known and read as no request (#1613): the top-level `pickedEffortModel`, which Claude Code 2.1.321
-writes beside `model` in hand-run and workflow agents' meta files alike. In its source the two are separate: `model` is
+A launch that passes `models` records the requested model as `model`, as the Agent tool's meta file does (seen with
+Claude Code 2.1.321: a task-implementer launched with sonnet); any other meta key that names a model
+(`MODEL_KEY_RE`, at any depth, such as `request.model`) still fails, so a different key cannot pass silently as an
+unrequested model.
+One such key is known and read as no request (#1613): the top-level `pickedEffortModel`, which Claude Code writes
+since 2.1.317 at the latest (seen through 2.1.321) beside `model` in hand-run and workflow agents' meta files alike. In its source the two are separate: `model` is
 the caller's request, `pickedEffortModel` the model the effort level was picked for (unset: the session's main-loop
 model). On the engineer's PC (2026-11-12) it said claude-opus-5-5 in every file, godot-api-checker runs and
 `model: sonnet` launches included, whose transcripts sonnet alone answered.

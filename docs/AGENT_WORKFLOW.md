@@ -306,7 +306,8 @@ rules.
   `agentType` `workflow-subagent` inherits the session's model and is only listed, unless a model in neither list
   served it: a failure); a `models` launch is
   read from `model`, as the Agent tool records it, and any other meta key that names a model, at any depth
-  (`request.model`), fails until the reader learns it. After a launch that passes `models`, `agents-check` in the
+  (`request.model`), fails until the reader learns it (the top-level `pickedEffortModel`, the model the effort level
+  was picked for, is read as no request, #1613). After a launch that passes `models`, `agents-check` in the
   manager's session checks it. `finish-task` runs it after the reviews.
 - **Launch check [applied] (#557; the lean ADR amendment of 2026-10-08):**
   `tools\run.cmd agents-check --launch` judges no transcript: in the manager's

@@ -195,18 +195,20 @@ class WorkflowReadTest(unittest.TestCase):
         self.assertIn("request.model", why)
 
     def test_picked_effort_model_is_no_request(self) -> None:
-        """#1613: Claude Code 2.1.321 writes the model it picked the effort for, the session's, not the request."""
+        """#1613: Claude Code (2.1.317 to 2.1.321 at least) writes the model it picked the effort for, the session's,
+        not the request."""
         hand = self.folder / "s4" / "subagents"
-        # Keys and values copied from the engineer's 2026-11-11 hand-run reviewers (toolUseId shortened).
+        # Keys and values modelled on the engineer's 2026-11-11 hand-run reviewers (description dropped, toolUseId
+        # shortened); a launch that names a model has no launchedWithDefaults.
         meta = {
-            "isBuiltIn": False, "launchedWithDefaults": True, "toolUseId": "toolu_01", "spawnDepth": 1,
-            "requestShape": "background", "requestNonInteractive": True, "pickedEffortModel": "claude-opus-5-5",
-            "finished": True,
+            "isBuiltIn": False, "toolUseId": "toolu_01", "spawnDepth": 1, "requestShape": "background",
+            "requestNonInteractive": True, "pickedEffortModel": "claude-opus-5-5", "finished": True,
         }  # fmt: skip
-        transcript(hand, "p1", {"agentType": "code-reviewer", **meta}, "claude-opus-5-5")
-        transcript(hand, "p2", {"agentType": "godot-api-checker", **meta}, "claude-sonnet-5-5")
+        default = {**meta, "launchedWithDefaults": True}
+        transcript(hand, "p1", {"agentType": "code-reviewer", **default}, "claude-opus-5-5")
+        transcript(hand, "p2", {"agentType": "godot-api-checker", **default}, "claude-sonnet-5-5")
         transcript(hand, "p3", {"agentType": "code-reviewer", "model": "sonnet", **meta}, "claude-sonnet-5-5")
-        transcript(hand, "p4", {"agentType": "godot-api-checker", **meta}, "claude-opus-5-5")
+        transcript(hand, "p4", {"agentType": "godot-api-checker", **default}, "claude-opus-5-5")
         run = self.folder / "s4" / "subagents" / "workflows" / "wf_x"
         meta = workflow_meta("code-reviewer", "review:code:#188", "Review", pickedEffortModel="claude-opus-5-5")
         transcript(run, "p5", meta, "claude-opus-5-5")
