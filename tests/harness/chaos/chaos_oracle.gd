@@ -54,7 +54,7 @@ const PICK_UP_REACH_M := 2.0
 ## Lobby, Countdown and Round take WheelPose from the living (#1485): the hostile sends only half
 ## or out-of-range picks, which WheelPoseInRange, the first condition, answers `no_such_pose`.
 ## Round's Use row is the chaos run's mode's (FixtureBaseModeWithMelee, ChaosScenario.MODE): the
-## shipped base mode's Round takes no Use since the M8 slice (#1497).
+## shipped base mode's, from the living and the dead in their hall again since #1587.
 const ACCEPTS: Dictionary[StringName, Dictionary] = {
 	&"lobby":
 	{

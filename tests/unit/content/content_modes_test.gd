@@ -462,9 +462,11 @@ func test_the_base_mode_accepts_pose_in_round_from_the_living_only_at_a_chair() 
 func test_the_base_mode_round_accepts_the_secondary_use_and_the_melee_fixture_both() -> void:
 	var mode := _base_mode()
 	var in_round := mode.find_phase(&"round")
-	# The M8 slice has no strike in the Round (#1497); the melee fixture keeps it, from the living.
-	# The dead use what stands in their hall (#1489): the DEAD row alone.
-	assert_int(in_round.senders_of(Intents.USE)).is_equal(AcceptSpec.From.DEAD)
+	# The M8 release's strike in the Round (#1587, after the M8 slice's none, #1497), from the
+	# living, and the dead use what stands in their hall (#1489); the melee fixture's the same.
+	assert_int(in_round.senders_of(Intents.USE)).is_equal(
+		AcceptSpec.From.LIVING | AcceptSpec.From.DEAD
+	)
 	var melee := FixtureBaseModeWithMelee.mode()
 	assert_int(melee.find_phase(&"round").senders_of(Intents.USE)).is_equal(
 		AcceptSpec.From.LIVING | AcceptSpec.From.DEAD

@@ -2,9 +2,9 @@ class_name ChaosScenario
 extends RefCounted
 ## The honest match the chaos peers play in (ARCHITECTURE §9.7's steps, built in code: it is the
 ## chaos run's fixture, not content). Four bots of the base mode with melee
-## (FixtureBaseModeWithMelee: the shipped base mode plus the knives and the Round's Use, which the
-## M8 slice took out of it, #1497) on the greybox at its default draw, Delivery alone (the zone
-## task plays on the House alone since #804, GD13 (b)): one package.
+## (FixtureBaseModeWithMelee: the shipped base mode plus the knives, which the M8 slice took out of
+## it, #1497; its Round takes Use again since #1587) on the greybox at its default draw, Delivery
+## alone (the zone task plays on the House alone since #804, GD13 (b)): one package.
 ## - bot 1, the host's own client, waits until bot 4 has walked away from its freeze (a fixed
 ##   AWAY_WAIT_S from the round's start), takes a knife, knocks bot 4 down with two hits and waits
 ##   for the end;

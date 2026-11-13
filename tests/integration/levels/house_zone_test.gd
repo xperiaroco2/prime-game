@@ -9,8 +9,8 @@ extends GdUnitTestSuite
 ## return key, the voice and the snapshots). The match is FixtureBaseModeWithZones (the base mode
 ## with the zone task) on the House, set up as a scenario's setup would be: forced roles, then
 ## ChangeSettings with its settings and the map. The knockdown's match is an own copy of it whose
-## Round takes Use (FixtureBaseModeWithMelee.round_takes_use: the M8 slice took the strike out of
-## the shipped Round, #1497).
+## Round takes Use (FixtureBaseModeWithMelee.round_takes_use; the shipped Round takes it again since
+## #1587, after the M8 slice's none, #1497).
 ## - Every zone and every package: a crew member delivers the package, another fills the zone, and
 ##   the crew wins on the second subtask.
 ## - A dissident alone fills the zone (ZD3: anyone living counts, whatever the role): the crew wins.
@@ -139,8 +139,8 @@ func test_a_knockdown_pauses_the_zone_until_the_raise() -> void:
 ## Starts the match on the House in the host's world with BOTS players (bot 1 the dissident, the
 ## rest crew), sends the scenario setup's ForceRoles and ChangeSettings (its `settings` and
 ## `id_sets`, and the House) and plays it into the round. Every call is checked.
-## `melee`: on an own copy of the zone fixture whose Round takes Use, as the shipped one did
-## before #1497.
+## `melee`: on an own copy of the zone fixture whose Round takes Use, as the shipped one does again
+## since #1587 (none from #1497).
 func _start(
 	settings: Dictionary[StringName, int],
 	id_sets: Dictionary[StringName, PackedStringArray],

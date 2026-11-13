@@ -27,7 +27,7 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
                             greybox) suits a script that walks on flat ground
     mode <file.tres>        the GameMode (repo-relative or res://) every window plays (Game.mode, set before its
                             _ready); without it the shipped base mode. A test fixture mode such as
-                            tests/fixtures/combat/base_mode_with_melee.tres (#1497: the Round's strike and the knives,
+                            tests/fixtures/combat/base_mode_with_melee.tres (#1497: the knives,
                             which the shipped mode no longer has) needs a debug build, as playcheck is; a `bots` file
                             names the same mode as its own `mode`
     clock <seconds>         ForceClock (the match clock's length), sent by window 1 then

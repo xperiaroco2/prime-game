@@ -763,7 +763,7 @@ mode's Round names `DEAD` for `MoveClaim`, `PickUp`, `PutDown`, `Use`, `UseSecon
 | `MoveClaim(epoch, client_tick, position, velocity, facing, sprint, moving, jumps, on_floor, crouched, sneaking, sprint_ticks, moved_ticks)` | living players in Lobby, Countdown and Round; the downed in Round (its facing only, the rest ignored and never corrected, §7.1.7); never the dead; in another phase, or from another sender, dropped without `Rejected` (E15, 3e) | the current epoch and a rising client tick (else dropped as stale); finite values; the client tick rising at a bounded rate; speed for the life state and stamina; jumps; height (§7, §7.1). `client_tick` counts 20 Hz core ticks of the client's own clock (`Ticks.RATE`), not physics frames. `sprint` and `moving`: the sprint state and movement input in any physics step since the client's last claim (#155). `sprint_ticks` and `moved_ticks` (#155): the same per client tick, bit i for client tick `client_tick - i`, so a claim the LATEST merge superseded still has each of its ticks settled as sent; the host reads only the bits of the ticks the claim covers (older ones take bit 31), and a mask outside the u32 is malformed in core itself (`MovementRule.MAX_MASK`, a `Correction`). A claim that fails a check gets `Correction`, not `Rejected`. `jumps` (3e, E2): the client's count of jumps since it adopted the epoch, which survives the LATEST merge (§4.3, §7.1) |
 | `PickUp(item)` | a living player; Round, and the base mode's Lobby and Countdown (#1388) | the item lies on the ground (not carried, not delivered); pick-up reach from the host's position of the player; line of sight. It goes to the hand; a one-handed hand item moves to an empty belt, any other hand item rests where the picked one lay (§7.1.11, M4-5); beside a two-handed hand item a one-handed picked item goes onto the belt instead, a full belt's item put down at the feet first (the cooking ADR's CE21, #771) |
 | `PutDown(facing)` | a living player with an item in hand; Round, Lobby and Countdown (#1388) | nothing from the client but the facing: the host computes the placement (§7.1.12). Only the hand item: a belt item alone is `empty_hand` |
-| `Use(facing)` | a living player; Lobby and Countdown (#1388); not the base mode's Round since the M8 slice (#1497: no hitting in the match; the melee fixture `FixtureBaseModeWithMelee`, §9.5.1, keeps it) | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (a mode without a `Use` rule; the base mode has one, the fallback hit of an empty hand or a kind without its own, #1437). The knife's rule and the fallback: the minimum interval since this player's last hit, whatever hand made it (`too_soon`); stamina of at least the hit's cost (`tired`); the host picks the targets and the front or back damage (§7.1.10) |
+| `Use(facing)` | a living player; Lobby and Countdown (#1388); and the base mode's Round again since the M8 release (#1587: the fist and the crystal; the M8 slice had taken it out, #1497), the dead in their hall too (#1489) | the first `Use` rule of the hand item's kind (never the belt item's), the actor's role or the mode (§9.2); none: `nothing_to_do` (a mode without a `Use` rule; the base mode has one, the fallback hit of an empty hand or a kind without its own, #1437). The knife's rule and the fallback: the minimum interval since this player's last hit, whatever hand made it (`too_soon`); stamina of at least the hit's cost (`tired`); the host picks the targets and the front or back damage (§7.1.10) |
 | `UseSecondary(facing)` | a living player (`PLAYER_ACTIONS`: the dead, downed and limp get `not_accepted`); Round, Lobby and Countdown (#1438) | the held item's own action, on the right mouse button: the first `UseSecondary` rule of the hand item's kind, the actor's role or the mode, as `Use` (§9.2); none: `nothing_to_do`. The mug's `Drink` (§7.1.20) runs on it, so `Use` (the left button) with a mug is the mode's fallback hit (#1437). A player action: the client sends its claim twin first, from `ItemInteractions.use_secondary` (§4.7.10) while living; the dead's right button stays the spectate cycle |
 | `ReturnToLobby()` | the host only; End | none: End reports `back` at once, before its end tick; since #212 no screen sends it (the tests and the bots' `ReturnToLobby` step do) |
 | `Raise(target)` | a living player; Round (M4-4, E28: sent on pressing E over a downed player) | the base mode's raise rule (§9.5), its conditions at the start and again every tick: the target is downed (`not_downed`) and its body is at rest (`moving` while the host's physics moves it, KE15, #847); neither the sender nor the target is in a running channel (`busy`: one raiser at a time, the engineer's answer 4 on PR #133); the target lies within the pick-up's 2 m of the sender's last accepted position (`out_of_reach`) and in its line of sight (`blocked`). A raiser may hold the package. Accepted, the raise runs until it completes or stops (§9.4 `RaiseDowned`) |
@@ -2083,7 +2083,7 @@ tick (that suite: no scenario moves a body, KE12, a limp one included: their wor
 (#188; item 6 of the [AI productivity ADR](decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md),
 P11): invariant 1 (the host validates every intent) against what a modified client can send, in
 `tests/harness/chaos/`. `ChaosRun` is a `BotsRunner` whose match (`ChaosScenario`, built in code: four bots,
-the melee fixture's default draw (the shipped base mode with the Round's strike and the knives, §9.5.1, #1497), one package, since #804 (from #649 to #804 also one zone on the greybox); bot 4
+the melee fixture's default draw (the shipped base mode with the knives, §9.5.1, #1497), one package, since #804 (from #649 to #804 also one zone on the greybox); bot 4
 walks to `ChaosScenario.STAND_AT`, where that zone stood, and freezes, bot 1 then knocks it down, bot 2 delivers and
 bot 3 first pours and drinks a mug at the lobby's tap (#1390: `ExpectDrunk` of its own value), then draws its second place and then its first, two accepted `Draw`s (#1377), and waits for the end) carries two chaos peers that are never peer 1: a
 **hostile but valid** player, bot 4's own connection (`ChaosHostile`), which plays the whole round as living,
@@ -8373,10 +8373,10 @@ Settings:
 Produces: the events of its phases and parts. Visible to: as each of them says.
 Code: `content/modes/base_mode.tres`. The mode check refuses an accepted intent
 that no rule handles, so every intent a phase accepts comes with its rule (the Lobby's `Use` with the fallback hit,
-§9.5.12). The M8 slice has no hitting in the match (#1497; the engineer's word on
+§9.5.12). The M8 slice took the hitting out of the match (#1497; the engineer's word on
 [#507](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184), GDD §3 "The M8 slice", item 2):
-Round takes no `Use`, so neither the fist, the crystal nor a held item hits there, and the Loading row places no
-knife; the Lobby and the Countdown keep their hits and the limp (#1439), Round its `PickUp`, `PutDown`, `Throw`,
+the M8 release gave it back (#1587; GDD §3 "The M8 release": the fist and the ship's crystal only), so the Round takes `Use` from the living (and the dead in their hall) again; the Loading row still places no
+knife; the fist hits 5 and 10, the crystal (two-handed) 20 and 40, 25 stamina a swing; the Lobby and the Countdown keep their hits and the limp (#1439), Round its `PickUp`, `PutDown`, `Throw`,
 `Interact` and `UseSecondary`. The `knives` setting stays and places nothing in this mode; no part reads it, so the lobby hides its row and the No knives card (#1525).
 Each map's lobby, guide and loading card list its own task type alone (DE16, §4.7.36, §4.7.42). The zone task's code,
 its tests and the House's zones stay while the mode plays no zone task (the engineer's
@@ -8388,8 +8388,8 @@ zone task's tests (not its scenarios, chaos or perf runs, which play without zon
 Generator, its `switches` setting and Round's `Interact`, so the zone tests keep Delivery beside the zone; the photo
 task and its `photos` setting (its Film and Photo kinds stay, unused); Cooking, its `burgers` setting and its item
 kinds; and car repair and its `car_parts` setting (its part kinds stay, unused: no rule names them).
-`FixtureBaseModeWithMelee` (`tests/fixtures/combat/base_mode_with_melee.tres`) is the base mode as it was before
-#1497, read from the shipped one when it loads: its own Round takes `Use` from the living (after `PutDown`), its own
+`FixtureBaseModeWithMelee` (`tests/fixtures/combat/base_mode_with_melee.tres`) is the base mode with the knives of before
+#1497, read from the shipped one when it loads: its own Round takes `Use` from the living (as the shipped one does again since #1587), its own
 Loading row places the knives (`SpawnItems`, Knife by `knives`, RNG `knives`) between the task deal and the placement.
 The knockdown scenarios in `tests/fixtures/scenarios/`, the chaos run and the knife's launch and body-reach tests on
 the House play it.
@@ -8399,7 +8399,7 @@ end and back to the lobby, twice (the second time with no intent: End's 3 s, nob
 a round with 0 dissidents set in its lobby; the phases with a mode built in code (`tests/unit/match/phases/`,
 `tests/unit/match/reset_match_test.gd`, `tests/unit/content/layout_check_test.gd`); the scenarios in
 `content/scenarios/` and `tests/fixtures/scenarios/` (`tests/scenarios/scenarios_test.gd`, §9.7), on the flat lobby
-and greybox of §9.6; no hitting in the Round and no knife placed (`tests/unit/content/base_mode_no_hitting_test.gd`,
+and greybox of §9.6; the Round's hits by the GDD's numbers and no knife placed (`tests/unit/content/base_mode_hits_test.gd`,
 which also pins the melee fixture). The
 Generator's content: `tests/unit/content/generator_content_test.gd` (§9.5.19); the photo task's:
 `tests/unit/content/photo_content_test.gd` (§9.5.22). A lone player (#719): `tests/unit/content/lone_player_test.gd`
@@ -8507,7 +8507,7 @@ body 4 m/s away from the attacker and 2 m/s up, `launch_mps` and `launch_up_mps`
 decision", KD9 (b), §7.1.18; a body moves only on the mode's `motion_maps`, the House alone, KE12). The cooldown key is per
 player, so swapping to a second knife, or from a fist, does not skip the interval (§7.1.10). Its rule overrides the
 base mode's fallback hit (§9.5.12). Placed by `SpawnItems` (`knives`) in the melee fixture (§9.5.1); the shipped base
-mode places none since the M8 slice (#1497), and its Round takes no `Use`.
+mode places none since the M8 slice (#1497); its Round takes `Use` again for the fist and the crystal (#1587).
 Produces: `ItemSpawned`, `ItemPickedUp`, `ItemPlaced`; on `Use`: `Swung`, `Damaged`, `SelfStatus` (the attacker's
 stamina, the victim's health), and on a knockdown `KnockedDown` and the downed player's `Correction` (M4-2).
 Visible to: `Swung` and `KnockedDown` everyone; `Damaged` only the victim; the attacker gets no confirmation of a hit
@@ -8595,13 +8595,13 @@ Settings: the fallback's costs and effect are the knife's kinds with the enginee
 `Cooldown` (key `hit`, 0.5 s, shared with the knife), `StaminaCost` (25), `Strike` (30°, 1.5 m, 5 front, 10 back;
 a two-handed hand item 20 front, 40 back; the knife's launch, 4 m/s away and 2 m/s up, "not a decision"). No
 condition on the hand or the role: the public `Swung` reveals no role.
-Produces, Visible to: the knife's. A downed or dead player's `Use` is `not_accepted` (Lobby and Countdown accept it
-from the living only; the base mode's Round from nobody since #1497, the melee fixture's from the living). A hit to 0 health in the Lobby or the Countdown lays the victim limp, not down
+Produces, Visible to: the knife's. A downed player's `Use` is `not_accepted`, and a dead one's outside its hall (Lobby and Countdown accept it
+from the living only; the base mode's Round from the living again since #1587, after none from #1497, and from the dead in their hall, where an empty hand's `Use` reaches no rule: `nothing_to_do`). A hit to 0 health in the Lobby or the Countdown lays the victim limp, not down
 (the phase's `hit_limp`, #1439, §7.1.10); nobody dies or respawns in the hall. A mode without a `Use` rule still
 answers an empty hand `nothing_to_do`.
 Code: the knife's (above); the fallback is `Rule_use` in the actions of `content/modes/base_mode.tres`
 (provisional under the MVP content ADR, approved by the engineer on #1095 and #1437); `Use` is in the Lobby's and
-Countdown's allowlists there (Round's until the M8 slice, #1497).
+Countdown's allowlists there, and Round's (out for the M8 slice, #1497; back for the M8 release, #1587).
 Tests: the knife's; the fallback: `tests/unit/combat/strike_back_test.gd` (built in code: the empty hand, a kind
 without a rule, the two-handed pair, the knife's override, the shared cooldown, the limp, downed and invulnerable
 skipped, who learns what), `tests/unit/content/base_mode_melee_test.gd` (the data, and hits in the hall); a downed
@@ -10153,7 +10153,7 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   `content/scenarios/`, the nine that hit in a round in `tests/fixtures/scenarios/` on the melee fixture
   (`crew_downed_before_a_delivery`, `crew_draws_each_belt_place`, `crew_respawns_invulnerable`,
   `crew_revives_the_downed`, `crew_walks_after_a_respawn`, `dissident_kills_the_crew`, `raise_stopped_then_given_up`,
-  `refusals`, `two_handed_pickup_with_a_full_belt`; #1497, the same steps and assertions): `crew_delivers_every_package` (3 crew deliver the 6 packages; a delivered package's
+  `refusals`, `two_handed_pickup_with_a_full_belt`; #1497, the same steps and assertions), and in `content/scenarios/` on the shipped base mode `fist_knocks_down_in_the_round` (#1587: bot 2 walks up to bot 1, which punches it 20 times with the bare fist, 1.7 s apart; the 20th front hit of 5 knocks it down; bot 3 watches, for the leak check): `crew_delivers_every_package` (3 crew deliver the 6 packages; a delivered package's
   `PickUp` is `unavailable`; the crew never get `Teammates`), `dissident_kills_the_crew` (rewritten in M4-2: a
   forced dissident takes a knife and knocks both crew down; `too_soon`; a downed bot is not hit again, its `PickUp` is
   `not_accepted`, and so is its `Draw` (#1377); both die at the end of their knockdown and a dead bot's `PickUp` and

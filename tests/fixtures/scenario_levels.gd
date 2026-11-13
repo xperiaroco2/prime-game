@@ -10,8 +10,8 @@ extends RefCounted
 const StoreyedWorld := preload("res://tests/fixtures/storeyed_world.gd")
 ## Where the bot scenarios live: the shipped modes' in content/scenarios/, and in
 ## tests/fixtures/scenarios/ those on a fixture mode, which shipped content must not name (the
-## export leaves tests/ out): the knockdown scenarios on FixtureBaseModeWithMelee since the M8
-## slice took the hitting out of the base mode's Round (#1497). `bots`, the scenario suite and the
+## export leaves tests/ out): the knife knockdown scenarios on FixtureBaseModeWithMelee since the M8
+## slice took the knives out of the base mode (#1497). `bots`, the scenario suite and the
 ## content tests read both (scenario_paths()).
 const SCENARIOS_DIRS: Array[String] = [
 	"res://content/scenarios/", "res://tests/fixtures/scenarios/"

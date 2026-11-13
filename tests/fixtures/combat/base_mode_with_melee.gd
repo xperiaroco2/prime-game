@@ -1,13 +1,13 @@
 class_name FixtureBaseModeWithMelee
 extends GameMode
-## The base mode as it was before the M8 slice took the hitting out of its Round (#1497): the
-## shipped base mode (`content/modes/base_mode.tres`, read when this loads, so it never drifts from
-## it) plus Round accepting Use from the living (the mode's fallback hit, Strike, and the knife's
-## own Use rule) and the Loading row's SpawnItems of the knife by the setting `knives` (RNG purpose
-## `knives`) between the task deal and the placement, where the shipped mode had them. The engineer
-## took both out of the shipped match for the M8 slice (#507, comment 6549409184: "you can only
-## take the crystal in your hands"; GDD §3 "The M8 slice", item 2), keeping the code, the knife and
-## the lobby's hits; the bot scenarios and the chaos run that knock players down in a round play
+## The base mode with the knives: the shipped base mode (`content/modes/base_mode.tres`, read
+## when this loads, so it never drifts from it) plus the Loading row's SpawnItems of the knife by
+## the setting `knives` (RNG purpose `knives`) between the task deal and the placement, where the
+## shipped mode had them. The M8 slice took the knives and the Round's hits out of the shipped
+## match (#1497); the M8 release gave the hits back with the fist and the crystal only (#1587; GDD
+## §3 "The M8 release"), so the shipped Round takes Use from the living again and
+## round_takes_use() changes nothing on any copy of today's shipped mode but the Use row's place
+## (after PutDown). The bot scenarios and the chaos run that knock players down with a knife play
 ## here. Loaded through `base_mode_with_melee.tres` (PATH), so a bot scenario can name it as its
 ## mode and a command log replays it by its path.
 
