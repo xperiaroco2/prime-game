@@ -9471,7 +9471,9 @@ plays it on the estate (#1462, "The estate and the content" below).
   is the scene's own `Collision` on layer 1), and the `colliders` wrappers of the crystal socket
   (`CartridgeSocket01`..`04`), the breaker board (`BreakerBoard01`, `02`) and the crystal charger (`Charger01`,
   `02`), their convex hint colliders on layer 1. Each stands on its `Art/Stations` spot as its HANDOFF's
-  "Placement" says (origin on the spot, +Z its normal; the board 0.07 m out along it, onto the wall's panels):
+  "Placement" says (origin on the spot, +Z its normal; the board 0.07 m out along it, onto the wall's plain panel; the
+  ship package v9 stands the console's spot at the hall's centre and each board's at its `mount_h_m`, 0.333 m over the
+  deck, #1573):
   `estate_ship_test` holds them there and `estate_engine_test` each marker's player clear of them. An asset carries
   no look script (§11.1): the client ports them (`ShipStationLooks`, "The client" below; #1550) and drives their
   states (the console's spin-up and hologram, a socket's lamp and claws, a board's shells, a charger's carrier);
@@ -9500,8 +9502,9 @@ plays it on the estate (#1462, "The estate and the content" below).
   convex hulls of their kit trimeshes (`ship_hull/<kit file>`, overrides of the kit bodies' shapes under `Art`, written
   by `tests/fixtures/ship_floor_colliders.gd`): a capsule on a lattice trimesh cost Jolt's motion queries 0.4 to 1.5 ms
   a `test_move` against 0.01 (#1499); the estate ship test drops a ball over every deck on both to the same height
-  within 1 cm. The hall disc's hub and bolt ring (4 and 11 mm over the deck) are turned off (`disabled`): the host
-  snaps the console's marker onto the floor under it, and AtStation refuses feet more than
+  within 1 cm. The hall disc's hub and bolt ring (4 and 11 mm over the deck) are turned off (`disabled`): they were
+  under the console's use spot until the ship package v9 stood the console itself on them (#1573), and stay off; the
+  host snaps the console's marker onto the floor under it, and AtStation refuses feet more than
   `StationState.FLOOR_SLACK_M` (5 mm, #1534: the hall deck dips 3.7 mm about 1 m from the breakers and gill
   buttons) under a station's floor, so a marker on a raised plate leaves every player on the deck beside it out of
   reach (`estate_engine_test`: the deck 0.6 and 1 m round each engine marker is no lower than it, less the slack). The overrides inside the nested kit pieces carry their `[editable path]`. The roof sweep
@@ -9622,7 +9625,8 @@ the nearest of four breakers, every station in the aboard box and the ground bes
 its §5a device, on the deck and clear, each gill set by a gill button, the hologram's point over the pedestal),
 `tests/integration/levels/estate_ship_test.gd` (#1499: the art package and no greybox, one map room, the client's
 frees and the host's colliders kept, the hull's colliders fresh from the skin and closed, the gills on the art's
-slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot),
+slits, the turbines and the button at the art's pods and button, each marker in front of its art station spot and
+on the deck, a board's spot the package's `mount_h_m` over it),
 `tests/unit/client/net/client_engine_book_test.gd` (the open problems, the blast, the chain, the slits, the crystals
 and their items, a new match), the four suites of the station looks (a test of the art's nodes prints "skip" and
 checks the pointer where the packages' GLBs are Git LFS pointers, as on CI: `ship_device_art.gd`, the LFS ADR's

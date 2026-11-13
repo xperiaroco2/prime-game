@@ -27,6 +27,10 @@ const BREAKER_BOARD := "res://levels/kit/breaker_board/breaker_board.tscn"
 const CRYSTAL_CHARGER := "res://levels/kit/crystal_charger/crystal_charger.tscn"
 const CONSOLE_TALL_M := 1.1
 const BOARD_OUT_M := 0.07
+## How high over the deck the breaker board hangs: its spot's `mount_h_m` in the ship package v9's
+## `package.json` (`stations[]`, prime-game-art#376; every other spot's is 0), where the package
+## stands the BreakerE/W markers, the board's h 0 (#1573).
+const BOARD_MOUNT_M := 0.333
 ## The parts of the estate's piece beside the art: the engine, the hull's colliders, the map's
 ## label and the door marker.
 const OWN_PARTS: Array[String] = ["Art", "Hull", "Engine", "Name", "Doors"]
@@ -293,7 +297,14 @@ func test_each_engine_marker_stands_in_front_of_its_art_station_spot() -> void:
 			. override_failure_message("%s: %.2f m out" % [where, out])
 			. is_true()
 		)
-		assert_float(absf(off.y)).override_failure_message(where).is_less(0.01)
+		# The marker on the deck; its spot its mount over it (a breaker board's hangs, #1573).
+		var mount := BOARD_MOUNT_M if str(spots[marker_name]).begins_with("Breaker") else 0.0
+		(
+			assert_float(absf(marker.global_position.y - DECK_M))
+			. override_failure_message(where)
+			. is_less(0.01)
+		)
+		assert_float(absf(off.y + mount)).override_failure_message(where).is_less(0.01)
 
 
 func test_each_station_package_stands_on_its_art_station_spot() -> void:
@@ -324,6 +335,13 @@ func test_each_station_package_stands_on_its_art_station_spot() -> void:
 		assert_str(str(spot.get_meta("package"))).is_equal(package.get_file().get_basename())
 		var normal := spot.global_transform.basis.z
 		var out := BOARD_OUT_M if package == BREAKER_BOARD else 0.0
+		# Each spot its package's mount over the deck: the board hangs, no longer on the deck.
+		var mount := BOARD_MOUNT_M if package == BREAKER_BOARD else 0.0
+		(
+			assert_float(spot.global_position.y - DECK_M)
+			. override_failure_message(device_name)
+			. is_equal_approx(mount, 0.001)
+		)
 		var expected := Transform3D(spot.global_basis, spot.global_position + normal * out)
 		(
 			assert_bool(device.global_transform.is_equal_approx(expected))
@@ -370,9 +388,10 @@ func _assert_near(at: Vector3, art: Vector3, what: String) -> void:
 ## Where a ball of a player's capsule's radius dropped from `from` comes to rest, at its bottom:
 ## NAN when it starts inside a collider or falls more than DROP_M.
 ## The floor plates the estate's ship turns off (#1499: the hall disc's hub and bolts, 1.204 and
-## 1.211 under the console's use spot, which the host snaps its marker onto, so a player on the
-## deck beside it stood under the station's floor), each its plan rect in the ship's frame and how
-## far its top stands over the deck.
+## 1.211, were under the console's use spot, which the host snaps its marker onto, so a player on
+## the deck beside it stood under the station's floor; since the ship package v9 they lie under the
+## console itself, #1573), each its plan rect in the ship's frame and how far its top stands over
+## the deck.
 func _levelled_plates() -> Dictionary[Rect2, float]:
 	var found: Dictionary[Rect2, float] = {}
 	for node: Node in _root.find_children("*", "CollisionShape3D", true, false):
