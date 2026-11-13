@@ -12,22 +12,25 @@ extends GdUnitTestSuite
 ## The throwers: one walked floor per THROWER_CELL_M cell and THROWER_BAND_M band, at least
 ## THROWER_LOWEST_M up; and from the ground (below THROWER_LOWEST_M: the walked ground by and under
 ## the ship and the roof sweep's spots on its rings, EstateThrows.spots), one per GROUND_CELL_M
-## cell, whose rests count only in the hull: under its roof (the ray up from them meets the ship:
-## the wing sweep has those under open sky) and THROWER_LOWEST_M or more up (the ground under the
-## belly, a crawl space no player enters, still holds an item out of reach: #1560). From each (its
-## standing eye, or its crouched one where a player only crouches, _stands_up), the roof sweep's
-## fan (HouseThrows) is flown as FlightTicks flies it, with the Throw rule's ThrowItem numbers,
-## toward the outline only (a rest lies on its throw's plan path, _towards).
+## cell, whose rests count only in the hull: under a roof (the ray up from them meets something:
+## the wing sweep has those under open sky) and THROWER_LOWEST_M or more up, or on the ground under
+## the ship's own colliders (the belly, a crawl space no player enters, skirted by its caps, #1560;
+## not a creek bank under a tree by the west tip, #1611). From each (its standing eye, or its
+## crouched one where a player only crouches, _stands_up), the roof sweep's fan (HouseThrows) is
+## flown as FlightTicks flies it, with the Throw rule's ThrowItem numbers, toward the outline only
+## (a rest lies on its throw's plan path, _towards).
 ## Each rest inside the outline, off the ship's top, must pass the PickUp rule as it is (#507's
 ## answer: InSight and the jump included) from a walked floor: InReach (reach_m) from the feet
-## lifted by up to the jump, the headroom allowing, and InSight from the standing or the crouched
-## eye (Items.eye_of). A later change of the numbers or of the ship that holds an item out of reach
-## inside the hull turns this red; so does the ship without its hull caps (Hull's shapes named
-## CAP_PREFIX, #1551).
+## lifted by up to the jump, the headroom allowing, and InSight from the crouched eye, or the
+## standing one where a player stands up (Items.eye_of; #1560: a gap a player only crouches by is
+## not seen from over its head). A later change of the numbers or of the ship that holds an item
+## out of reach inside the hull turns this red; so does the ship without its hull caps (Hull's
+## shapes named CAP_PREFIX, #1551, #1560).
 
 const EstateThrows := preload("res://tests/integration/levels/estate_throws.gd")
 const HouseThrows := preload("res://tests/integration/levels/house_throws.gd")
 const EstateDoc := preload("res://tests/fixtures/estate_doc.gd")
+const ShipCaps := preload("res://tests/fixtures/ship_cap_colliders.gd")
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const SHIP := "Ship"
 ## The hull's invisible caps (Hull's shapes named so), turned off for the uncapped check.
@@ -61,13 +64,24 @@ const HALL := Vector3(114.5, 1.2, 72.0)
 const LENS_WEST := Vector3(105.0, 1.2, 73.0)
 const LENS_EAST := Vector3(127.0, 1.2, 73.0)
 ## A corridor's thrower by the gap behind its wall (#1551: without the caps an item thrown from
-## here falls behind the wall or rests on its top), and how far from it the sweep's throwers are
-## taken.
+## here falls behind the wall or rests on its top).
 const CORRIDOR := Vector3(111.0, 1.2, 73.0)
-const CORRIDOR_SPOTS_M := 1.5
+## The belly's skirt and the lens rooms' panes (#1560), Hull's caps by name; a ground thrower aft
+## of the belly (without the skirt an item thrown from here rests on the ground under it), and the
+## east lens room's sofa top (without the panes an item thrown from here falls behind the room's
+## south wall panels).
+const SKIRT_CAP := "CapBellySkirt"
+const PANE_CAPS := "CapLensPanes"
+const AFT_GROUND := Vector3(115.5, 0.0, 82.75)
+const SOFA_TOP := Vector3(127.0, 1.5, 71.75)
+## How far from such a spot the sweep's throwers are taken.
+const SPOTS_M := 1.5
 
 var _level: LevelWorld
 var _world: HostWorldQuery
+## The ship's own colliders alone (the estate's Ship node), where it stands in the estate.
+var _ship_level: LevelWorld
+var _ship_world: HostWorldQuery
 var _rules: PlayerRules
 var _throw: ThrowItem
 var _reach_m := 0.0
@@ -98,6 +112,10 @@ func before() -> void:
 			_reach_m = reach
 	_level = LevelWorld.build(EstateDoc.MAP)
 	_world = _world_of_level(_level)
+	var root := (load(EstateDoc.MAP) as PackedScene).instantiate()
+	_ship_level = LevelWorld.from_scene(root.get_node(SHIP), EstateDoc.MAP)
+	_ship_world = _world_of_level(_ship_level)
+	root.free()
 	var tops := EstateThrows.tops(_world)
 	if tops.has(SHIP):
 		_ship = tops[SHIP]["rect"]
@@ -118,6 +136,8 @@ func before() -> void:
 
 func after() -> void:
 	_world = null
+	_ship_world = null
+	_ship_level = null
 	_level = null
 	_rules = null
 	_throw = null
@@ -129,6 +149,7 @@ func after() -> void:
 
 func test_the_numbers_the_ship_and_the_walk_are_read() -> void:
 	assert_array(Array(_world.errors)).is_empty()
+	assert_array(Array(_ship_level.errors)).is_empty()
 	assert_object(_throw).is_not_null()
 	assert_float(_reach_m).is_greater(0.0)
 	assert_bool(_ship.has_area()).is_true()
@@ -152,9 +173,8 @@ func test_no_throw_inside_the_hull_rests_out_of_reach() -> void:
 
 
 func test_no_throw_from_the_ground_rests_out_of_reach_under_the_hull_s_roof() -> void:
-	# The ground by and under the ship throws into the mouth, the throat and onto the jaw's flanks
-	# from below; its rests under open sky are the wing sweep's, and those on the ground under the
-	# belly are #1560's.
+	# The ground by and under the ship throws into the mouth, the throat, onto the jaw's flanks
+	# from below and under the belly (#1560); its rests under open sky are the wing sweep's.
 	var red := _red_rests(_level, _world, _ground_throwers, true)
 	assert_array(red).override_failure_message("\n".join(red.slice(0, 40))).is_empty()
 
@@ -162,20 +182,64 @@ func test_no_throw_from_the_ground_rests_out_of_reach_under_the_hull_s_roof() ->
 func test_without_the_caps_a_corridor_holds_an_item_out_of_reach() -> void:
 	# The sweep is not blind where it was red (#1551): the ship with its hull caps off, thrown
 	# from the corridor's floor by the gap behind its wall, holds an item out of reach.
+	assert_array(_red_without(CAP_PREFIX, _throwers, CORRIDOR)).is_not_empty()
+
+
+func test_the_skirt_and_the_panes_stay_in_their_bands() -> void:
+	# Written by ship_cap_colliders.gd: the skirt from under the ground to under the lowest deck
+	# (the lens rooms' 1.16 m), the panes over the wall panels' tops; a probe that missed would
+	# leave a blade through a floor.
+	var root := (load(EstateDoc.MAP) as PackedScene).instantiate()
+	var bands: Dictionary[String, Vector2] = {
+		SKIRT_CAP: Vector2(ShipCaps.SKIRT_BOTTOM_M, ShipCaps.SKIRT_TOP_M),
+		PANE_CAPS: Vector2(ShipCaps.PANE_BOTTOM_M, INF),
+	}
+	var shapes := 0
+	var out: Array[String] = []
+	for prefix: String in bands:
+		var band := bands[prefix]
+		for found: Node in root.find_children(prefix + "*", "CollisionShape3D", true, false):
+			shapes += 1
+			var shape := (found as CollisionShape3D).shape as ConcavePolygonShape3D
+			for vertex: Vector3 in shape.get_faces():
+				if vertex.y < band.x - 0.001 or vertex.y > band.y + 0.001:
+					out.append("%s: %s" % [found.name, vertex])
+	root.free()
+	assert_int(shapes).is_equal(3)
+	assert_array(out).override_failure_message("\n".join(out.slice(0, 20))).is_empty()
+
+
+func test_without_the_belly_skirt_the_ground_under_the_belly_holds_an_item_out_of_reach() -> void:
+	# Nor where #1560 was: without the skirt, a throw from the ground aft of the belly rests on
+	# the ground under it, a crawl space no player enters.
+	assert_array(_red_without(SKIRT_CAP, _ground_throwers, AFT_GROUND, true)).is_not_empty()
+
+
+func test_without_the_lens_panes_a_lens_room_holds_an_item_out_of_reach() -> void:
+	# Without the panes, a throw from the east lens room's sofa top goes over the south wall
+	# panels and rests on the floor behind them, seen only from over a crouching player's head.
+	assert_array(_red_without(PANE_CAPS, _throwers, SOFA_TOP)).is_not_empty()
+
+
+## _red_rests of the throwers within SPOTS_M of `near`, in the estate with Hull's shapes named
+## `prefix`* turned off.
+func _red_without(
+	prefix: String, throwers: Array[Vector3], near: Vector3, under_roof := false
+) -> Array[String]:
 	var root := (load(EstateDoc.MAP) as PackedScene).instantiate()
 	var caps := 0
-	for found: Node in root.find_children(CAP_PREFIX + "*", "CollisionShape3D", true, false):
+	for found: Node in root.find_children(prefix + "*", "CollisionShape3D", true, false):
 		(found as CollisionShape3D).disabled = true
 		caps += 1
 	var level := LevelWorld.from_scene(root, EstateDoc.MAP)
 	root.free()
 	assert_int(caps).is_greater(0)
 	var spots: Array[Vector3] = []
-	for feet: Vector3 in _throwers:
-		if feet.distance_to(CORRIDOR) <= CORRIDOR_SPOTS_M:
+	for feet: Vector3 in throwers:
+		if feet.distance_to(near) <= SPOTS_M:
 			spots.append(feet)
 	assert_array(spots).is_not_empty()
-	assert_array(_red_rests(level, _world_of_level(level), spots)).is_not_empty()
+	return _red_rests(level, _world_of_level(level), spots, under_roof)
 
 
 ## The estate's host world over `level`.
@@ -187,8 +251,7 @@ func _world_of_level(level: LevelWorld) -> HostWorldQuery:
 
 
 ## The rests out of reach inside the outline, a line each (one per RED_CELL_M cell), of the fan
-## of throws from `throwers`; with `under_roof`, only those in the hull: under its roof
-## (_under_roof) and THROWER_LOWEST_M or more up.
+## of throws from `throwers`; with `under_roof`, only those in the hull (_in_hull).
 func _red_rests(
 	level: LevelWorld, world: HostWorldQuery, throwers: Array[Vector3], under_roof := false
 ) -> Array[String]:
@@ -216,7 +279,7 @@ func _red_rests(
 					continue
 				if EstateThrows.on_a_top(tops, rest) != "":
 					continue
-				if under_roof and (rest.y < THROWER_LOWEST_M or not _under_roof(world, rest)):
+				if under_roof and not _in_hull(world, rest):
 					continue
 				var key := Vector3i((rest / REST_GRID_M).floor())
 				if checked.has(key):
@@ -242,8 +305,16 @@ func _towards(outline: Rect2, feet: Vector3, yaw: float) -> bool:
 	return false
 
 
-## Whether `rest` lies under the hull's roof: the ray up from it, one way or the other, meets the
-## ship (the inverse of the wing sweep's _in_scope).
+## Whether a ground thrower's `rest` is this sweep's: under a roof of `world` (the inverse of the
+## wing sweep's _in_scope) and THROWER_LOWEST_M or more up, or under the ship's own colliders
+## (_ship_world) on the ground (#1560: the belly's crawl space; a tree is no roof there).
+func _in_hull(world: HostWorldQuery, rest: Vector3) -> bool:
+	if not _under_roof(world, rest):
+		return false
+	return rest.y >= THROWER_LOWEST_M or _under_roof(_ship_world, rest)
+
+
+## Whether `rest` lies under a roof of `world`: the ray up from it, one way or the other, meets it.
 func _under_roof(world: HostWorldQuery, rest: Vector3) -> bool:
 	var from := Items.lifted(rest)
 	var up := from + Vector3.UP * SKY_M
@@ -252,7 +323,7 @@ func _under_roof(world: HostWorldQuery, rest: Vector3) -> bool:
 
 ## Whether a walked floor picks up an item resting at `rest` under the PickUp rule: within the
 ## reach of the feet lifted by up to the jump (the headroom allowing), and in sight from the
-## standing or the crouched eye.
+## crouched eye, or the standing one where a player stands up there (_stands_up).
 func _picked(level: LevelWorld, world: HostWorldQuery, rest: Vector3) -> bool:
 	var cell := Vector2i(floori(rest.x / BUCKET_M), floori(rest.z / BUCKET_M))
 	var span := ceili(_reach_m / BUCKET_M) + 1
@@ -266,6 +337,8 @@ func _picked(level: LevelWorld, world: HostWorldQuery, rest: Vector3) -> bool:
 				if (feet + Vector3.UP * lift).distance_to(rest) > _reach_m:
 					continue
 				for crouched: bool in [false, true]:
+					if not crouched and not _stands_up(world, feet):
+						continue
 					if world.line_of_sight(_eye(world, feet, crouched), target):
 						return true
 	return false

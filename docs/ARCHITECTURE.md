@@ -9498,7 +9498,18 @@ plays it on the estate (#1462, "The estate and the content" below).
   written from probed geometry, each West and East pair mirrored about x 116: the corridor panes run from 3.45 m to
   0.06 m under the `SkinTop` as sampled every 0.1 m along their back line, the other caps are flat. A re-import that
   moves the skin needs them probed and written again (a pane short of the skin leaves a gap, one into it pokes out),
-  whether the hull sweep turns red or not. The art's grated and inlaid floors stand on
+  whether the hull sweep turns red or not. Three more invisible `Cap` shapes (#1560) are trimeshes of thin boxes
+  (`ship_hull/cap_*_col.tres`, backfaced like the skin): `CapBellySkirt`, a skirt 0.1 m thick from 0.1 m under the
+  ground up to 1.15 m along the line where the belly's clearance falls to 1.1 m (open only where the solid ramp
+  meets the throat, its six landing legs left outside), so an item thrown under the belly (0.8 to 1.1 m over the
+  ground, a crawl space no player enters) drops at its foot; and `CapLensPanesWest`/`East`, panes 4 cm thick 1 to
+  5 cm inside each lens room's wall panels, from 3.40 m up to 0.06 m under the skin, round the room but its
+  alcove's lintel and its corridor's mouth (#1551's caps hold those), so nothing goes over the panels (their tops
+  3.46 to 3.63 m, the skin 3.85 to 3.93 m) into the gap behind them. `tests/fixtures/ship_cap_colliders.gd` writes
+  all three from the estate as built (the belly's underside every 0.1 m, its 1.1 m contour simplified to within 0.1 m
+  and mirrored about x 116; each room's panel face, top and skin every degree, simplified to within 1 cm, a degree
+  the probe misses dropped): run it after a re-import that moves the skin (`tools/run.sh run
+  tests/fixtures/ship_cap_colliders.gd --headless`); the hull sweep holds their bands. The art's grated and inlaid floors stand on
   convex hulls of their kit trimeshes (`ship_hull/<kit file>`, overrides of the kit bodies' shapes under `Art`, written
   by `tests/fixtures/ship_floor_colliders.gd`): a capsule on a lattice trimesh cost Jolt's motion queries 0.4 to 1.5 ms
   a `test_move` against 0.01 (#1499); the estate ship test drops a ball over every deck on both to the same height
@@ -9878,8 +9889,10 @@ levels/
   hull, a flood fill of the crouched capsule with the jump, thinned to one thrower per 2 m cell and 0.5 m band; from
   those at least 0.4 m up every throw that rests inside the hull's outline off its top, and from the ground by and
   under the ship (with the roof sweep's ring spots, one per 3 m cell) every one that rests in the hull, under its
-  roof and 0.4 m up or more (the ground under the belly is #1560), passes the PickUp rule as it is from any walked
-  floor, InReach with the jump and InSight standing or crouched; red with the `Cap` shapes off); the
+  roof and 0.4 m up or more, or on the ground under the ship's own colliders (the belly, #1560), passes the PickUp
+  rule as it is from any walked floor, InReach with the jump and InSight crouched, or standing where the standing
+  capsule fits (#1560); red with the `Cap` shapes off, with the belly skirt off, and with the lens panes off; the
+  skirt and the panes within their bands); the
   playcheck `estate` (the round and the map screen on it).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
