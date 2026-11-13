@@ -25,9 +25,15 @@ its .meta.json, the layout `metrics` reads (whose meta reader this module reuses
 `agentType` (a project agent such as code-reviewer, judged by its file's `model:`; else `workflow-subagent`, which
 inherits the session's model), `description` (the workflow's label, such as review:code:#188), `workflowPhase`,
 `spawnDepth`, `requestShape` and `requestNonInteractive`, and no model.
-A launch that passes `models` is expected to record the requested model as `model`, as the Agent tool's meta file
-does; until such a launch has shown it, any other meta key that names a model (`MODEL_KEY_RE`, at any depth, such as
-`request.model`) fails, so a different key cannot pass silently as an unrequested model.
+A launch that passes `models` records the requested model as `model`, as the Agent tool's meta file does (seen with
+Claude Code 2.1.321: a task-implementer launched with sonnet); any other meta key that names a model
+(`MODEL_KEY_RE`, at any depth, such as `request.model`) still fails, so a different key cannot pass silently as an
+unrequested model.
+One such key is known and read as no request (#1613): the top-level `pickedEffortModel`, which Claude Code writes
+since 2.1.317 at the latest (seen through 2.1.321) beside `model` in hand-run and workflow agents' meta files alike. In its source the two are separate: `model` is
+the caller's request, `pickedEffortModel` the model the effort level was picked for (unset: the session's main-loop
+model). On the engineer's PC (2026-11-12) it said claude-opus-5-5 in every file, godot-api-checker runs and
+`model: sonnet` launches included, whose transcripts sonnet alone answered.
 
 `--launch` (#557) judges no transcript: it checks, before an issue-task or pr-rebase launch, the checkout the Workflow
 tool reads the scripts and resolves their agent types from (the manager's). A workflow script cannot read a file, so
@@ -60,6 +66,8 @@ FAMILY_RE = re.compile(r"^claude-([a-z]+)-")
 FAMILIES = ("opus", "sonnet", "haiku", "fable")
 # A meta key that may hold a requested model under a name this module does not read (`model` is read).
 MODEL_KEY_RE = re.compile(r"model", re.IGNORECASE)
+# Top-level meta keys that name a model yet no request (#1613): the model Claude Code picked the effort level for.
+NOT_REQUEST_KEYS = frozenset({"pickedEffortModel"})
 
 
 @dataclass
@@ -71,7 +79,7 @@ class Transcript:
     served: set[str]
     run: str | None = None  # the workflow run's folder (wf_*), None for a hand-run subagent
     label: str = ""  # a workflow agent's label (the meta file's description)
-    unread_keys: tuple[str, ...] = ()  # meta keys (dotted paths) other than `model` that name a model
+    unread_keys: tuple[str, ...] = ()  # meta keys (dotted paths) but `model` and NOT_REQUEST_KEYS that name a model
 
 
 def config_dir() -> Path:
@@ -119,12 +127,13 @@ def served_models(path: Path) -> set[str]:
 
 
 def model_keys(value: object, prefix: str = "") -> list[str]:
-    """Dotted paths of the keys at any depth of a meta file that may name a model, except the top-level `model`."""
+    """Dotted paths of the keys at any depth of a meta file that may name a model, except the top-level `model` and
+    NOT_REQUEST_KEYS."""
     found = []
     if isinstance(value, dict):
         for key, item in value.items():
             path = f"{prefix}{key}"
-            if path != "model" and MODEL_KEY_RE.search(str(key)):
+            if path != "model" and path not in NOT_REQUEST_KEYS and MODEL_KEY_RE.search(str(key)):
                 found.append(path)
             found += model_keys(item, f"{path}.")
     elif isinstance(value, list):
