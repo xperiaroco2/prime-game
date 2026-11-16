@@ -814,11 +814,15 @@ class PipelineV2Test(unittest.TestCase):
     def test_no_model_default_is_in_the_scripts(self) -> None:
         # The model-guard ADR: a manager passes a model per launch through `models`; no script default names one
         # (since #1615 any family may be passed, Fable included).
+        from runner.agents_check import FAMILIES
+
+        fallback = rf"(\|\||\?\?)\s*['\"`]({'|'.join(FAMILIES)})\b"
         for name in ("issue-task.js", "pr-rebase.js"):
             text = (WORKFLOWS / name).read_text(encoding="utf-8").lower()
             with self.subTest(workflow=name):
                 self.assertNotRegex(text, r"claude-[a-z]+-\d")
                 self.assertNotRegex(text, r"\bmodel\s*:\s*['\"`]", "a model literal in the script is a default")
+                self.assertNotRegex(text, fallback, "a fallback to a model family is a default")
 
     def test_no_agent_gets_a_model_unless_models_names_its_role(self) -> None:
         jobs = [

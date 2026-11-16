@@ -296,8 +296,9 @@ rules.
   (this session; `--all` for every session of the main checkout and its worktrees, from any of them) asserts the model
   **family**, not exact IDs: the requested model, else the agent file's `model:`. `availableModels` is the shared list
   merged with the user-scope one (#183); since #1615 the shared one is empty. With no list in either scope a request
-  must be what served it. When a user list exists, a request from it is ok when it served and listed as "fell back"
-  when another family served it; a request in no list must be served by another family (the model guard).
+  must be what served it; a user list alone is judged as the shared one was. With both lists, a request from the
+  user list only is ok when it served and listed as "fell back" when another family served it; a request in no list
+  must be served by another family (the model guard).
   Workflow agents (`<session>/subagents/workflows/wf_*/agent-*.jsonl` and `.meta.json`, #206) get the same verdicts,
   printed with their label and run: a default launch's meta file has no `model` (a reviewer, a lean implementer
   or publisher, or a `lean-reader` or `lean-writer`, is judged by its agent file; an implementer or publisher of

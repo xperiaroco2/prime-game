@@ -45,7 +45,8 @@ export const meta = {
 //                 fallback of rebase and fix, the two agents that publish. A reviewer gets an effort only when one is
 //                 set; otherwise its agent file's applies, as before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
-//                 and no default (the model-guard ADR and its amendment A). models.publish takes only sonnet: the
+//                 and no default (the model-guard ADR; since its amendment of 2026-11-16 any model, Fable included,
+//                 may be passed where the kickoff names one). models.publish takes only sonnet: the
 //                 trial of a Sonnet rebase and fix agent (the model-guard ADR, amendment of 2026-10-11). +0 agents
 // Returns a compact result (#386), as issue-task.js does: pr, n, stopped (why, when the run stopped), the PR's state after
 // the last agent (published, ci_green, verify_green), up_to_date, the rebase's conflicts and fixes as counts and its

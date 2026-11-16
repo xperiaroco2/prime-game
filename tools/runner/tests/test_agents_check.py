@@ -420,6 +420,17 @@ class NoListJudgeTest(unittest.TestCase):
         self.assertEqual(self.judge({"claude-sonnet-5-5"}, agent_type="code-reviewer"), "FAIL")
         self.assertEqual(self.judge({f"claude-{OUTSIDE}-5-2"}, agent_type="workflow-subagent"), "skip")
 
+    def test_a_user_list_alone_is_judged_as_the_shared_one(self) -> None:
+        # With no shared list a user list is the whole merged list: Claude Code restricts to exactly it.
+        def judge(served: set[str], requested: str | None = None, agent_type: str = "general-purpose") -> str:
+            return agents_check.judge(t(agent_type, served, requested), AGENTS, [], user=["sonnet"])[0]
+
+        self.assertEqual(judge({"claude-sonnet-5-5"}, "sonnet"), "ok")
+        self.assertEqual(judge({"claude-opus-5-5"}, "sonnet"), "FAIL")  # not "fell back": the list holds sonnet
+        self.assertEqual(judge({"claude-opus-5-5"}, "opus"), "FAIL")  # outside the list, yet served
+        self.assertEqual(judge({"claude-sonnet-5-5"}, "opus"), "ok")  # outside the list, fell back
+        self.assertEqual(judge({"claude-opus-5-5"}, agent_type="workflow-subagent"), "FAIL")
+
 
 def git(where: Path, *args: str) -> str:
     res = subprocess.run(

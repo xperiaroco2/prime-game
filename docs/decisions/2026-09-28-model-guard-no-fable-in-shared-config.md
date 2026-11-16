@@ -144,7 +144,8 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     each human keeps usage credits off or a spend cap. A personal `availableModels` still restricts that human's
     own sessions.
   - `agents-check`: with no list in either scope it judges a request like a shared one (what served it must be the
-    requested family); with a user list it keeps the verdicts of amendment A.
+    requested family); a user list alone is the whole merged list and is judged as the shared one was; with both
+    lists it keeps the verdicts of amendment A.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.
