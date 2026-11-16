@@ -11,11 +11,13 @@ model in neither availableModels list served it (a failure, as below). Families,
 folder: ~/.claude, or CLAUDE_CONFIG_DIR), merged as Claude Code merges lists across non-managed scopes
 (code.claude.com/docs/en/settings, "Lists merge instead of overriding", read 2026-10-02). Not modelled: managed
 settings, whose list replaces the merged one (none on the engineer's PC, checked 2026-10-02), and
-.claude/settings.local.json. A requested model from the shared list must be what served it. A model only in the user
-list (amendment A of docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md: the engineer's per-launch
-opt-in) is ok when it served; when another family served it, it fell back and is listed, not judged (its transcripts
-from before the user list held it would otherwise keep `--all` red). A requested model in neither list must NOT be
-what served it (the model guard); a broken user settings file is a failure that names it.
+.claude/settings.local.json. Since #1615 the shared settings set no list (the amendment of 2026-11-16 of
+docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md), so with no user list either nothing is guarded:
+a requested model must be what served it, whatever its family. When a list exists, a requested model from the shared
+list must be what served it. A model only in the user list is ok when it served; when another family served it, it
+fell back and is listed, not judged (its transcripts from before the user list held it would otherwise keep `--all`
+red). A requested model in no list must NOT be what served it (the model guard); a broken user settings file is a
+failure that names it.
 
 The folders read are the main checkout's and its .claude/worktrees/* sessions' (the main checkout is found as `metrics`
 finds it, from git's common dir), so a run from a worktree reads what a run from the main checkout reads.
@@ -231,8 +233,9 @@ def judge(t: Transcript, agents: dict[str, str], allowed: list[str], user: Seque
     want = family(expected)
     if want is None:
         return "FAIL", f"{source} model {expected!r} is not a known family"
-    # By family, so a full ID such as claude-sonnet-5-5 counts as the allowed alias sonnet.
-    if want not in {family(a) for a in allowed}:
+    # By family, so a full ID such as claude-sonnet-5-5 counts as the allowed alias sonnet. With no list in either
+    # scope nothing is guarded (#1615): the requested model must be what served it, as for a shared one.
+    if (allowed or user) and want not in {family(a) for a in allowed}:
         if want in {family(u) for u in user}:
             scope = f"{source} {expected} (user-scope availableModels), served {served}"
             if families == {want}:

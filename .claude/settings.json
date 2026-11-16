@@ -3,11 +3,6 @@
   "env": {
     "GH_PROMPT_DISABLED": "1"
   },
-  "availableModels": [
-    "opus",
-    "sonnet",
-    "haiku"
-  ],
   "workflowSizeGuideline": "small",
   "skillOverrides": {
     "artifact-capabilities": "user-invocable-only",

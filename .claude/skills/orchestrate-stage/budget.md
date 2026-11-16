@@ -65,8 +65,8 @@ proposal of [comment 6473700454](https://github.com/xperiaroco2/prime-game/issue
   `$env:CLAUDE_CODE_SESSION_ID`. A run counts in the window it started in (with what it had spent so far, if still
   running), so a task that spans waves shows up only partly: add the stage's running total, the `total API list $`
   line of the same command with `--since <stage start>`. This block is the second thing to drop when the budget
-  runs out, after the kickoff's first (§6 asks for both in every wave comment). Where a launch ran a model beyond
-  the shared list, add that model's line from the desktop app's `get_usage` tool (the session-management MCP
+  runs out, after the kickoff's first (§6 asks for both in every wave comment). Where a launch ran a model `metrics`
+  has no price for (such as Fable), add that model's line from the desktop app's `get_usage` tool (the session-management MCP
   server; its `plan` part lists the per-model weekly limits with % used and reset time): `metrics` has no price for
   it and weighs it at Opus rates.
 - **The budget line**, in every wave comment beside the wave's cost (above): `<track>: <spent>% of <budget>% this week;

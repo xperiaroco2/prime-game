@@ -86,7 +86,7 @@ class ReadTest(unittest.TestCase):
     def test_repo_agent_models_are_read(self) -> None:
         models = agents_check.agent_models()
         self.assertEqual(models.get("test-runner"), "haiku")
-        self.assertEqual(agents_check.allowed_models(), ALLOWED)
+        self.assertEqual(agents_check.allowed_models(), [])  # #1615: the shared settings set no list
 
     def test_the_lean_reader_and_writer_are_judged_by_their_files_unless_the_call_names_a_model(self) -> None:
         # #466: a finder or gatherer launched with agentType lean-reader and no model must run on Sonnet; a skeptic
@@ -401,41 +401,24 @@ class UserModelsTest(unittest.TestCase):
             self.assertEqual(agents_check.user_models(), ["x"])
 
 
-def names_outside(text: str, outside: list[str]) -> list[str]:
-    """The families of `outside` that the text names as a word; the model-guard ADR's file name (a link to it holds
-    one) is not a name, any other path that holds one is."""
-    text = re.sub(r"2026-09-28-model-guard-no-\w+-in-shared-config\.md", " ", text.lower())
-    return [f for f in outside if re.search(rf"\b{f}\b", text)]
+class NoListJudgeTest(unittest.TestCase):
+    """#1615 (the model-guard ADR's amendment of 2026-11-16): the shared settings set no availableModels, so with no
+    user list either nothing is guarded; a requested model, Fable included, must be what served it."""
 
+    def judge(self, served: set[str], requested: str | None = None, agent_type: str = "general-purpose") -> str:
+        return agents_check.judge(t(agent_type, served, requested), AGENTS, [], user=[])[0]
 
-class SharedFilesTest(unittest.TestCase):
-    """Amendment A of the model-guard ADR: a model beyond the shared availableModels is passed per launch and named
-    in ADRs, issues and PRs, never in .claude/ (settings, agents, workflows, skills, rules), .github/ or a CLAUDE.md."""
+    def test_a_requested_model_must_be_what_served_it(self) -> None:
+        self.assertEqual(self.judge({f"claude-{OUTSIDE}-5-2"}, OUTSIDE), "ok")
+        self.assertEqual(self.judge({f"claude-{OUTSIDE}-5-2"}, f"claude-{OUTSIDE}-5-2"), "ok")
+        self.assertEqual(self.judge({"claude-opus-5-5"}, OUTSIDE), "FAIL")
+        self.assertEqual(self.judge({"claude-sonnet-5-5"}, "sonnet"), "ok")
+        self.assertEqual(self.judge({"claude-opus-5-5"}, "sonnet"), "FAIL")
 
-    def test_the_scan_sees_a_named_model_and_passes_a_link_to_the_adr(self) -> None:
-        self.assertEqual(names_outside(f"the second review runs on {OUTSIDE.capitalize()}.", [OUTSIDE]), [OUTSIDE])
-        link = f"[ADR](../../../docs/decisions/2026-09-28-model-guard-no-{OUTSIDE}-in-shared-config.md)"
-        self.assertEqual(names_outside(f"the guard ({link})", [OUTSIDE]), [])
-
-    def test_a_link_to_another_file_named_after_the_model_is_still_a_name(self) -> None:
-        for path in (f".claude/agents/{OUTSIDE}-reviewer.md", f"docs/{OUTSIDE}.md"):
-            with self.subTest(path=path):
-                self.assertEqual(names_outside(f"see [the agent]({path})", [OUTSIDE]), [OUTSIDE])
-
-    def test_no_shared_instruction_file_names_a_model_outside_the_shared_list(self) -> None:
-        shared = {agents_check.family(m) for m in agents_check.allowed_models()}
-        outside = [f for f in agents_check.FAMILIES if f not in shared]
-        self.assertTrue(outside, "the family table names no model outside availableModels: nothing to guard")
-        listed = subprocess.run(
-            ["git", "ls-files", "-z", "--", ".claude", ".github", "CLAUDE.md", "*/CLAUDE.md"],
-            cwd=ROOT, capture_output=True, check=True,
-        ).stdout.decode("utf-8")
-        files = [f for f in listed.split("\0") if f and not f.startswith("docs/history/")]
-        self.assertIn(".claude/settings.json", files)
-        for name in files:
-            text = (ROOT / name).read_bytes().decode("utf-8", errors="replace")
-            with self.subTest(file=name):
-                self.assertEqual(names_outside(text, outside), [], f"{name} names a model beyond the shared list")
+    def test_agent_files_and_inherited_models_as_before(self) -> None:
+        self.assertEqual(self.judge({"claude-opus-5-5"}, agent_type="code-reviewer"), "ok")
+        self.assertEqual(self.judge({"claude-sonnet-5-5"}, agent_type="code-reviewer"), "FAIL")
+        self.assertEqual(self.judge({f"claude-{OUTSIDE}-5-2"}, agent_type="workflow-subagent"), "skip")
 
 
 def git(where: Path, *args: str) -> str:

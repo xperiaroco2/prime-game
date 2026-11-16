@@ -18,9 +18,8 @@ The kickoff must state:
   3 to 5 agents plus those of the v2 args the kickoff names, §3, and up to 2 more implementers when checkpoint's
   default hands over; `small` means fewer than 5), and the `Track:` line,
   whose weekly budget (budget.md) covers the stage: you do not ask before each workflow (root `CLAUDE.md`);
-- where a model beyond the shared list may run, if anywhere (the model-guard ADR's amendment A: stage designs,
-  second reviews of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice), and its share of
-  that model's own weekly window (at most half across all tracks). You stay on the shared models;
+- where another model (such as Fable) runs through `models`, if anywhere (for example stage designs, second reviews
+  of PRs that touch `core/ server/ net/ tests/harness/`, audits, a task red twice; no cap since #1615);
 - the rules: you merge task PRs into `main` through the gate (§5); you close issues, workflow
   agents never; each agent only in its worktree; no `git stash`; temporary files in the scratchpad or `tests/scratch/`; Godot
   windows only through `shot`; a game rule no ADR settles becomes options under "Needs the engineer"; `content/`
@@ -57,8 +56,8 @@ each workflow. Hand over at §7's turn-end verdict, even mid-wave: the handover 
 kickoff, which your last For-you carries too and I paste into a new session (handover.md); route C only if I ask for it.
 Budget: this track's <T>% of the week from the reset <date> 10:00 UTC (budget.md; metrics --track reads it); within
 it your restatement is a report; budget.md's rules at 80% and 100%, the 93% stop (meta and UI: also the counter's 80%), the PC cap and the args apply.
-Models beyond the shared list: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness
-PRs, tasks red twice>, at most <Q>% of its own weekly window>; you stay on the shared models.
+Other models: <none | <model> for <stage designs, second reviews of core/server/net/tests-harness PRs, tasks red
+twice>>.
 Rules: into main only through the gate; you close issues, workflow agents never; each agent only in its worktree;
 no git stash; you never leave your shell inside a worktree; temporary files in scratchpad/a<n>/ or tests/scratch/; Godot
 windows only through shot; a game rule no ADR settles becomes options with a recommendation under "Needs the

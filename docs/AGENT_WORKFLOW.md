@@ -283,23 +283,21 @@ rules.
     the agent to read its `SKILL.md`;
   - `agents-check` judges these agents by the call's `model`, else the type's `model:`.
 
-- **Model guard [applied]:** `"availableModels": ["opus", "sonnet", "haiku"]` in the shared settings. A request for
-  another model falls back with a warning. Fable appears in no shared file
-  ([ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md)). Its amendment A (the engineer's answer N1
-  (b), 2026-10-02): the engineer may add Fable to `availableModels` in his own `~/.claude/settings.json` (the lists
-  merge across non-managed scopes), and a manager passes it per launch through a workflow's `models` argument, only
-  where the kickoff allows it (stage designs, second reviews of PRs that touch `core/ server/ net/ tests/harness/`,
-  audits, a task red twice), within at most half of its weekly window across tracks, reported per wave. It stays out
-  of `.claude/`, `.github/`, every CLAUDE.md and every workflow default (`test_agents_check.py` and
-  `test_workflows.py` assert it). 👤 Both humans keep **usage credits off** or set a spend cap: the only hard stop on
-  money.
+- **Model guard [ended 2026-11-16, #1615]:** the shared settings set no `availableModels`, so every model the account
+  has, Fable included, can be picked for a session, an agent file or a launch
+  ([ADR](decisions/2026-09-28-model-guard-no-fable-in-shared-config.md), amendment of 2026-11-16). A manager passes
+  another model per launch through a workflow's `models` argument where the kickoff names one; no workflow default
+  names a model (`test_workflows.py` asserts it). A personal `availableModels` in `~/.claude/settings.json` still
+  restricts that human's own sessions. 👤 Both humans keep **usage credits off** or set a spend cap: the only hard
+  stop on money.
 - **Routing check [applied]:** each subagent transcript under
   `~/.claude/projects/D--prime-game/<session>/subagents/agent-*.jsonl` records the model that actually served it,
   and `agent-*.meta.json` next to it the `agentType` and any requested `model`. `tools\run.cmd agents-check`
   (this session; `--all` for every session of the main checkout and its worktrees, from any of them) asserts the model
   **family**, not exact IDs: the requested model, else the agent file's `model:`. `availableModels` is the shared list
-  merged with the user-scope one (#183). A request from the user list is ok when it served and listed as "fell back"
-  when another family served it; a request in neither list must be served by another family (the model guard).
+  merged with the user-scope one (#183); since #1615 the shared one is empty. With no list in either scope a request
+  must be what served it. When a user list exists, a request from it is ok when it served and listed as "fell back"
+  when another family served it; a request in no list must be served by another family (the model guard).
   Workflow agents (`<session>/subagents/workflows/wf_*/agent-*.jsonl` and `.meta.json`, #206) get the same verdicts,
   printed with their label and run: a default launch's meta file has no `model` (a reviewer, a lean implementer
   or publisher, or a `lean-reader` or `lean-writer`, is judged by its agent file; an implementer or publisher of
