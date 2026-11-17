@@ -9,7 +9,7 @@ When something failed (never resume a run whose result has `stopped`: a resume r
 - `stopped` (the implementer ended red) or `published` false: say so on the plan issue and in chat, then launch
   `issue-task` once more as a **fresh** run with the failure added to `notes` (its issue comment or the journal); the
   implementer continues from the worktree's commits. Red again: stop that task and ask the human; where the kickoff
-  allows a model beyond the shared list for a task red twice, offer a third launch with `models.implement` (§3).
+  names another model for a task red twice, offer a third launch with `models.implement` (§3).
 - `stopped` after `tools\run.cmd mutants` exited 2 (a scratch worktree could not be removed, or the task's
   `git status` changed during the run): nothing was published. Read the stop comment on the issue. Only when it
   names a leftover worktree under the task worktree's `tools/out/mutants/`, ask the engineer to remove it (a delete

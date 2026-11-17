@@ -741,7 +741,9 @@ class WorkflowTest(unittest.TestCase):
                     self.fail(f"{diff[:4000]}\n{where} differs from line {k + 1}: {first!r}")
 
 
-AVAILABLE = json.loads((ROOT / ".claude" / "settings.json").read_text(encoding="utf-8"))["availableModels"]
+# Example models for `models` launches, in the order of the shared availableModels these tests read until #1615 removed
+# it (the model-guard ADR's amendment of 2026-11-16), so the snapshots stay the same.
+AVAILABLE = ["opus", "sonnet", "haiku"]
 V2 = {"plan_review": True, "test_review": True, "second_review": True, "skeptic": True, "visual": ["spectate"]}
 GODOT_LINE = "- No Godot windows: headless runs only; a screenshot only through `tools\\run.cmd shot` (off-screen)."
 PLAYCHECK_LINE = (
@@ -809,20 +811,18 @@ def schemas_of(schema: dict, where: str = "schema"):
 class PipelineV2Test(unittest.TestCase):
     """The optional args of pipeline v2: each stage's routing under the stub agents."""
 
-    def test_no_model_name_outside_the_shared_list_is_in_the_scripts(self) -> None:
-        # The model-guard ADR and its amendment A: a manager passes a model per launch through `models`; no script,
-        # comment or default names one outside the shared availableModels.
+    def test_no_model_default_is_in_the_scripts(self) -> None:
+        # The model-guard ADR: a manager passes a model per launch through `models`; no script default names one
+        # (since #1615 any family may be passed, Fable included).
         from runner.agents_check import FAMILIES
 
-        outside = [f for f in FAMILIES if f not in AVAILABLE]
-        self.assertTrue(outside, "the family table names no model outside availableModels: nothing to guard")
+        fallback = rf"(\|\||\?\?)\s*['\"`]({'|'.join(FAMILIES)})\b"
         for name in ("issue-task.js", "pr-rebase.js"):
             text = (WORKFLOWS / name).read_text(encoding="utf-8").lower()
             with self.subTest(workflow=name):
-                for family in outside:
-                    self.assertNotRegex(text, rf"\b{family}\b")
                 self.assertNotRegex(text, r"claude-[a-z]+-\d")
                 self.assertNotRegex(text, r"\bmodel\s*:\s*['\"`]", "a model literal in the script is a default")
+                self.assertNotRegex(text, fallback, "a fallback to a model family is a default")
 
     def test_no_agent_gets_a_model_unless_models_names_its_role(self) -> None:
         jobs = [

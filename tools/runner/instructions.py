@@ -19,7 +19,9 @@ ROOT_BYTES = 9216  # the same files' loaded bytes (9 KiB, #561; the engineer rai
 NESTED_BUDGET = 100  # each CLAUDE.md below the root (loads when a file in its folder is read)
 NESTED_BYTES = 10240  # the same files' loaded bytes (10 KiB, #1242): the largest area files sit near 9.9 KB, a long-line map got client/ to 14.7 KB
 RULE_BUDGET = 60  # each .claude/rules/**/*.md
-AGENT_MODELS = ("opus", "sonnet", "haiku")  # docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md
+# The model families an agent file may name, a typo guard; fable since #1615 (the model-guard ADR's amendment of
+# 2026-11-16 ended the guard on it): docs/decisions/2026-09-28-model-guard-no-fable-in-shared-config.md
+AGENT_MODELS = ("opus", "sonnet", "haiku", "fable")
 READ_ONLY = ("Edit", "Write", "NotebookEdit", "Agent")  # every project subagent but the lean writers is read-only (§5)
 # The lean workflow agent types: exactly these names, each within its own tools allowlist, Skill disallowed, no
 # effort (docs/decisions/2026-10-04-lean-workflow-agent-types.md; the reader and lean-writer:

@@ -106,8 +106,8 @@ export const meta = {
 //                 before v2. +0 agents
 //   models        {role: model} for the same roles, passed to agent({model}) only when set, with the same fallbacks
 //                 (plan falls back to implement, publish_clean to publish, code to review, none to a default). No
-//                 default names a model (the model-guard ADR and its amendment A: the manager passes one per launch
-//                 where the kickoff allows it). +0 agents
+//                 default names a model (the model-guard ADR: the manager passes one per launch where the kickoff
+//                 names it; since its amendment of 2026-11-16 any model, Fable included). +0 agents
 //                 Ended on 2026-10-13 (#302 comment 6145513919, 3A to 5A), refused since #1147 with an error naming
 //                 the option, the date and that comment: models.code (the code reviewer stays on its agent file's
 //                 model; efforts.code still works), models.implement "sonnet" (#560's habit, any Sonnet value; another
@@ -116,7 +116,7 @@ export const meta = {
 //                 The role publish_clean is the full publisher of a run that the reviews, the test review and the
 //                 skeptics left with no blocker or major open (a skeptic-refuted finding is closed, one over the
 //                 skeptic limit is open; the plan critique's findings do not count), never of a design task or of a
-//                 run stopped by mutants. It is the one-wave trial of #308 of a cheaper model from the shared list
+//                 run stopped by mutants. It is the one-wave trial of #308 of a cheaper model (Sonnet)
 //                 for that publisher (docs/decisions/2026-09-28-effort-and-workflow-bounds.md, amended 2026-10-04);
 //                 when models or efforts name it, the result's publish_clean says whether it applied.
 //   ab_review     ended on 2026-10-13 (#302 comment 6145513919, 3A): any value but false or null throws (#1147). It was

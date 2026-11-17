@@ -8,7 +8,8 @@
   kept, a standing manager habit); amended 2026-10-11 (#835: the Sonnet publisher of runs with findings and
   Sonnet `pr-rebase`, a trial); amended 2026-10-13 (#919: the code reviewer's A/B, the Sonnet implementer habit and
   the Sonnet publisher of runs with findings ended; Sonnet `pr-rebase` continues); amended 2026-10-20 (#1146: Sonnet
-  `pr-rebase` a standing manager habit)
+  `pr-rebase` a standing manager habit); amended 2026-11-16 (#1615: the guard on Fable ended, no shared
+  `availableModels`)
 - **Date:** 2026-09-28
 - **Deciders:** the engineer (Phase A decision session)
 
@@ -131,6 +132,20 @@ session model. KICKOFF §6 asks for the "strongest model" for `code-reviewer`.
     2026-10-13; the trial's final advice for it, of 2026-10-20, is the same: drop). Reverting ends the `pr-rebase`
     `models.publish` launches and changes nothing else. Sonnet is in the shared list, so it needs no allowance under
     amendment A; no script, default or agent file names the model.
+- **Amendment of 2026-11-16** (#1615; the engineer in chat, 2026-11-16: remove every Fable restriction in the
+  project, it no longer applies). The guard on Fable
+  ends; it supersedes the first and third bullets above and amendment A wherever they restrict Fable:
+  - The shared `.claude/settings.json` sets no `availableModels`, so every model the account has can be picked.
+  - Fable may be named anywhere, `.claude/` and agent files included (`instructions` accepts `model: fable`); the
+    test that scanned shared files for it is gone.
+  - A manager passes Fable, or any other model, through `models` where the kickoff names it; the "at most half of the
+    weekly Fable window" cap and the "managers stay on the shared models" rule end.
+  - Unchanged: no workflow script default names a model (the per-launch `models` habits above stay as they are), and
+    each human keeps usage credits off or a spend cap. A personal `availableModels` still restricts that human's
+    own sessions.
+  - `agents-check`: with no list in either scope it judges a request like a shared one (what served it must be the
+    requested family); a user list alone is the whole merged list and is judged as the shared one was; with both
+    lists it keeps the verdicts of amendment A.
 
 ## Alternatives
 - No guard: any file or workflow naming Fable bills or silently downgrades.

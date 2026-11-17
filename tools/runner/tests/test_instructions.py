@@ -201,11 +201,14 @@ class BudgetTest(unittest.TestCase):
         self.assertEqual(report.errors, ["docs/x.md:2: control character 0x0D"])  # CRLF on line 1 is fine
 
     def test_agent_model_guard_and_read_only(self) -> None:
-        bad = AGENT.replace("model: sonnet", "model: fable").replace(", Agent", "")
+        bad = AGENT.replace("model: sonnet", "model: gpt").replace(", Agent", "")
         report = self.check({"CLAUDE.md": "x\n", ".claude/agents/helper.md": bad})
         joined = " | ".join(report.errors)
         self.assertIn("model: must be one of", joined)
         self.assertIn("disallowedTools: must include Agent", joined)
+        # #1615: the guard on Fable ended, so an agent file may name it.
+        fable = self.check({"CLAUDE.md": "x\n", ".claude/agents/helper.md": AGENT.replace("model: sonnet", "model: fable")})
+        self.assertEqual(fable.errors, [])
 
     def test_lean_writer_types_may_edit(self) -> None:
         # docs/decisions/2026-10-04-lean-workflow-agent-types.md: exactly these two workflow types edit.
