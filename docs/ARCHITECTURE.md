@@ -4920,14 +4920,14 @@ array, `BodyColours.HEXES`. `AvatarViews` paints each remote body every physics 
 colour set before the body is ready waits for its rules). Each ragdoll, the own one included, wears its player's colour (`RagdollView.set_colour`, 728d); a dead
 body's is `LifeLooks.BODY_COLOUR`, grey. No picker
 in the Esc menu (GDD §3: the look is not in the Esc suit menu). The mirror's colour menu (#1394, §7.1.24) sends
-`SetProfile`: `MirrorMenu` (`client/ui/mirror_menu.gd`), the plainest placeholder until #1395's menu and
-reflection, a `ToyPanelMenu` at the right with one `ToyRosterDot` swatch per `BodyColours` index and no text (the
+`SetProfile`: `MirrorMenu` (`client/ui/mirror_menu.gd`), the plainest placeholder (provisional, #1395: the colour is
+M8's only choice, so no tabs), a `ToyPanelMenu` at the right with one `ToyRosterDot` swatch per `BodyColours` index and no text (the
 copy deck has no mirror key), shows on the lobby screen, in a phase that takes `SetProfile` (not the countdown), while the own player holds a place as `ClientModel.mirror`
 (`ClientMirror`, folding `MirrorPlaces` whole; `clear_match` forgets it) says; `GameUi.frees_mouse` frees the
 mouse under it and `Game` captures it again when it hides (`mirror_toggled`; Esc's close leaves it free). A click
 sends the colour with the own roster name (`MirrorMenu.profile_of`, `Game.choose_colour`); the pressed swatch is
-the own colour from the host's `ProfileChanged`, nothing predicted. The own body is never drawn, so the own player
-sees the change on its swatch only until #1395's reflection. The Toy lobby HUD (§4.7.47) shows no colour: its
+the own colour from the host's `ProfileChanged`, nothing predicted. The own body is drawn only in the mirror
+(§4.7.68), where the own player sees the change. The Toy lobby HUD (§4.7.47) shows no colour: its
 handoff (s04) draws none. Dev preview:
 `tools\run.cmd shot client/dev/colours_preview.tscn` (ten bodies, the last two downed). Tests:
 `body_colours_test.gd`, `client_model_test.gd`, `avatar_views_test.gd` (the colour, a profile change on the same
@@ -5397,7 +5397,8 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
   player's live ragdoll, the first-person hands, a carried item's view), `PHOTO` (layer 20) for the pictures'
   puppets; every live camera's `cull_mask` is `LIVE_VIEW` (all but `PHOTO`), a picture's camera `PHOTO_VIEW` (all
   but `LIVE_AVATAR`); `STATION` (layer 18, in both views) holds the ship's crystal sockets' and chargers' meshes
-  (§9.5.27). Ground items and dead bodies (`BodyViews` puts the handed-over ragdoll back on `GROUND`) stay
+  (§9.5.27); `MIRROR_SELF` (layer 17, in neither) holds the lobby mirror's stand-in of the own body, which only the
+  mirror's lens draws (`MIRROR_VIEW`, §4.7.68). Ground items and dead bodies (`BodyViews` puts the handed-over ragdoll back on `GROUND`) stay
   in both, as they move only by events.
 - **The looks and the views.** `PhotoLooks` builds the film's and the photo's look (a card whose +Y face holds the
   picture slot); `PhotoViews` binds the camera, printer and board scenes of `levels/stations/` by their kinds'
@@ -5800,6 +5801,43 @@ ten pips, `ToyPips`). It draws what `show_idle`, `show_choose(points, mutations)
 give it and says `start_pressed` and `mutate_pressed(id)`; nothing feeds it yet: points and mutations are not planned
 (docs/ROADMAP.md), so the game builds none, and its dev preview (`client/dev/workbench_<state>_preview.tscn`, idle,
 choose and step with `_uk` twins) draws the handoff's samples. Tests: `tests/unit/client/ui/workbench_screen_test.gd`.
+
+#### 4.7.68 The lobby mirror's reflection (#1395)
+GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first person. `MirrorReflection`
+(`client/world/mirror_reflection.gd`, in `ItemWorld` after `PinballViews`) draws it in every window from the own
+`ClientModel` and the local player; the wire, `core/` and `server/` are unchanged.
+- **The glass.** A Marker3D in `GLASS_GROUP` `mirror_glass` gives the reflecting plane: its origin the glass's centre,
+  +X right and +Y up as seen from the room, +Z toward the room, its `size_m` metadata the width and height (default
+  2 x 2.5 m). The lobby has it as a placeholder, `Mirror/Glass`, 1 cm before the greybox box's room face (provisional;
+  `lobby_hall_test.gd` holds it on that face, facing the places). A level without one draws no glass;
+  `ItemWorld.set_level` hands the level over. The glass is an unshaded `QuadMesh` drawn `GLASS_BEHIND_M` (2 mm)
+  behind the plane, showing the lens's picture flipped left to right (the material's UV scale -1, offset 1).
+- **The lens.** A planar reflection: a `Camera3D` in its own `SubViewport` (sharing the window's `World3D`) at the
+  eye mirrored through the plane (`lens_of`), looking square through it (its -Z the plane's +Z, its +X the plane's
+  -X), with an off-axis frustum (`set_frustum`: the glass's height, `offset_of` the glass's centre in the lens's
+  axes, the near plane on the reflecting plane), so its picture is exactly the glass. Nothing behind the plane is
+  drawn (the box, the wall), nor the glass itself (behind the near plane). The eye is the window's current camera
+  (`get_viewport().get_camera_3d()`: the first-person, the close-up's or a lens). Its `cull_mask` is
+  `PhotoLayers.MIRROR_VIEW`: the live view plus `MIRROR_SELF` (§4.7.58), so the remote bodies are in it as in the
+  hall.
+- **The own stand-in.** The own body is drawn nowhere else, so the mirror draws `self_body`: a `RemotePlayerBody`
+  with no collision, its shadow off, on `MIRROR_SELF` alone, at the local player's feet, look, crouch, sneak and own
+  velocity (`pose_of`, `AvatarClips` from it), seated by `ClientModel.posed`, in the own roster colour (the host's
+  `ProfileChanged`; nothing predicted). It shows only while the own body stands (`body_life_of` living: a downed or
+  limp own body is drawn as its ragdoll, KE5) and the reflection renders. The first-person hand item is on
+  `LIVE_AVATAR` and so shows in the mirror where it sits before the eye; the stand-in holds no item (kept simple).
+- **Cost.** The lens renders (`UPDATE_ALWAYS`) only while the eye is in front of the plane (`MIN_EYE_M`) and the
+  glass is not wholly outside one of its frustum's planes (`seen_by`); else its viewport is off and the stand-in
+  hidden. Its picture is `HEIGHT_PX` 512 rows (the width by the glass's aspect: 410), with no positional shadows and
+  no occlusion culling (an occluder between the mirrored eye and the glass would cull the room). Not measured: the
+  frame time needs a desktop with a GPU (`perf` measures the host).
+- **Provisional, not a decision** (taste, the engineer's): the glass's place and size, the resolution, the plain
+  unshaded glass (no frame, no tint).
+- **Tests.** `tests/unit/client/world/mirror_reflection_test.gd` (a point before the glass is drawn where the eye
+  sees its mirror image, from a square and an oblique eye, through the quad's own UVs and the flip; the glass behind
+  the near plane; rendering only while seen from the front; no glass, no reflection; the stand-in's place, colour,
+  layer, no collision, hidden while down; `clear`), `photo_layers_test.gd`, `lobby_hall_test.gd` (the glass marker)
+  and `item_world_children_test.gd`; the `shot` preview `client/dev/mirror_preview.tscn` shows it.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
