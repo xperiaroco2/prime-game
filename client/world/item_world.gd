@@ -11,6 +11,7 @@ extends Node3D
 ## toggles' parts (ToggleViews, #1295) and the photo booth's sessions (BoothBook), its lamp,
 ## countdown, flash and print (BoothViews) and its strips' pictures (StripPictures, #1397) and
 ## the lobby's pinball (PinballViews, #1400: the table, the display, the close-up, the keys) and
+## the lobby mirror's reflection (MirrorReflection, #1395) and
 ## the ship's match console (MatchConsole, #1604: the settings' screen the crosshair works),
 ## all from the own ClientModel, the interpolated poses and the
 ## client's own copy of the mode. It also gives the HUD what the model does not hold
@@ -42,6 +43,7 @@ const _ORDER: Array[StringName] = [
 	&"PhotoPictures",
 	&"BoothViews",
 	&"PinballViews",
+	&"MirrorReflection",
 	&"MatchConsole",
 	&"StripPictures",
 	&"ShipEngineViews",
@@ -76,6 +78,8 @@ var booth := BoothBook.new()
 var booth_views := BoothViews.new()
 ## The lobby's pinball (#1400): the table, the display, the seated player's close-up and keys.
 var pinball := PinballViews.new()
+## The lobby mirror's reflection (#1395): the glass, its camera and the own stand-in.
+var mirror := MirrorReflection.new()
 ## The ship's match console (#1604): its screen by the lobby's spawn.
 var console := MatchConsole.new()
 var strips := StripPictures.new()
@@ -109,6 +113,7 @@ func _init() -> void:
 		pictures,
 		booth_views,
 		pinball,
+		mirror,
 		console,
 		strips,
 	]:
@@ -184,6 +189,9 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	pinball.close_up.model = _model
 	pinball.drawn_at = views.drawn_at
 	pinball.keys.send = client.send_intent
+	mirror.model = _model
+	mirror.rules = game_mode.player_rules
+	mirror.character = views.character
 	hums.model = _model
 	hums.mode = game_mode
 	hums.host_tick = views.host_tick
@@ -213,6 +221,7 @@ func set_player(player: PlayerController) -> void:
 	hand_over.player = player
 	viewfinder.player = player
 	pinball.close_up.player = player
+	mirror.player = player
 	console.player = player
 	sounds.player = player
 
@@ -244,6 +253,7 @@ func reset() -> void:
 	flashes.model = null
 	viewfinder.clear()
 	pinball.clear()
+	mirror.clear()
 	console.clear()
 	interactions.setup(null, _mode)
 	interactions.player = null
@@ -322,6 +332,7 @@ func on_event(event_name: StringName, fields: Dictionary) -> void:
 func set_level(level: Node) -> void:
 	toggles.level = level
 	pinball.level = level
+	mirror.level = level
 	console.level = level
 	for view: Node3D in task_views.values():
 		if &"level" in view:

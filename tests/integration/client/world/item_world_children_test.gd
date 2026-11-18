@@ -23,6 +23,8 @@ const CHILDREN: Array[Array] = [
 	[&"PhotoPictures", "PhotoPictures"],
 	[&"BoothViews", "BoothViews"],
 	[&"PinballViews", "PinballViews"],
+	# The lobby mirror's reflection (#1395).
+	[&"MirrorReflection", "MirrorReflection"],
 	# The ship's match console (#1604).
 	[&"MatchConsole", "MatchConsole"],
 	[&"StripPictures", "StripPictures"],

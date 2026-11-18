@@ -3,13 +3,15 @@ extends "res://client/dev/lobby_hud_preview.gd"
 ## lobby hall (`levels/lobby/lobby.tscn`, read only) seen from its first mirror place towards the
 ## greybox mirror, the own player (a code joiner, peer 3) holding that place and Taras (2) the
 ## second, drawn by the game's GameUi from a fake ClientModel as a host would send it: the lobby
-## HUD and the mirror's colour menu at the right, the own colour's swatch pressed. With
-## `menu_closed` the own player holds no place, so the menu is hidden. Dev only: nothing here
-## reaches the game.
+## HUD and the mirror's colour menu at the right, the own colour's swatch pressed. The glass shows
+## the game's reflection (MirrorReflection, #1395): Taras, and the own player's stand-in at the
+## first place, facing the glass. With `menu_closed` the own player holds no place, so the menu is
+## hidden. Dev only: nothing here reaches the game.
 
 const LOBBY := "res://levels/lobby/lobby.tscn"
 const PLACE_TAG := &"spawn_mirror"
 const OWN := 3
+const PLAYER := preload("res://client/player/player.tscn")
 
 ## The own player at no mirror place: the lobby as before the mirror.
 @export var menu_closed := false
@@ -60,6 +62,18 @@ func _ready() -> void:
 	var eye := places[0] + Vector3(2.4, rules.eye_height_m, -0.8)
 	camera.look_at_from_position(eye, places[1] + Vector3(-0.7, 1.2, 0.0))
 	camera.make_current()
+	var own := PLAYER.instantiate() as PlayerController
+	add_child(own)
+	own.set_physics_process(false)
+	own.global_position = places[0]
+	own.look_at(places[0] + Vector3.LEFT, Vector3.UP)
+	camera.make_current()
+	var mirror := MirrorReflection.new()
+	mirror.model = _model
+	mirror.rules = rules
+	mirror.player = own
+	add_child(mirror)
+	mirror.level = room
 	var ui := GameUi.new()
 	add_child(ui)
 	ui.set_large_text(large_text)
