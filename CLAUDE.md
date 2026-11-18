@@ -104,7 +104,7 @@ Code → `code-reviewer` (+ `netcode-security-reviewer`: `core/ server/ net/ voi
   releases (`docs/ROADMAP.md`); a feature card he approved before code; one release at a time, at most three lanes of
   different kinds and one coordinator who alone talks to him; taste settled at sit-downs, never taken for him, never
   asked through the day; visible PRs shown in batches before merge; no night shifts; the process frozen. The day
-  (rule 9): one cloud executor per lane works the day's queue alone; the coordinator checks GitHub on a timer.
+  (rule 9): the orchestrator drives local lane sessions card after card; no cloud; every status checked, linked.
 <!-- see docs/interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md -->
 <!-- see docs/interventions/2026-10-29-engineer-asks-only-taste.md -->
 - A new permission ask or deny rule: first "can an agent work alone overnight?" (routine work must not prompt,
