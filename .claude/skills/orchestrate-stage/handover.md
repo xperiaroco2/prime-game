@@ -23,7 +23,7 @@ skill's §7. What is only this file's:
   (`get_session("self")`, where the tool exists) and the handover data; the notes end with **the ready kickoff** (§4)
   in a `text` block.
 - **(c) The paste** (the default): your last message's "For you:" has one item: close this session, open a new one in
-  `D:\prime-game` (the track's checkout), set bypass and effort high, and paste the kickoff, which the item carries
+  `<main>` (the track's checkout), set bypass and effort high, and paste the kickoff, which the item carries
   itself in a fenced `text` block, with the handover comment's link. A verdict that says to pull the main checkout puts
   the pull before it, in the same block. Send a PushNotification, arm no timer, launch nothing more, and stop.
 - **(d) Route C**, only when the human asked for it in the kickoff or in chat: §3's steps in place of (c).
@@ -45,7 +45,7 @@ mode, and cannot raise either itself.
    prompt lacks §4's lines (a task created before #484, such as the probe's `meta-manager`); read the stored one first
    from the `path` the list gives; never per handover. None: `create_scheduled_task` with that `taskId`, a
    `description`, that prompt and those fields. The tool takes no folder: the probe's tasks, created from a session in
-   `D:\prime-game`, ran there, so create it from your track's checkout and check the successor's folder
+   `<main>`, ran there, so create it from your track's checkout and check the successor's folder
    (`get_session`) after its first run. A one-time task fires by itself at its `fireAt`, while the desktop app is open.
 4. Once the `fireAt` is past, `list_task_runs` of the task, again after a background `sleep 120`, at most three
    checks (no foreground sleep): a new run is your successor. Send the PushNotification of step 5 first; then, only
@@ -94,6 +94,6 @@ effort and which of these tools you lack: AskUserQuestion, PushNotification, the
 tools.
 ```
 
-The UI, art and design managers work in their own repos (`D:\prime-game-ui`, `D:\prime-game-art`,
-`D:\prime-game-design`), without this skill or `wave`. They follow [docs/MANAGERS.md](../../../docs/MANAGERS.md)
+The UI, art and design managers work in their own repos (`..\prime-game-ui`, `..\prime-game-art`,
+`..\prime-game-design`), without this skill or `wave`. They follow [docs/MANAGERS.md](../../../docs/MANAGERS.md)
 instead of copying these rules (#511; the block each adds is MANAGERS §8's; design since #1124).

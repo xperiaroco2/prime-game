@@ -11,7 +11,7 @@ it relays.
    "Needs the engineer" items, the gate's exceptions (merges only he makes) and each thread's latest "For you:" block
    by his account, with how many comments came after it. An "Unavailable:" line goes into the footer.
 3. **Sessions:** `list_sessions` (limit 30). For each session other than yours that is running or active since your
-   last digest, in `D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art` or `D:\prime-game-design` (#1124):
+   last digest, in `<main>`, `..\prime-game-ui`, `..\prime-game-art` or `..\prime-game-design` (#1124):
    `list_events` with a small limit (6; page back with `before_uuid` only when its last "For you:" or "Для вас:" block
    is cut). When many changed,
    `search_session_transcripts` for "Для вас:" and "For you:" first. Take each session's last block and the day's
@@ -57,7 +57,7 @@ Updated <UTC time> by the director "<your title>" (<first 8 of its id>); digests
 3. **Decision.** PR #<n>, question <k>: <the question in one line>; <options>; recommended <x>. <link>
 4. **Command.** <why, one line>:
    ```powershell
-   cd D:\prime-game; <the command, as the session gave it>
+   cd <main>; <the command, as the session gave it>
    ```
 
 ## To look at

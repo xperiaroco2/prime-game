@@ -37,7 +37,7 @@ when a run fails in a way you have not seen.
   runs before the fix agent, so it does not cover the fix.
 - **`§` in args on Windows.** A Python `print` of the args mangled it: pass the args inline in the Workflow call, or
   set `PYTHONIOENCODING=utf-8`.
-- **A Git Bash path given to `tools\run.cmd`** (`/c/Users/...`) made a stray `D:\c\` folder: Python on Windows reads
+- **A Git Bash path given to `tools\run.cmd`** (`/c/Users/...`) made a stray `\c\` folder at the drive root (`D:\c\` while the checkout was on D:): Python on Windows reads
   it as a folder on the current drive. Give `tools\run.cmd` Windows paths (`C:/Users/...`); Git Bash paths only to
   `tools/run.sh`.
 - **An older `issue-task.js` logs and ignores the v2 args**: a launch from a main checkout that was not pulled runs

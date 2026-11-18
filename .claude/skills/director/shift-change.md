@@ -26,7 +26,7 @@ on his word.
    ~~~markdown
    ## Handover to a fresh director (same session, after a clear)
 
-   The director "<your title>" (`<your sessionId>`, `D:\prime-game`, bypass, effort high) clears itself at <UTC
+   The director "<your title>" (`<your sessionId>`, `<main>`, bypass, effort high) clears itself at <UTC
    time>; the next shift is "Директор: <ніч | день> DD.MM". Spend this shift: <the metrics line>.
 
    ### Sub-sessions (linked to this session id)
@@ -86,8 +86,8 @@ on his word.
 - **What goes in**, each part taken from where a session or the track's docs give it (a handover comment's ready
   kickoff, a meta session's prepared kickoff, a manager's For you, `docs/MANAGERS.md`); a part nobody gave is asked,
   never made up:
-  - the folder: `cwd` the track's checkout (`D:\prime-game-ui`, `D:\prime-game-art` or `D:\prime-game-design`;
-    omitted for `D:\prime-game`, yours), `use_worktree` false (a manager works in its checkout; a task session's own
+  - the folder: `cwd` the track's checkout as an absolute path, `prime-game-ui`, `prime-game-art` or
+    `prime-game-design` beside `<main>` (`(Resolve-Path <main>\..\prime-game-ui).Path`; omitted for `<main>`, yours), `use_worktree` false (a manager works in its checkout; a task session's own
     `start` makes its worktree);
   - `permission_mode`: bypass for a manager (`docs/MANAGERS.md` §1), the kickoff's mode for any other; the app allows
     yours or lower;

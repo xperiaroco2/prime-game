@@ -1,26 +1,28 @@
 # Manager rules for every track
 
-The one place for the rules every track's manager session follows: game and meta (`D:\prime-game`, the
-`orchestrate-stage` skill and `wave`), UI (`D:\prime-game-ui`), art (`D:\prime-game-art`) and design
-(`D:\prime-game-design`, the private design repo's own `design-manager` skill, AGENT_WORKFLOW §7.3, #1124). The UI,
-art and design repos' `CLAUDE.md` files point here instead of copying these rules, so a change is made once, in this
-file ([#511](https://github.com/xperiaroco2/prime-game/issues/511)). Approved by the engineer:
+The one place for the rules every track's manager session follows: game and meta (`<main>`, the main checkout,
+AGENT_WORKFLOW §2; the `orchestrate-stage` skill and `wave`), and the repos cloned beside it: UI (`..\prime-game-ui`),
+art (`..\prime-game-art`) and design (`..\prime-game-design`, the private design repo's own `design-manager` skill,
+AGENT_WORKFLOW §7.3, #1124). The UI, art and design repos' `CLAUDE.md` files point here instead of copying these
+rules, so a change is made once, in this file ([#511](https://github.com/xperiaroco2/prime-game/issues/511)). Approved by the engineer:
 [#170 comment 6033930486](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6033930486) (the paste,
 no "ultracode", 500k, one set of rules), on top of
 [#170 comment 6025360550](https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550) (thresholds
 plus judgment) and [#467](https://github.com/xperiaroco2/prime-game/issues/467#issuecomment-6014950287) (mid-wave).
 
-**Read this file whole at your session's start**, from the main checkout (`D:\prime-game\docs\MANAGERS.md`; missing
-or unreadable: the copy on GitHub, https://github.com/xperiaroco2/prime-game/blob/main/docs/MANAGERS.md); after a
-change to it reaches `main`, read its diff (§5). Where your repo's own files differ from it on the handover, its
+**Read this file whole at your session's start**, from the main checkout (`<main>\docs\MANAGERS.md`, from a
+sibling repo `..\prime-game\docs\MANAGERS.md`; missing or unreadable: the copy on GitHub,
+https://github.com/xperiaroco2/prime-game/blob/main/docs/MANAGERS.md); after a change to it reaches `main`, read its
+diff (§5). Where your repo's own files differ from it on the handover, its
 thresholds, the "For you:" block, the kickoff, the effort or a launch's estimate (§9), this file wins. How each track
 carries a rule out (its tools, its plan issue, its workflows) stays in its own repo: for game and meta, the
 `orchestrate-stage` skill and its `handover.md`.
 
 **How you talk to the engineer** (dictation, plain explanations, a command for a human in the chat, memory, the
-dictation glossary, launching a workflow): `D:\prime-game\docs\HUMAN_SESSIONS.md`, read at your start with this file
-and again after a compaction (#836). This repo's root `CLAUDE.md` only points to it; the UI and art repos' own files
-do not carry it; the design repo's skill reads it at its start.
+dictation glossary, launching a workflow): `<main>\docs\HUMAN_SESSIONS.md` (from a sibling repo
+`..\prime-game\docs\HUMAN_SESSIONS.md`), read at your start with this file and again after a compaction (#836).
+This repo's root `CLAUDE.md` only points to it; the UI and art repos' own files do not carry it; the design repo's
+skill reads it at its start.
 
 ## 1. The session: mode and effort
 - A manager session starts when the engineer pastes a kickoff (§2) into a new session in the track's checkout, or
@@ -82,7 +84,7 @@ do not carry it; the design repo's skill reads it at its start.
   meta manager silent until 07:29Z. So at a wake (#981: a worktree removal at one held a card 90 minutes), while a run
   is in flight, or before he leaves, run no command the guard asks about (a worktree removal or branch delete outside
   a task's worktree, AGENT_WORKFLOW §8.2). Put it in "For you:" instead. At each wake, run
-  `tools\run.cmd wave --stalled` (from `D:\prime-game`, read-only, about a second). It
+  `tools\run.cmd wave --stalled` (from `<main>`, read-only, about a second). It
   names another session that has taken no turn for 30 minutes after a run of its own finished or a notification
   queued, and the card it waits on. Put that line in your "For you:". Send a PushNotification only for a stalled
   session you have not reported at an earlier wake (the line names the session and its last turn), so one night-long
@@ -104,7 +106,7 @@ do not carry it; the design repo's skill reads it at its start.
 - **Changed instructions are no handover** (#930): after a merge into `main` since your start that changed your repo's
   root `CLAUDE.md`, `.claude/rules/` or `.claude/agents/`, or this file, read its diff (`git fetch origin main`, then
   `git diff` of those paths from `main` at your start; game and meta: the command `wave` prints; this file lives only
-  in prime-game: UI and art run it with `git -C D:\prime-game`) and go on. Claude Code reloads agent files from disk
+  in prime-game: UI and art run it with `git -C ..\prime-game`) and go on. Claude Code reloads agent files from disk
   ([its docs](https://code.claude.com/docs/en/sub-agents)) and rules when a file they match is read, once the main
   checkout is pulled; your workflow agents keep your session's root `CLAUDE.md`, so the next launches get what they need of its change in their notes.
 - **At a stop for the engineer** (no run in flight, work left, he is present): hand over once the context is over
@@ -143,7 +145,8 @@ do not carry it; the design repo's skill reads it at its start.
 
   A kickoff that still says "ultracode" loses the word (§2); every other word stays his.
 - **Then** your message ends with one "For you:" item: close this session, open a new one in the track's checkout
-  (`D:\prime-game`, `D:\prime-game-ui`, `D:\prime-game-art`, `D:\prime-game-design`), set bypass and effort
+  (`<main>`, or `prime-game-ui`, `prime-game-art` or `prime-game-design` beside it, written as the absolute path
+  `git worktree list` and `Resolve-Path` give, never `..\`), set bypass and effort
   high, and paste the kickoff. The item carries the kickoff itself, in a fenced `text` block, and the comment's
   link, so he copies it from the chat. Send a PushNotification, arm no timer, launch nothing more, and stop.
 - The successor takes the comment as its starting state, relaunches the stopped runs fresh and takes the stage's yes
@@ -168,7 +171,7 @@ workflow agents included; this repo's docs are linked, never imported, AGENT_WOR
 
 ```markdown
 ## Manager rules (one set for every prime-game track)
-A manager session of this repo follows `D:\prime-game\docs\MANAGERS.md` (prime-game's main checkout beside this one;
+A manager session of this repo follows `..\prime-game\docs\MANAGERS.md` (prime-game's main checkout beside this one;
 missing or unreadable: https://github.com/xperiaroco2/prime-game/blob/main/docs/MANAGERS.md). Read it whole at the
 session's start, before anything else; after a change to it reaches prime-game's `main`, read its diff. It holds the
 mode and effort, the kickoff (no "ultracode"), the "For you:" block, the keep-alive, when to hand over and the
@@ -202,7 +205,7 @@ xperiaroco2/prime-game#1095; the context: the app's context usage.>
   $ by phase, and its cache re-writes after an idle gap when it has one (#558: an agent polling a render or a `wait`
   past 5 minutes writes its whole context again each time), and each agent's average and peak context per API call
   (#584: one at 150k average or 300k peak is marked heavy). UI, art and design run it in prime-game's main checkout
-  (`cd D:\prime-game`); it reads all four checkouts' transcripts. The first phase within 1.5 times its share of the
+  (`cd <main>`); it reads all four checkouts' transcripts. The first phase within 1.5 times its share of the
   estimate (1.5: #534's reading, until the engineer confirms it): go on, and the plan-issue comment gives both numbers.
   Over it: re-estimate the rest at the phase's real $ per agent; still within the track's budget left, go on and
   report it; else launch nothing more of it and ask in "For you:" with both numbers and what the rest buys.

@@ -83,14 +83,15 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
    the director started tells the director, which merges a technical one (a taste one waits for his word). In the
    engineer's own session, a technical PR (no gate exception, no open taste item) needs no question (the trust ADR's amendment of 2026-10-29); otherwise ask once,
    "merge it yourself, or shall I merge it through the gate?", and only on the engineer's word for this PR (or this
-   session). Then run, once CI is green, `cd D:\prime-game; tools\run.cmd merge <pr> --base main
-   --dry-run`, then without `--dry-run` (from the main checkout: it refuses a task's checkout); tell the refusals in
-   plain words. The gate's exceptions and the designer's PRs are merged by the engineer, with "Create a merge commit".
+   session). Then run, once CI is green, `cd <main>; tools\run.cmd merge <pr> --base main --dry-run` (`<main>`:
+   the main checkout's absolute path, AGENT_WORKFLOW §2), then without `--dry-run` (from the main checkout: it
+   refuses a task's checkout); tell the refusals in plain words. The gate's exceptions and the designer's PRs are
+   merged by the engineer, with "Create a merge commit".
    For a stacked PR: GitHub retargets the child to the parent's base when the parent's branch is deleted on merge; if the
    child still shows the parent as base, `gh pr edit <child> --base <that base>` before merging it. If the task ran in a
    worktree: after the merge, the human archives this session in the app (Windows cannot delete a folder a live session
    sits in), then runs `worktree-done` from the main checkout. Give that command in the chat as its own fenced
    PowerShell block (`docs/HUMAN_SESSIONS.md`, "Talking to the humans"), with `cd` to the main checkout's absolute
    folder (the first line of `git worktree list`), and add `--pushed` for a spike that is never merged: ```powershell cd
-   D:\prime-game; tools\run.cmd worktree-done <n> ``` Preview it with `git worktree list` instead of running it: running
+   <main>; tools\run.cmd worktree-done <n> ``` Preview it with `git worktree list` instead of running it: running
    it would do the human's step.
