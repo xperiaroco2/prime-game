@@ -1,7 +1,8 @@
 # Reborn: releases, one line of work, taste only by the engineer
 
 - **Status:** Accepted (the engineer, 2026-11-04, in the meta session's chat: "звучить супер [...] давай записуй");
-  amended 2026-11-18 with rule 9, the day (#1620, his "супер, давай" in the coordinator's chat)
+  amended 2026-11-18 with rule 9, the day (#1620, his "супер, давай" in the coordinator's chat), reworked the same
+  day with no cloud (#1623)
 - **Date:** 2026-11-04
 - **Deciders:** the engineer; written by the meta session (#1578)
 - **Overrides:** where `docs/AGENT_WORKFLOW.md` §7 (the orchestrator, the director, the tracks), the
@@ -60,26 +61,30 @@ and took taste for him. Each cost a build and then a rework:
 8. **The rhythm.** The sit-down at a release's start; a review sit-down every two or three days, or when the lanes run
    out of approved cards (the visible PRs, the questions that waited, the next cards); a short retrospective at the end
    of each release.
-9. **The day** (2026-11-18, #1620). What broke: the engineer works from a laptop that lags when Godot, the tests or
-   Blender run on it, and one session per task meant he had to watch each one end and say "go on".
+9. **The day** (2026-11-18: #1620, reworked the same day with no cloud, #1623). The engineer's goal: the work goes
+   on through the day while he looks in now and then and answers questions.
    - **The week:** a sit-down on Monday (rule 4's batch) sets each lane's queue: approved cards, in order, on the board.
-   - **The morning:** his one word ("погнали") to the coordinator, a chat that only reads GitHub. It starts **one cloud
-     executor per lane** (rule 3's ceiling) with that lane's queue. The executor works it card after card alone (task
-     branch, `verify`, fresh reviews, `publish`, the PR, CI, the handoff comment) and never merges. When its queue ends
-     or blocks, it posts a summary on the release's sit-down issue. A cloud session sends no note when it ends, so
-     GitHub is its only report.
-   - **Through the day:** the coordinator runs on a timer (`/loop`, about 30 minutes). It reads GitHub across the repos
-     (`inbox`, the lanes' PRs and CI) and pushes him a notification only for a question that blocks a lane and is
-     his. Taste never blocks (rule 4). A turn the timer woke cannot start a session (the app refuses), so each
-     executor owns its whole queue, and the coordinator offers him a card when a lane needs a new executor.
+   - **The orchestrator** is one local chat in the main checkout (`C:\prime-game`), the coordinator of rule 3. It
+     starts the lanes, reads their notes and GitHub, writes issue comments, and merges only on his word at a review.
+   - **The lanes** are local sessions it starts, one per lane (code, art), at most two on the laptop (each `verify`
+     loads it for minutes). A lane keeps its session and its context all day. It takes a card through to its PR
+     (task branch, `verify`, fresh reviews, `publish`, CI, the handoff comment) and never merges. When a lane ends a
+     card, the app wakes the orchestrator with its note. The orchestrator checks the result on GitHub (the PR, CI),
+     then sends the same lane its next card from the queue, with no timer and no word from him.
+   - **Questions:** taste never blocks (rule 4). A lane that needs his answer writes it as "For you:" and takes its
+     next card. The orchestrator keeps one list of them and gives it to him first when he looks in. Each question
+     carries its link, and the orchestrator has read the whole history behind it, not only the issue's body: #1350
+     went to the review of 2026-11-18 on a decision he had reversed.
+   - **Checked, not told:** every status the orchestrator gives him comes with a link to the GitHub page or lane note
+     it has just read. What it has not checked, it calls unknown.
+   - **No cloud** for now: the orchestrator sees neither a cloud session nor its end, so it cannot drive one.
    - **Merges** stay batched at the review sit-down every two or three days (rules 5 and 8).
    - **Repos:** each lane works in its own repo (code in `prime-game`, art in `prime-game-art`, UI in
-     `prime-game-ui`). One cloud session clones one repo, and hand-offs go through GitHub: an art package becomes a
-     code-lane task, as #1573 was. The repos stay separate (the art's LFS weight, the private repos). Locally they
-     live beside the project in `C:\`. The D: drive is gone (#1621).
-   - **Not proven yet:** that one cloud session works a whole day's queue and runs its reviewers as subagents. The
-     first run (2026-11-18, the code lane on #1350, #1395 and the stale M8 issues) checks it. The art lane moves to
-     the cloud only if prime-game-art#136's check shows that Blender and the shots run there.
+     `prime-game-ui`), cloned beside the project in `C:\`. Hand-offs go through GitHub: an art package becomes a
+     code-lane task, as #1573 was. The repos stay separate (the art's LFS weight, the private repos). The D: drive
+     is gone (#1621).
+   - **Not proven yet:** the app stops waking the orchestrator after many such turns in a row with no word from him.
+     The first full day shows whether his visits come often enough.
 
 ## Consequences
 - Slower by the calendar, cheaper by the token: less rework, no cross-track coordination, less process.
