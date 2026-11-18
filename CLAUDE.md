@@ -103,7 +103,7 @@ Code → `code-reviewer` (+ `netcode-security-reviewer`: `core/ server/ net/ voi
 - **Reborn** (`docs/decisions/2026-11-04-reborn-pipeline.md`, it wins over older process docs): milestones are
   releases (`docs/ROADMAP.md`); a feature card he approved before code; one release at a time, at most three lanes of
   different kinds and one coordinator who alone talks to him; taste settled at sit-downs, never taken for him, never
-  asked through the day; visible PRs shown in batches before merge; no night shifts; the process frozen. The day
+  asked through the day; visible PRs shown in batches before merge; night work allowed; the process frozen. The day
   (rule 9): the orchestrator drives local lane sessions card after card; no cloud; every status checked, linked.
 <!-- see docs/interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md -->
 <!-- see docs/interventions/2026-10-29-engineer-asks-only-taste.md -->
