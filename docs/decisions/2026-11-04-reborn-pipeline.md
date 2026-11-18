@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (the engineer, 2026-11-04, in the meta session's chat: "звучить супер [...] давай записуй");
   amended 2026-11-18 with rule 9, the day (#1620, his "супер, давай" in the coordinator's chat), reworked the same
-  day with no cloud (#1623)
+  day with no cloud (#1623); rule 3's night-shift ban dropped 2026-11-19 (#1631)
 - **Date:** 2026-11-04
 - **Deciders:** the engineer; written by the meta session (#1578)
 - **Overrides:** where `docs/AGENT_WORKFLOW.md` §7 (the orchestrator, the director, the tracks), the
@@ -41,8 +41,9 @@ and took taste for him. Each cost a build and then a rework:
    never meant one agent doing everything in turn). Every session works for the current release only, nothing ahead
    of it. Inside it at most three lanes run in parallel, each its own session or workflow, built from approved cards
    only, and **never two lanes of one kind** (code, art, level and UI): two art sessions block each other. One
-   coordinator session per release is the only one that talks to the engineer. No night shifts by default; the
-   director's shifts and the old tracks are paused. Three lanes is the ceiling, not the norm: two when the week's
+   coordinator session per release is the only one that talks to the engineer. The lanes may work at night by rule
+   9's queues (2026-11-19, #1631: some days he has no time by day); nothing merges at night. The director's shifts
+   and the old tracks are paused. Three lanes is the ceiling, not the norm: two when the week's
    limit runs short.
 4. **Taste is only the engineer's, settled at a sit-down.** Revoked: the standing word of 2026-10-31 for taste
    questions; no taste question is "taken for him". A release starts with **one sit-down**: the coordinator brings
