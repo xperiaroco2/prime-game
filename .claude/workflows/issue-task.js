@@ -12,7 +12,7 @@ export const meta = {
 // Saved project workflow (docs/AGENT_WORKFLOW.md §7.1; skill orchestrate-stage).
 // args:
 //   n        issue number (required)          title   issue title (required)
-//   wt       worktree path, D:/... (required)  branch  task branch from `start` (required)
+//   wt       <checkout>/.claude/worktrees/<name> (required)  branch  task branch from `start` (required)
 //   base     PR base branch, default 'main' (a stage's release/m<k>, or a parent's branch for a task started with
 //            `start --base`); a non-main base reaches `publish --base` and `gh pr create --base`
 //   notes    the manager's task notes: specifics, ownership splits of shared files, merge order (required)
@@ -75,7 +75,8 @@ export const meta = {
 // Start-Sleep in the wait line; #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it; #555's
 // 180 s wait, #563's Cross-area line, #572's read a log by search and #574's `verify --fail-fast`; #920's checkpoint
 // default: its rule paragraph and the implementer's handoff schema key in every launch without checkpoint: false; #1257:
-// no reading line in RULES, no hooks-path or wait line in REVIEW_RULES, each carried by the agent type).
+// no reading line in RULES, no hooks-path or wait line in REVIEW_RULES, each carried by the agent type; #1621: the
+// main checkout taken from args.wt, not a fixed D:/prime-game, and the drive root in the stray-write line).
 // The agents each one adds count toward the agent number the kickoff approves (3 to 5 without them):
 //   plan_review   true: a plan agent writes the plan (files, interfaces, tests, risks), a fresh code-reviewer
 //                 critiques it, then the implementer builds with both; the PR summarizes them. +2 agents. Since #469
@@ -153,8 +154,14 @@ for (const k of ['n', 'title', 'wt', 'branch', 'notes']) {
   if (A[k] === undefined || A[k] === '') throw new Error(`issue-task: args.${k} is required`)
 }
 const N = A.n
-const WT = A.wt.replace(/\\/g, '/')
+// A Git Bash wt (/c/x) becomes C:/x, so MAINW never reads \c\x, the stray folder a Windows program makes of it (#1621).
+const WT = A.wt.replace(/\\/g, '/').replace(/^\/([A-Za-z])(?=\/)/, (m, d) => d.toUpperCase() + ':')
 const WTB = WT.replace(/^([A-Za-z]):/, (m, d) => '/' + d.toLowerCase())
+// The main checkout: the folder above .claude/worktrees/<name>, where `start` makes every worktree, so no drive
+// letter or folder is assumed (#1621). MAINW is its PowerShell form.
+const MAIN = WT.replace(/\/+$/, '').replace(/\/\.claude\/worktrees\/[^/]+$/, '')
+if (MAIN === WT.replace(/\/+$/, '')) throw new Error(`issue-task: args.wt must be <checkout>/.claude/worktrees/<name>, got ${A.wt}`)
+const MAINW = MAIN.replace(/\//g, '\\')
 const BASE = A.base || 'main'
 const PLAN = A.plan || 30
 const DESIGN = A.design === true
@@ -285,7 +292,7 @@ const GODOT_RULE = VISUAL
 const GAME_RULE = '- A game rule that no ADR, ARCHITECTURE section or issue comment settles: do not invent it. Write options with a recommendation under "Needs the engineer" (PR and handoff) and continue with the recommended one if it can be reverted. A placeholder number you must add is marked "not a decision".'
 const RULE_LINES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'} through a workflow. No human answers questions: never ask in chat; everything goes into the repo or GitHub. Root CLAUDE.md applies in full (hard rules, invariants, ownership, shell notes).`,
-  `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR base ${BASE}; the manager already ran \`start\`, never run it again). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\` (PowerShell), and use absolute paths under ${WT} for Read, Edit and Write. Never change D:/prime-game itself (that is main) or another worktree.`,
+  `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR base ${BASE}; the manager already ran \`start\`, never run it again). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\` (PowerShell), and use absolute paths under ${WT} for Read, Edit and Write. Never change ${MAIN} itself (that is main) or another worktree.`,
   `- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through \`tools\\run.cmd publish\`), close or reopen an issue (humans close issues), edit the body of #${PLAN}, \`gh pr merge\`.`,
   '- Do not run a command you expect to prompt (a delete, reset, rebase or branch delete outside your worktree and task branch; an edit of any path under .claude/ or addons/ unless the session runs in bypass): a prompt blocks the run until the human returns. List such a step in the handoff for the human instead. Never delete, move or edit anything under addons/, not even a stray ~*.TMP (ignored: leave it); list any needed cleanup in the handoff for the human.',
   '- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1` (free in your own worktree).',
@@ -297,7 +304,7 @@ const RULE_LINES = [
   `- Change an earlier commit only with \`git commit --fixup=<sha>\`, then \`GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash origin/${BASE}\` (Git Bash; in PowerShell \`$env:GIT_SEQUENCE_EDITOR = ':'; git rebase -i --autosquash origin/${BASE}\`), free in your own worktree on your task branch. To reword one: \`git commit --allow-empty -F <file>\` with the file's first line \`amend! <that commit's subject>\`, then a blank line and the whole new message, then the same rebase; or leave the message as it is. The last commit alone: \`git commit --amend --no-edit\` or \`--amend -F <file>\`, never a bare \`--amend\`, which opens the editor. Nothing else: another sequence editor (a script, \`sed\`, \`-c sequence.editor=...\`), an interactive rebase without \`GIT_SEQUENCE_EDITOR=:\`, \`--fixup=reword:\` or \`--fixup=amend:\` (both open the message editor) and a \`squash!\` commit each can open an editor or run a program on the todo list (a script can add \`exec\` lines): an editor that opens hangs the call until its timeout, and under Claude Code's \`GIT_EDITOR=true\` a \`--fixup=reword:\` keeps the old message without a word. Since #457 the guard lets each of these through in your own worktree on your task branch (before it, its ask held a night run 9 hours, #456); it still asks for \`git rebase --exec\` and for any rebase in the main checkout or another worktree.`,
   HOOKS_RULE,
   WAIT_RULE,
-  '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached D:\\ and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under `D:\\c\\`.',
+  '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached the drive root and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under a stray `\\c\\` folder at the drive root.',
   GODOT_RULE,
   `- Temporary files (commit messages, PR bodies, comments, probes): only under the subfolder ${SCRATCH}/ of your scratchpad, which every agent of every running workflow shares (another task's agent once overwrote a pr_body.md); or ${WT}/tests/scratch/ (gitignored) when they must be under res://. Nowhere else.`,
   // #1257: no READ_RULE here: every agent of RULES (plan, implement, test review) runs as task-implementer and every
@@ -378,7 +385,7 @@ const PUB = {
 }
 // human_steps (#266): each step the engineer takes himself comes back with its whole command, which the manager copies
 // into the chat as is (docs/HUMAN_SESSIONS.md, "Talking to the humans"; docs/interventions/2026-10-03-engineer-commands-in-the-chat.md).
-const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd D:\\prime-game;\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`D:\\prime-game\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
+const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd ${MAINW};\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`${MAINW}\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
 // Bounded waits (#303, always on; the paragraph keeps the name `(bounded_waits)` of the retired arg so that a resumed run
 // and the snapshots replay it byte for byte): one paragraph for each agent that runs verify, publish, mutants or a CI watch,
 // placed after the steps it replaces. pr-rebase.js carries the same text (test_workflows.py compares the two). `loops`
@@ -635,7 +642,7 @@ if (PLAN_REVIEW && !PLAN_SKIPPED && !UPDATE) {
   const short = capPlan(plan)
   if (short !== plan) log(`#${N}: the plan's result was ${size(plan)} characters of JSON; cut to ${size(short)} for the critique and the implementer`)
   const critique = await agent([
-    `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
+    `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. ${MAIN} is main: read the branch's files under ${WT}.`,
     REVIEW_RULES,
     `Critique read-only a PLAN written before anything was built (plan_review); an implementer builds from it next, with your critique. Read the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs and handoffs it links, the area CLAUDE.md files, the code the plan names and ${arch('the plan')}. Budget: at most about 40 tool calls. Edit nothing.`,
     A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
@@ -789,7 +796,7 @@ if (impl.verify_green) {
     ? `the delta of this update run (update, #856): \`git -C ${WTB} diff ${DELTA.head}..HEAD\`, ${DELTA.lines} changed lines in ${DELTA.files} files since the PR's published head ${DELTA.head} (the rest was reviewed when the PR was published: read \`git -C ${WTB} diff origin/${BASE}...HEAD\` only as context, and report outside the delta only what the delta breaks)`
     : `\`git -C ${WTB} diff origin/${BASE}...HEAD\``
   const base = [
-    `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
+    `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. ${MAIN} is main: read the branch's files under ${WT}.`,
     REVIEW_RULES,
     `Review read-only${DESIGN ? ', adversarially, a DESIGN (documents only)' : ''}: ${diff} and the files in ${WT}, against the issue and its comments (\`gh issue view ${N} --comments\`), the ADRs the issue links, the area CLAUDE.md files and ${arch(DESIGN ? 'the design' : 'the change')}. Budget: at most about 60 tool calls. ${DESIGN ? 'Edit nothing.' : 'You may run `tools\\run.cmd test <path>` in the worktree to confirm a finding; do not edit anything.'}`,
     A.coord ? `Context: other issues are built in parallel on other branches; a missing piece that another issue owns is not a finding. ${A.coord}` : '',
@@ -869,7 +876,7 @@ if (impl.verify_green) {
     if (skeptic.unchecked.length) log(`#${N}: ${skeptic.unchecked.length} blocker or major finding(s) over the skeptic limit of ${SKEPTIC_LIMIT} go to the publisher unchecked`)
     if (checked.length) {
       const verdicts = await parallel(checked.map(s => () => agent([
-        `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. D:/prime-game is main: read the branch's files under ${WT}.`,
+        `Issue #${N} (${A.title}). Branch ${A.branch} in the worktree ${WT}; its PR base is origin/${BASE}. ${MAIN} is main: read the branch's files under ${WT}.`,
         REVIEW_RULES,
         'A skeptic\'s read-only check of ONE review finding (skeptic), before the publisher fixes it. Budget: at most about 30 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
         `The finding, from the ${s.from}: ${JSON.stringify(s.finding)}`,

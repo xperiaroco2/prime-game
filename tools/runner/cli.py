@@ -674,7 +674,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("tag", nargs="?", help="the tag to pin, ui-<major>.<minor>.<patch> (none: verify the pinned copy)")
     p.add_argument("--check", action="store_true", help="verify the pinned copy offline (with a tag: and its tag)")
     p.add_argument("--force", action="store_true", help="fetch the tag even when it is already pinned and intact")
-    p.add_argument("--source", help="a clone or URL to fetch from instead of GitHub (e.g. D:/prime-game-ui)")
+    p.add_argument("--source", help="a clone or URL to fetch from instead of GitHub (e.g. the clone beside the main checkout)")
 
     p = sub.add_parser(
         "agents-check",

@@ -60,9 +60,9 @@ class ReadTest(unittest.TestCase):
     def test_reads_transcripts_of_this_checkout_and_its_worktrees(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
-            root = Path("D:/prime-game")
-            name = "D--prime-game"
-            for folder, session in ((name, "s1"), (f"{name}--claude-worktrees-12", "s2"), ("D--prime-game2", "s3")):
+            root = Path("C:/prime-game")
+            name = "C--prime-game"
+            for folder, session in ((name, "s1"), (f"{name}--claude-worktrees-12", "s2"), ("C--prime-game2", "s3")):
                 sub = base / "projects" / folder / session / "subagents"
                 sub.mkdir(parents=True)
                 lines = [

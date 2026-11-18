@@ -87,7 +87,7 @@ class Fixture:
     """
 
     def __init__(self, root: Path) -> None:
-        self.dir = root / "projects" / "D--prime-game"
+        self.dir = root / "projects" / "C--prime-game"
         wf = self.dir / SESSION / "subagents" / "workflows"
         self.run(wf / "wf_done", [
             ("k-impl", "a-dead", "implement:#5", "Implement", None, [
@@ -729,7 +729,7 @@ class BoundedWaitTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
-        folder = Path(self.tmp.name) / "projects" / "D--prime-game"
+        folder = Path(self.tmp.name) / "projects" / "C--prime-game"
         self.dir = folder
         log = "/c/s/a7/verify-1.log"
         Fixture.run(folder / SESSION / "subagents" / "workflows" / "wf_w", [
@@ -864,7 +864,7 @@ class ManagerRewriteTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
-        self.dir = Path(self.tmp.name) / "projects" / "D--prime-game"
+        self.dir = Path(self.tmp.name) / "projects" / "C--prime-game"
         run = self.dir / self.SID / "subagents" / "workflows" / "wf_run"
         Fixture.run(run, [("k-i", "a-i", "implement:#12", "Implement", {"verify_green": True}, [
             assistant(4, "w1", usage(inp=1, write=100)),
@@ -946,7 +946,7 @@ class ManagerRewriteTest(unittest.TestCase):
 
     def lone_timer(self) -> Path:
         """A second manager whose only timer has no timeout and never sends a notification."""
-        other = Path(self.tmp.name) / "lone" / "projects" / "D--prime-game"
+        other = Path(self.tmp.name) / "lone" / "projects" / "C--prime-game"
         h = usage(inp=1, write=200_000, out=10, write_1h=200_000)
         write_lines(other / "44444444-0000-0000-0000-000000000000.jsonl", [
             assistant(0, "n1", h),
@@ -977,7 +977,7 @@ class ManagerRewriteTest(unittest.TestCase):
     def stopped_and_carded(self) -> Path:
         """#981: a manager that stops its timer and its run for a human's stop, resumes the run, then waits on a
         permission card with a timer armed."""
-        other = Path(self.tmp.name) / "carded" / "projects" / "D--prime-game"
+        other = Path(self.tmp.name) / "carded" / "projects" / "C--prime-game"
         sid = "55555555-0000-0000-0000-000000000000"
         # Its run works from minute 1.5 to 2 and, resumed into the same folder, from 80 to 100.
         Fixture.run(other / sid / "subagents" / "workflows" / "wf_stop", [
@@ -988,7 +988,7 @@ class ManagerRewriteTest(unittest.TestCase):
         ])  # fmt: skip
 
         def launched(minutes: float, tool_id: str, task: str) -> dict:
-            folder = r"C:\Users\x\.claude\projects\D--prime-game\55555555\subagents\workflows\wf_stop"
+            folder = r"C:\Users\x\.claude\projects\C--prime-game\55555555\subagents\workflows\wf_stop"
             return tool_result(minutes, tool_id, f"Workflow launched in background. Task ID: {task}\nSummary: s\n"
                                f"Transcript dir: {folder}\nScript file: x")  # fmt: skip
         h = usage(inp=1, write=200_000, out=10, write_1h=200_000)
@@ -1161,7 +1161,7 @@ class QualityTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
-        self.dir = Path(self.tmp.name) / "projects" / "D--prime-game"
+        self.dir = Path(self.tmp.name) / "projects" / "C--prime-game"
         wf = self.dir / self.SID / "subagents" / "workflows"
         lines = self.lines
         review = "Review"
@@ -1471,7 +1471,7 @@ class QualityTest(unittest.TestCase):
 
 class ProjectKeyTest(unittest.TestCase):
     def test_the_key_is_the_main_checkouts_from_any_worktree(self) -> None:
-        self.assertEqual(metrics.project_key(Path("D:/prime-game")), metrics.project_key(Path("D:\\prime-game")))
+        self.assertEqual(metrics.project_key(Path("C:/prime-game")), metrics.project_key(Path("C:\\prime-game")))
         with tempfile.TemporaryDirectory() as tmp:
             main = Path(tmp).resolve() / "game"
             main.mkdir()

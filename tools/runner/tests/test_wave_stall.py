@@ -20,7 +20,7 @@ SID = tw.SID
 OTHER = "0be7a1d0-aaaa-bbbb-cccc-000000000002"
 GUARD = ("git that discards work or rewrites history: git branch -d chore/1-sync (deletes another branch "
          "(chore/1-sync)). (docs/AGENT_WORKFLOW.md §8.2)")  # fmt: skip
-CLEANUP = "git worktree remove D:/prime-game/.claude/worktrees/m7-sync && git branch -d chore/1-sync"
+CLEANUP = "git worktree remove C:/prime-game/.claude/worktrees/m7-sync && git branch -d chore/1-sync"
 # #1044: trimmed copies of the art manager session c0f5845a's lines of 2026-10-13/14 (D--prime-game-art). Its watch on
 # the day's review page dropped at 11:43Z and queued this notification; nothing needed a turn.
 ARTIFACT_WATCH = ("<task-notification>\n<task-type>artifact-watch-lifecycle</task-type>\n<summary>Stopped watching "
@@ -128,7 +128,7 @@ class StallTest(unittest.TestCase):
         rc, out = self.main(40)
         self.assertEqual(rc, wave_stall.STALLED_EXIT)
         line = next(x for x in out.splitlines() if x.startswith("stalled: "))
-        self.assertIn("'AI productivity трек: хвиля 2' (5ef6e325, D--prime-game)", line)
+        self.assertIn("'AI productivity трек: хвиля 2' (5ef6e325, C--prime-game)", line)
         self.assertIn("no turn since 08:00Z (40 min)", line)
         self.assertIn("1 run finished after it (#603 wf_00bf975a-2bd at 08:02Z)", line)
         self.assertIn("2 notifications queued, the oldest since 08:02Z", line)
@@ -229,21 +229,21 @@ class StallTest(unittest.TestCase):
         self.assertTrue(st.waiting.what.endswith("..."))
 
     def test_the_design_checkouts_sessions_are_read_too(self) -> None:
-        # #1124: the design track works in its own repo, D:\prime-game-design; with no dirs given, main() reads the
+        # #1124: the design track works in its own repo, C:\prime-game-design; with no dirs given, main() reads the
         # track checkouts' folders (metrics.track_checkouts), that one's among them.
-        self.p.dir = self.root / "projects" / "D--prime-game-design"
+        self.p.dir = self.root / "projects" / "C--prime-game-design"
         self.p.dir.mkdir(parents=True)
         self.night()
         self.p.write()
         out = io.StringIO()
         with (
             mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.root)}),
-            mock.patch.object(metrics, "main_checkout", return_value=Path("D:/prime-game")),
+            mock.patch.object(metrics, "main_checkout", return_value=Path("C:/prime-game")),
             redirect_stdout(out),
         ):
             rc = wave_stall.main(now=minutes(40), alive=lambda sid: True)
         self.assertEqual(rc, wave_stall.STALLED_EXIT)
-        self.assertIn("(5ef6e325, D--prime-game-design)", out.getvalue())
+        self.assertIn("(5ef6e325, C--prime-game-design)", out.getvalue())
 
     def test_which_sessions_are_read(self) -> None:
         self.night()
@@ -256,7 +256,7 @@ class StallTest(unittest.TestCase):
         rc, out = self.main(40, alive=lambda sid: {SID: False}.get(sid))
         self.assertEqual(rc, wave_stall.STALLED_EXIT)
         self.assertNotIn("5ef6e325", out)
-        self.assertIn("0be7a1d0 (D--prime-game)", out)
+        self.assertIn("0be7a1d0 (C--prime-game)", out)
         self.assertIn("whether its process lives is unknown", out)
         with mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": OTHER}):
             rc, out = self.main(40, alive=lambda sid: False if sid == SID else None)
@@ -274,8 +274,8 @@ class StallTest(unittest.TestCase):
     def test_liveness_from_the_session_files(self) -> None:
         from runner import sessions
 
-        files = [sessions.Session(pid=1, session_id=SID, cwd="D:/prime-game", status="idle", updated=0, name="m"),
-                 sessions.Session(pid=2, session_id=OTHER, cwd="D:/prime-game", status="busy", updated=0, name="o")]
+        files = [sessions.Session(pid=1, session_id=SID, cwd="C:/prime-game", status="idle", updated=0, name="m"),
+                 sessions.Session(pid=2, session_id=OTHER, cwd="C:/prime-game", status="busy", updated=0, name="o")]
         check = wave_stall.liveness(lambda: files, lambda pid, start: pid == 2)
         self.assertEqual((check(SID), check(OTHER), check("nobody")), (False, True, False))  # a closed session
         self.assertIsNone(wave_stall.liveness(lambda: [], lambda pid, start: True)("nobody"))  # no file at all
@@ -373,7 +373,7 @@ class StallTest(unittest.TestCase):
     def test_the_handover_marks(self) -> None:
         # Game and meta post the comment with `wave --title`; an English For-you; an older Claude Code with no origin.
         for last in (tw.assistant(0, "m-w", [bash("h2", HANDOVER_WAVE)]),
-                     said(0, "m-en", "For you:\n1. Close this session, open a new one in `D:\\prime-game` and paste "
+                     said(0, "m-en", "For you:\n1. Close this session, open a new one in `C:\\prime-game` and paste "
                                      "the kickoff below.")):  # fmt: skip
             with self.subTest(last=last["message"]["id"]):
                 self.p.lines = self.p.lines[:1]

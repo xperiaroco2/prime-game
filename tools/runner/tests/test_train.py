@@ -574,7 +574,7 @@ class OwnRepo(guard.NoRepo):
 
 
 class TrainCommandTest(unittest.TestCase):
-    LOG = "/c/Users/u/AppData/Local/Temp/claude/D--prime-game/x/scratchpad/manager/train-1.log"
+    LOG = "/c/Users/u/AppData/Local/Temp/claude/C--prime-game/x/scratchpad/manager/train-1.log"
     TYPED = [
         ("PowerShell", r"tools\run.cmd merge-train 350 321 --base main"),
         ("PowerShell", r"tools\run.cmd merge-train 350 321 --base main --dry-run"),

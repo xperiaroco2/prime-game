@@ -10,7 +10,7 @@ from runner import metrics
 from runner.tests.test_metrics import assistant, bash, tool_result, usage, write_lines
 from runner.tests.test_metrics_instructions import read
 
-WT = "/d/prime-game/.claude/worktrees/834"
+WT = "/c/prime-game/.claude/worktrees/834"
 ARCH = metrics.REPO_ROOT / "docs" / "ARCHITECTURE.md"
 OUTLINE = ("docs/ARCHITECTURE.md: 900 lines, ~160k tokens (characters / 2.35)\n"
            "# Architecture  [lines 1-900, ~160k tokens]")

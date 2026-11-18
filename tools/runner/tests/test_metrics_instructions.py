@@ -78,7 +78,7 @@ class Project:
     """
 
     def __init__(self, root: Path) -> None:
-        self.dir = root / "projects" / "D--prime-game"
+        self.dir = root / "projects" / "C--prime-game"
         self.docs = root / "checkout"
         (self.docs / "docs").mkdir(parents=True)
         (self.docs / "docs" / "ARCHITECTURE.md").write_bytes(ARCHITECTURE.encode("utf-8"))

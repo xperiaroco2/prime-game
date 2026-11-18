@@ -16,13 +16,13 @@ from runner import cli, metrics
 from runner.common import Failure
 from runner.tests.test_metrics import assistant, usage, write_lines
 
-CHECKOUT = Path("D:/prime-game")
+CHECKOUT = Path("C:/prime-game")
 ONE = usage(inp=5_750_000)  # $23.00 of input on Opus 5.5: 1% of the week, no cache reads
 WRITTEN = 1_000_000.0  # every fixture file's mtime
 NOW = WRITTEN + 600  # ten minutes later
 # The checkouts read, named when no run matches (#586): the fixture has no -ui or -design checkout's folder.
-READ = ("checkouts read: main D--prime-game; ui (prime-game-ui) not on this machine, its spend unknown here; art "
-        "D--prime-game-art; design (prime-game-design) not on this machine, its spend unknown here")  # fmt: skip
+READ = ("checkouts read: main C--prime-game; ui (prime-game-ui) not on this machine, its spend unknown here; art "
+        "C--prime-game-art; design (prime-game-design) not on this machine, its spend unknown here")  # fmt: skip
 
 
 def journal(folder: Path, lines: list[dict]) -> None:
@@ -40,17 +40,17 @@ def result(key: str, aid: str) -> dict:
 class RunFixture:
     """A config folder with three runs; each API call below is 1% of the week.
 
-    D--prime-game/s-main  wf_abc12345-111, in flight: an implementer that died (1%) and its retry (its message written
+    C--prime-game/s-main  wf_abc12345-111, in flight: an implementer that died (1%) and its retry (its message written
                           twice, counted once, and one more: 2%), answered; a code review started (1%), no result; a
                           godot-api review started with no transcript yet: 4% in all, 4 agents.
                           wf_other-333: never matched by "abc".
-    D--prime-game-art/s-art wf_abc99999-222, finished: one agent answered (1%) and a synthesis agent the journal does
+    C--prime-game-art/s-art wf_abc99999-222, finished: one agent answered (1%) and a synthesis agent the journal does
                           not list (a journal cut short; its .meta.json names it): 2%.
     """
 
     def __init__(self, root: Path) -> None:
         p = root / "projects"
-        self.live = p / "D--prime-game" / "s-main" / "subagents" / "workflows" / "wf_abc12345-111"
+        self.live = p / "C--prime-game" / "s-main" / "subagents" / "workflows" / "wf_abc12345-111"
         write_lines(self.live / "agent-a-dead.jsonl", [assistant(0, "d1", ONE)])
         write_lines(self.live / "agent-a-impl.jsonl", [assistant(5, "i1", ONE), assistant(5, "i1", ONE),
                                                        assistant(6, "i2", ONE)])  # fmt: skip
@@ -62,10 +62,10 @@ class RunFixture:
             started("k2", "a-rev", "review:code:#5", "Review"),
             started("k3", "a-god", "review:godot-api:#5", "Review"),
         ])
-        other = p / "D--prime-game" / "s-main" / "subagents" / "workflows" / "wf_other-333"
+        other = p / "C--prime-game" / "s-main" / "subagents" / "workflows" / "wf_other-333"
         journal(other, [started("k", "a-o", "implement:#6", "Implement")])
         write_lines(other / "agent-a-o.jsonl", [assistant(0, "o1", ONE)])
-        self.done = p / "D--prime-game-art" / "s-art" / "subagents" / "workflows" / "wf_abc99999-222"
+        self.done = p / "C--prime-game-art" / "s-art" / "subagents" / "workflows" / "wf_abc99999-222"
         write_lines(self.done / "agent-a-art.jsonl", [assistant(0, "x1", ONE)])
         write_lines(self.done / "agent-a-syn.jsonl", [assistant(1, "x2", ONE)])
         (self.done / "agent-a-syn.meta.json").write_text(
@@ -94,7 +94,7 @@ class RunsTest(unittest.TestCase):
 
     def test_a_run_in_flight_so_far(self) -> None:
         self.assertEqual(self.run_main("abc12345").splitlines(), [
-            "run wf_abc12345-111 (session s-main, D--prime-game): unfinished (in flight, or stopped); 3 agents started (4 "
+            "run wf_abc12345-111 (session s-main, C--prime-game): unfinished (in flight, or stopped); 3 agents started (4 "
             "agent runs: a retry, or one the journal does not list), 1 answered; working now: review:code:#5 (Review), "
             "review:godot-api:#5 (Review); last write 10 min ago",
             "spent so far: 4.0% (4.3 to 3.6%) of the week, list $92 in 4 API calls",
@@ -105,7 +105,7 @@ class RunsTest(unittest.TestCase):
 
     def test_a_finished_run_of_another_checkout_with_a_journal_cut_short(self) -> None:
         self.assertEqual(self.run_main("wf_abc99999-222").splitlines(), [
-            "run wf_abc99999-222 (session s-art, D--prime-game-art): finished; 1 agent started (2 agent runs: a retry, "
+            "run wf_abc99999-222 (session s-art, C--prime-game-art): finished; 1 agent started (2 agent runs: a retry, "
             "or one the journal does not list), 1 answered; last write 10 min ago",
             "spent so far: 2.0% (2.1 to 1.8%) of the week, list $46 in 2 API calls",
             "by phase: Prototypes $23 (1 agent), Synthesis $23 (1 agent)",

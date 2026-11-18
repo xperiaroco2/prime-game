@@ -141,7 +141,7 @@ class EndedOptionsJournalTest(unittest.TestCase):
         lines = test_metrics.QualityTest.lines
         judged = {"verdicts": [verdict(1, 0, "valid", "major"), verdict(2, 0, "valid", "major")], "matches": [{"first": 0, "second": 0}]}
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(metrics, "PUB_TRIAL_FROM", "2026-10-01T00:00:00Z"):
-            folder = Path(tmp) / "projects" / "D--prime-game"
+            folder = Path(tmp) / "projects" / "C--prime-game"
             wf = folder / test_metrics.QualityTest.SID / "subagents" / "workflows"
             # #70, launched with ab_review, models.code, models.implement and models.publish_findings, all "sonnet":
             # the control code reviewer and the judge on Opus, a major left open for the Sonnet publisher.

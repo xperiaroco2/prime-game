@@ -29,7 +29,7 @@ def calls(tag: str, *steps: tuple[dict, str]) -> list[dict]:
 
 class Project:
     def __init__(self, root: Path) -> None:
-        self.dir = root / "projects" / "D--prime-game"
+        self.dir = root / "projects" / "C--prime-game"
         wf = self.dir / SID / "subagents" / "workflows" / "wf_adr"
         impl = [instructions(0, (ROOT / "CLAUDE.md", 2350))] + calls(
             "i",

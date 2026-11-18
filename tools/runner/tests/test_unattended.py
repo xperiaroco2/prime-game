@@ -19,7 +19,7 @@ from runner.common import ROOT, Failure
 MAIN = re.sub(r"[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$", "", str(ROOT))
 SESSION = "6f1c2a9e-0b3d-4c58-9a47-1d2e3f4a5b6c"
 OTHER = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
-PROJECTS = "C:\\Users\\x\\.claude\\projects\\D--prime-game"
+PROJECTS = "C:\\Users\\x\\.claude\\projects\\C--prime-game"
 ASKS = "Copy-Item x .claude\\settings.json"
 
 
@@ -139,9 +139,9 @@ class GuardAnswerTest(SignFolderCase):
         self.assertEqual(self.answer(session_id="", transcript_path=f"{PROJECTS}\\{SESSION}.jsonl")["permissionDecision"], "deny")
 
     def test_the_main_checkout_holds_the_signs_for_every_worktree(self) -> None:
-        self.assertEqual(hooks.main_root("D:\\prime-game\\.claude\\worktrees\\750"), "D:\\prime-game")
-        self.assertEqual(hooks.main_root("D:/prime-game/.claude/worktrees/750/"), "D:/prime-game")
-        self.assertEqual(hooks.main_root("D:/prime-game"), "D:/prime-game")
+        self.assertEqual(hooks.main_root("C:\\prime-game\\.claude\\worktrees\\750"), "C:\\prime-game")
+        self.assertEqual(hooks.main_root("C:/prime-game/.claude/worktrees/750/"), "C:/prime-game")
+        self.assertEqual(hooks.main_root("C:/prime-game"), "C:/prime-game")
         self.assertEqual(Path(hooks.unattended_folder()).parts[-3:], hooks.UNATTENDED_FOLDER)
 
     def test_the_hook_reads_the_sign_only_where_it_asks(self) -> None:

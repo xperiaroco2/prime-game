@@ -13,7 +13,7 @@ from pathlib import Path
 from runner import cli, metrics
 from runner.tests.test_metrics import assistant, usage, write_lines
 
-CHECKOUT = Path("D:/prime-game")
+CHECKOUT = Path("C:/prime-game")
 SESSION = "11111111-2222-3333-4444-555555555555"
 UNTIL = "2026-10-02T11:00:00Z"
 HEAVY = "average 150k+ or peak 300k+ per call"
@@ -89,7 +89,7 @@ class ContextReportTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        self.dir = self.root / "projects" / "D--prime-game"
+        self.dir = self.root / "projects" / "C--prime-game"
         context_run(self.dir / SESSION / "subagents" / "workflows" / "wf_ctx")
         write_lines(self.dir / f"{SESSION}.jsonl", [assistant(0, "own", usage(read=900_000))])
 

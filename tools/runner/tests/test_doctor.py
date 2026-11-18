@@ -319,6 +319,6 @@ class ClaudeMdExcludeTest(unittest.TestCase):
         self.assertFalse(self.settings.exists())
 
     def test_in_worktrees_folder(self) -> None:
-        self.assertTrue(doctor.in_worktrees_folder(Path("D:/prime-game/.claude/worktrees/385")))
-        self.assertFalse(doctor.in_worktrees_folder(Path("D:/prime-game")))
-        self.assertFalse(doctor.in_worktrees_folder(Path("D:/prime-game/worktrees/.claude")))
+        self.assertTrue(doctor.in_worktrees_folder(Path("C:/prime-game/.claude/worktrees/385")))
+        self.assertFalse(doctor.in_worktrees_folder(Path("C:/prime-game")))
+        self.assertFalse(doctor.in_worktrees_folder(Path("C:/prime-game/worktrees/.claude")))

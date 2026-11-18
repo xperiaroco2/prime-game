@@ -445,10 +445,10 @@ class MatcherTest(unittest.TestCase):
 
     def test_a_cd_elsewhere_takes_git_out_of_the_read_only_set(self) -> None:
         rules = self.rules()
-        here = "D:\\prime-game\\.claude\\worktrees\\5"
-        self.assertEqual(rules.judge("Bash", "cd /d/prime-game/.claude/worktrees/5 && git status", here)[0], "allow")
-        self.assertEqual(rules.judge("Bash", "cd /d/prime-game/.claude/worktrees/6 && git status", here)[0], "none")
-        self.assertEqual(rules.judge("Bash", "cd /d/prime-game/.claude/worktrees/6 && ls", here)[0], "allow")
+        here = "C:\\prime-game\\.claude\\worktrees\\5"
+        self.assertEqual(rules.judge("Bash", "cd /c/prime-game/.claude/worktrees/5 && git status", here)[0], "allow")
+        self.assertEqual(rules.judge("Bash", "cd /c/prime-game/.claude/worktrees/6 && git status", here)[0], "none")
+        self.assertEqual(rules.judge("Bash", "cd /c/prime-game/.claude/worktrees/6 && ls", here)[0], "allow")
         self.assertEqual(rules.unallowed("Bash", "cd /d/x && git status", here), "git status")
 
     def test_bypass_runs_what_no_rule_names(self) -> None:
@@ -507,7 +507,7 @@ class ReplayFoldersTest(unittest.TestCase):
         )  # fmt: skip
 
 
-SCRATCHPAD = "C:/Users/me/AppData/Local/Temp/claude/D--prime-game/s1/scratchpad"
+SCRATCHPAD = "C:/Users/me/AppData/Local/Temp/claude/C--prime-game/s1/scratchpad"
 OWN = f"{MAIN_POSIX}/.claude/worktrees/312"
 
 
@@ -535,7 +535,7 @@ class AcceptEditsTest(unittest.TestCase):
         for path in (
             f"{OWN}/.claude/skills/x/SKILL.md", f"{MAIN_POSIX}/.claude/agents/x.md", f"{OWN}/.git",
             f"{OWN}/.gitmodules",
-            f"{MAIN_POSIX}/.vscode/settings.json", "C:/Users/me/.claude/CLAUDE.md", "D:/prime-game-art/x.md",
+            f"{MAIN_POSIX}/.vscode/settings.json", "C:/Users/me/.claude/CLAUDE.md", "C:/prime-game-art/x.md",
         ):  # fmt: skip
             self.assert_modes("Edit", path, P, Q, Q)
         self.assertEqual(self.judge("Edit", f"{OWN}/.claude/x.md")[1], "no allow rule: edit (protected path .claude)")
@@ -553,12 +553,12 @@ class AcceptEditsTest(unittest.TestCase):
         ):  # fmt: skip
             self.assert_modes("Bash", command, P, P, Q)
         for command in (
-            f"cp {OWN}/a.txt D:/prime-game-art/a.txt", "touch ~/x", 'rm -f "$X/y"', f"touch {OWN}/.claude/x.md",
+            f"cp {OWN}/a.txt C:/prime-game-art/a.txt", "touch ~/x", 'rm -f "$X/y"', f"touch {OWN}/.claude/x.md",
             f"mkdir {OWN}/.git/x", "sed -n '1w /d/x' a.txt", f"FOO=1 touch {OWN}/x",
         ):  # fmt: skip
             self.assert_modes("Bash", command, P, Q, Q)
         outside = "no allow rule: cp (outside the working directory)"
-        self.assertEqual(self.judge("Bash", "cp a.txt D:/prime-game-art/a.txt")[1], outside)
+        self.assertEqual(self.judge("Bash", "cp a.txt C:/prime-game-art/a.txt")[1], outside)
 
     def test_powershell_content_cmdlets_and_their_quote_rule(self) -> None:
         P, Q, D = permissions.PASS, permissions.PROMPT, permissions.DENIED
@@ -574,7 +574,7 @@ class AcceptEditsTest(unittest.TestCase):
             self.assert_modes("PowerShell", command, D, D, D)
         # A drive's top-level folder is a system path, wherever this checkout lives. A session's own working directory
         # asks.
-        for top in ("D:/prime-game", "C:\\Users"):
+        for top in ("C:/prime-game", "C:\\Users"):
             self.assert_modes("PowerShell", f"Remove-Item -Recurse -Force {top}", D, D, D)
         here = f"{OWN}/tests/scratch/w"
         for mode in permissions.MODES:
@@ -592,7 +592,7 @@ class AcceptEditsTest(unittest.TestCase):
         self.assert_modes("Bash", "ls > D:/other/out.txt", P, Q, Q)
         self.assert_modes("Bash", f"ls > {OWN}/.claude/x.txt", P, Q, Q)
         # A cd out of the working directory is not read-only; one into the own worktree is.
-        self.assert_modes("Bash", "cd D:/prime-game-art && ls", P, Q, Q)
+        self.assert_modes("Bash", "cd C:/prime-game-art && ls", P, Q, Q)
         self.assert_modes("Bash", f"cd {OWN} && ls", P, P, P)
         outside = "no allow rule: cd (outside the working directory)"
         self.assertEqual(self.judge("Bash", "cd D:/other && ls")[1], outside)
@@ -631,7 +631,7 @@ class AcceptEditsTest(unittest.TestCase):
         )
 
 
-SP = "/c/Users/xperi/AppData/Local/Temp/claude/D--prime-game/117bb1c4/scratchpad"
+SP = "/c/Users/xperi/AppData/Local/Temp/claude/C--prime-game/117bb1c4/scratchpad"
 # The routine patterns that prompted most in the replay of 2026-10-04..07 in acceptEdits (#312), one per cause.
 ROUTINE = [
     ("Bash", f'cd {OWN} && "$PYTHON_BIN" - <<\'EOF\'\nprint(1)\nEOF'),

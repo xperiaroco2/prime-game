@@ -9,7 +9,7 @@ from runner import metrics
 from runner.tests.test_metrics import assistant, bash, tool_result, usage, write_lines
 from runner.tests.test_metrics_instructions import read
 
-WT = "/d/prime-game/.claude/worktrees/469"
+WT = "/c/prime-game/.claude/worktrees/469"
 
 
 class FilesReadTest(unittest.TestCase):

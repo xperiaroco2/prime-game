@@ -218,7 +218,7 @@ class TrialBuildTest(unittest.TestCase):
 
     def test_the_report_and_the_record(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            folder = Path(tmp) / "projects" / "D--prime-game"
+            folder = Path(tmp) / "projects" / "C--prime-game"
             wf = folder / test_metrics.QualityTest.SID / "subagents" / "workflows"
             for n, start, model in ((70, 0, SONNET), (71, 30, OPUS)):
                 Fixture.run(wf / f"wf_{n}", [

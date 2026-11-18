@@ -13,7 +13,7 @@ from pathlib import Path
 from runner import metrics
 from runner.tests.test_metrics import SESSION, UNTIL, assistant, usage, write_lines
 
-CHECKOUT = Path("D:/prime-game")
+CHECKOUT = Path("C:/prime-game")
 
 
 def run(folder: Path, agents: list[tuple[str, str, str, int]]) -> None:
@@ -41,7 +41,7 @@ class AgentTypeTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.dir = Path(self.tmp.name) / "projects" / "D--prime-game"
+        self.dir = Path(self.tmp.name) / "projects" / "C--prime-game"
         wf = self.dir / SESSION / "subagents" / "workflows"
         run(wf / "wf_general", [
             ("g-impl", "implement:#5", "workflow-subagent", 58_000),

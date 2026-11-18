@@ -150,7 +150,7 @@ class CiWaitRecordTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
-        self.dir = Path(self.tmp.name) / "projects" / "D--prime-game"
+        self.dir = Path(self.tmp.name) / "projects" / "C--prime-game"
         wf = self.dir / SESSION / "subagents" / "workflows"
         scripts = self.dir / SESSION / "workflows" / "scripts"
         scripts.mkdir(parents=True)
