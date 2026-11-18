@@ -10,7 +10,8 @@
 # its view was black before and after a round; tests/unit/levels/lobby_view_test.gd guards it).
 # The text waits read short parts of the greybox wording (#150), never whole sentences; the end
 # screen's are the copy deck's English (#498): the dissident sees its side's win on the title plate,
-# the guest the same line as plain text (end.winner reads the one shown).
+# the guest the same line as plain text (end.winner reads the one shown). The countdown reads
+# "Back to the ship in 3…" since #1572 (`end.back_to_ship`: the lobby is the ship; #1628).
 players 2
 windows 2
 role 1 dissident
@@ -26,7 +27,7 @@ shot round_clock
 wait screen end timeout=60
 wait phase end
 wait text end.winner is The Dissidents won
-wait text end.countdown has lobby in
+wait text end.countdown has the ship in
 # A second into End: past Night's 0.4 s fade in (#498), two before the lobby. Frames are no
 # clock here (an off-screen window may draw hundreds a second).
 wait text end.countdown has in 2
@@ -49,7 +50,7 @@ press ready
 wait screen round timeout=60
 wait screen end timeout=60
 wait text end.winner is The Dissidents won
-wait text end.countdown has lobby in
+wait text end.countdown has the ship in
 wait text end.countdown has in 2
 shot end_guest
 wait screen lobby timeout=60
