@@ -1,0 +1,86 @@
+# The lobby's pinball (#1398, #1399, #1400) in two of the game's real windows. Window 1 hosts and
+# watches: it walks to the machine (`aim station pinball`) until its Aim chip shows, steps aside
+# (`move_left`) out of the way to the seat, turns back to the machine and presses Ready, the signal
+# that it is in place. Only then window 2 walks to the machine, a little past the chip so it stands
+# well inside the station's reach, and takes the seat with E (`interact`): the close-up camera eases
+# in and the table launches a ball (`PinballState in_play=true`). Window 2 holds the left flipper
+# (Z, `flipper_left`) until the host's PinballState shows it up, and keeps it up until window 1 has
+# shot it and pressed Ready again (not ready). Then window 2 opens the Esc menu over the close-up,
+# closes it, and holds the flipper once more: only the seated player's flippers are accepted
+# (`PinballSeated`), so the seat over Esc is asserted, not only drawn. The waits are in seconds where
+# the game's own clock matters: a game has 3 balls and nobody plays them, so it must not run out
+# while a slow window counts frames. Its shots:
+#   watch_table        window 1: the bystander's view before the seat (the table at rest)
+#   seat_close_up      window 2: the close-up after the seat, the ball in play
+#   watch_flipper      window 1: the bystander's view while window 2's flipper is up
+#   seat_flipper_left  window 2: the left flipper held up
+#   seat_esc           window 2: the Esc menu open over the close-up
+#   seat_after_esc     window 2: the close-up again after the Esc menu closed
+# The display reads the copy deck's text if it has the keys, else the raw keys (`pinball.best`,
+# `pinball.score`, `pinball.balls`; #1400). The camera's framing is read from the PNGs. The
+# bystander aims at the station's use spot, so its view looks down at the seat, not at the table.
+players 2
+windows 2
+
+window 1
+wait phase lobby
+aim station pinball
+hold move_forward
+wait shown lobby.aim on timeout=120
+release move_forward
+aim off
+hold move_left
+seconds 0.6
+release move_left
+aim station pinball
+seconds 0.5
+shot watch_table
+# A lone ready host would start the match before window 2 joins.
+wait players 2 timeout=120
+press ready
+wait ready on
+wait event PinballState left=true timeout=120
+frames 5
+shot watch_flipper
+press ready
+wait ready off
+aim off
+
+window 2
+wait phase lobby
+# An off-screen window lacks the focus, so the lobby captures the pointer only as the Esc menu
+# closes (#517).
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+wait ready 1 on timeout=240
+aim station pinball
+hold move_forward
+wait shown lobby.aim on timeout=120
+seconds 0.3
+release move_forward
+aim off
+press interact
+wait event PinballState in_play=true timeout=30
+seconds 1
+shot seat_close_up
+hold flipper_left
+wait event PinballState left=true timeout=10
+frames 5
+shot seat_flipper_left
+wait ready 1 off timeout=30
+release flipper_left
+wait event PinballState left=false timeout=10
+press ui_cancel
+wait esc open
+frames 10
+shot seat_esc
+press ui_cancel
+wait esc closed
+seconds 0.5
+shot seat_after_esc
+hold flipper_left
+wait event PinballState left=true timeout=10
+release flipper_left
