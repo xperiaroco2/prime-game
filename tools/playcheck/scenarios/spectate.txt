@@ -1,10 +1,11 @@
-# Downed, then dead, then spectating through the target's eyes (#168, PR #173) in the game's
-# real windows. Window 1 hosts, window 2 joins, and player 3 is a bot forced to be the dissident
-# (spectate_bots.tres): it takes a knife and knocks player 2 down, then player 1. Window 2 shows
-# its downed camera with the Toy downed plates (#497: "You're down", the bleed-out bar and "Hold F
-# to give up"), holds F (give_up, #211) once player 1 is down too, dies, and watches the one living
-# player, the bot, through its eyes: its knife in the first-person hand, and only the Spectate
-# tile DeadTop ("Back in m:ss", "Watching: <name>"), none of the HUD: no slots, numbers, aim or crosshair.
+# Downed, then dead, then the dead's hall and the return (#168, PR #173; reworked for M8's dead's
+# room, #1489, in #1635) in the game's real windows. Window 1 hosts, window 2 joins, and player 3 is
+# a bot forced to be the dissident (spectate_bots.tres): it takes a knife and knocks player 2 down,
+# then player 1. Window 2 shows its downed camera with the Toy downed plates (#497: "You're down",
+# the bleed-out bar and "Hold F to give up"), holds F (give_up, #211) once player 1 is down too and
+# dies. The round has a dead's hall, so the dead do not watch a living player through its eyes (the
+# "Watching: <name>" line is only for a phase with no hall): window 2 shows the hall's DeadTop
+# ("Back in m:ss") and none of the HUD, then comes back after the respawn time, protected.
 players 3
 windows 2
 bots tools/playcheck/scenarios/spectate_bots.tres
@@ -37,19 +38,24 @@ wait life 1 downed timeout=60
 hold give_up
 wait life dead
 release give_up
-# Still in the round, and the bot is the one living player to watch.
+# Dead in a round with a dead's hall (#1489, M8): the hall's DeadTop ("Back in m:ss"), no
+# "Watching: <name>" (that line is only for a phase with no hall), none of the HUD.
 wait screen round
-wait life 3 alive
 wait text life.back_in has Back in
 wait text life.respawn has :
 wait shown life.title off
 wait shown life.give_up off
-wait text life.watching has Watching
+wait shown life.watching off
 wait shown hud.hand off
-wait text hand.item is knife
 wait shown hud.health off
 wait shown hud.stamina off
 wait shown hud.aim off
 wait shown hud.crosshair off
 frames 60
-shot spectating_the_bot
+shot dead_hall
+# Back after the respawn time, protected for its first seconds.
+wait event Respawned peer=2 timeout=90
+wait shown life.protected on timeout=10
+wait shown hud.health on
+frames 10
+shot returned
