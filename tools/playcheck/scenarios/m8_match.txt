@@ -1,0 +1,155 @@
+# A whole M8 match (GDD §3 "The M8 release", docs/ROADMAP.md M8), lobby to End and back, in two of
+# the game's real windows: the release check of #1095. The host sets 0 humans (`setting
+# dissidents 0`: aliens only, as M8 plays; the setting's default is 1) and a 3 minute match
+# (`setting match_duration 3`, the host's own lobby setting), so the timer's end comes after the
+# rest. In the lobby window 2 walks to the mirror and takes its place with E: the colour menu shows
+# and frees the pointer (shot; its swatches have no text, so playcheck cannot click one), and E
+# again gives the place up and captures it. Then both press Ready. In the round, on the estate's
+# clearing (the round's start markers are shuffled, up to about 14 m apart), window 1 faces window
+# 2 and waits; window 2 walks into it for 4 s, then swings the bare fist (`use`) 4 times, 0.6 s
+# apart (the hit's cooldown is 0.5 s), and steps back. Window 1 asserts the Damaged that only the
+# one hit receives. It then walks up the ship's ramp (`to_ship`, ship_engine.txt's route) to the
+# console and starts the engine with E; nobody mends the first problem, so the engine blasts and
+# window 1, aboard, goes down (KnockedDown); it holds Give up until it is dead (Died), shows the
+# dead's room with its respawn time (shot), and returns (Respawned, shot). Both windows then wait
+# for the timer: the End screen with its winner's line (shot), then the lobby again.
+# Its shots:
+#   mirror_menu          window 2: the mirror's colour menu in the lobby
+#   pregame_host         window 1: the role reveal
+#   round_start          window 1: the clearing at the round's start, facing window 2
+#   fist_hit             window 2: after its last swing (it cannot know whether one landed)
+#   console              window 1: at the engine console after E
+#   blast                window 1: the engine's blast
+#   downed               window 1: knocked down by the blast
+#   dead_room            window 1: dead, in the dead's room
+#   returned             window 1: back after the respawn
+#   end_host, end_guest  the End screen in both windows
+#   lobby_again          window 1: the lobby after the End
+# The crystal hit is not scripted: a crystal reaches a hand only through the engine's spent-crystal
+# problem, which the engine deals at random. With its join, loading and End the run takes about
+# 5 minutes: run it with `--seconds 600`.
+players 2
+windows 2
+map res://levels/estate/estate.tscn
+setting dissidents 0
+setting match_duration 3
+route to_mirror -15,5.5
+route to_ship 116,58.5 116,64 116,69.4
+
+window 1
+wait phase lobby
+# An off-screen window lacks the focus, so the lobby captures the pointer only as the Esc menu
+# closes (#517).
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+wait players 2 timeout=120
+wait ready 2 on timeout=240
+press ready
+wait screen pregame timeout=90
+frames 10
+shot pregame_host
+wait screen round timeout=90
+aim player 2
+seconds 1
+shot round_start
+wait event Damaged timeout=90
+aim off
+aim station engine_console via to_ship
+hold move_forward
+wait text hud.aim has Engine console timeout=120
+release move_forward
+aim off
+press interact
+wait event EngineProblemOpened timeout=60
+seconds 0.3
+shot console
+wait event EngineBlast timeout=90
+frames 12
+shot blast
+wait event KnockedDown peer=1 timeout=30
+frames 30
+shot downed
+hold give_up
+wait life dead timeout=60
+release give_up
+wait event Died peer=1 timeout=10
+wait shown life.respawn on timeout=10
+seconds 1
+shot dead_room
+wait event Respawned peer=1 timeout=90
+seconds 2
+shot returned
+wait screen end timeout=300
+wait text end.winner has won timeout=10
+seconds 1
+shot end_host
+wait screen lobby timeout=60
+seconds 1
+shot lobby_again
+
+window 2
+wait phase lobby
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+aim station mirror via to_mirror
+hold move_forward
+wait shown lobby.aim on timeout=120
+seconds 0.3
+release move_forward
+aim off
+press interact
+wait pointer free timeout=10
+seconds 0.5
+shot mirror_menu
+press interact
+wait pointer captured timeout=10
+press ready
+wait ready on
+wait screen round timeout=180
+seconds 1
+# The round's scene took the capture again (#517): the Esc menu's close captures the pointer, which
+# the fist's `use` needs.
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+# The HUD names no player under the crosshair, so window 2 walks into window 1 for 4 s (more than
+# the widest pair of start markers at a walk; the aim keeps it pressed against window 1), then
+# swings 0.6 s apart and steps back out of window 1's way to the ship.
+aim player 1
+hold move_forward
+seconds 4
+hold use
+frames 2
+release use
+seconds 0.6
+hold use
+frames 2
+release use
+seconds 0.6
+hold use
+frames 2
+release use
+seconds 0.6
+hold use
+frames 2
+release use
+release move_forward
+frames 5
+shot fist_hit
+aim off
+hold move_back
+seconds 1
+release move_back
+wait screen end timeout=400
+wait text end.winner has won timeout=10
+seconds 1
+shot end_guest
+wait screen lobby timeout=60
