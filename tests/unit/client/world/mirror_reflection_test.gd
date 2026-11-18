@@ -13,6 +13,8 @@ const OWN := 2
 const GLASS_AT := Vector3(-19.79, 1.25, 8.0)
 const GLASS_BASIS := Basis(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0))
 const SIZE := Vector2(2.0, 2.5)
+## A two-handed kind of the base mode (the ship's charged crystal).
+const CRYSTAL := &"crystal_charged"
 
 var _viewport: SubViewport
 var _level: Node3D
@@ -20,6 +22,7 @@ var _marker: Marker3D
 var _eye: Camera3D
 var _mirror: MirrorReflection
 var _model: ClientModel
+var _model_mode: GameMode
 
 
 func before_test() -> void:
@@ -32,17 +35,19 @@ func before_test() -> void:
 	_viewport.add_child(_level)
 	_marker = Marker3D.new()
 	_marker.transform = Transform3D(GLASS_BASIS, GLASS_AT)
-	_marker.set_meta(&"size_m", SIZE)
+	_marker.set_meta(MirrorReflection.SIZE_META, SIZE)
 	_marker.add_to_group(MirrorReflection.GLASS_GROUP)
 	_level.add_child(_marker)
 	_eye = Camera3D.new()
 	_viewport.add_child(_eye)
 	_eye.make_current()
-	_model = ClientModel.new(load(MODE) as GameMode)
+	_model_mode = load(MODE) as GameMode
+	_model = ClientModel.new(_model_mode)
 	_model.own_peer = OWN
 	_member(OWN, 4)
 	_mirror = MirrorReflection.new()
 	_mirror.model = _model
+	_mirror.mode = _model_mode
 	_mirror.eye = func() -> Camera3D: return _eye
 	_mirror.set_process(false)
 	_viewport.add_child(_mirror)
@@ -215,6 +220,110 @@ func test_clear_forgets_the_session() -> void:
 	assert_object(_mirror.player).is_null()
 	_mirror.refresh()
 	assert_bool(_mirror.rendering()).is_false()
+
+
+func test_a_picture_never_draws_the_glass() -> void:
+	# The glass shows live bodies: only the live views (and no puppet record) may draw it.
+	assert_int(_mirror.glass.layers).is_equal(PhotoLayers.LIVE_AVATAR)
+	assert_int(_mirror.glass.layers & PhotoLayers.PHOTO_VIEW).is_equal(0)
+	assert_int(_mirror.glass.layers & PhotoLayers.LIVE_VIEW).is_not_equal(0)
+	assert_bool((_mirror.glass.material_override as BaseMaterial3D).texture_repeat).is_false()
+
+
+## The world's look is mapped once, by the window's pass over the glass: the lens's copy of the
+## environment is linear and skips the screen-space effects, and keeps the rest (the sky, fog).
+func test_the_lens_draws_a_linear_copy_of_the_world_s_environment() -> void:
+	var world_env := Environment.new()
+	world_env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	world_env.tonemap_exposure = 1.15
+	world_env.glow_enabled = true
+	world_env.ssr_enabled = true
+	world_env.ssao_enabled = true
+	world_env.adjustment_enabled = true
+	world_env.fog_enabled = true
+	world_env.background_mode = Environment.BG_COLOR
+	world_env.background_color = Color(0.1, 0.2, 0.3)
+	_viewport.find_world_3d().environment = world_env
+	_eye.look_at_from_position(GLASS_AT + GLASS_BASIS.z * 2.0, GLASS_AT)
+	_mirror.refresh()
+	var lens := _mirror.camera.environment
+	assert_object(lens).is_not_null()
+	assert_object(lens).is_not_same(world_env)
+	assert_int(lens.tonemap_mode).is_equal(Environment.TONE_MAPPER_LINEAR)
+	assert_float(lens.tonemap_exposure).is_equal(1.0)
+	assert_bool(lens.glow_enabled or lens.ssr_enabled or lens.ssao_enabled).is_false()
+	assert_bool(lens.adjustment_enabled).is_false()
+	assert_bool(lens.fog_enabled).is_true()
+	assert_object(lens.background_color).is_equal(world_env.background_color)
+	# The world's own environment is untouched.
+	assert_int(world_env.tonemap_mode).is_equal(Environment.TONE_MAPPER_AGX)
+	# Another world environment makes a new copy.
+	var other := Environment.new()
+	_viewport.find_world_3d().environment = other
+	_mirror.refresh()
+	assert_object(_mirror.camera.environment).is_not_same(lens)
+
+
+func test_the_far_plane_reaches_as_far_beyond_the_glass_from_any_eye() -> void:
+	for distance: float in [1.0, 30.0, 120.0]:
+		_eye.look_at_from_position(GLASS_AT + GLASS_BASIS.z * distance, GLASS_AT)
+		_mirror.refresh()
+		assert_float(_mirror.camera.near).is_equal_approx(distance, 1e-4)
+		assert_float(_mirror.camera.far).is_equal_approx(distance + MirrorReflection.FAR_M, 1e-3)
+
+
+func test_the_size_takes_a_vector2i_and_never_none() -> void:
+	var marker := auto_free(Node3D.new()) as Node3D
+	assert_vector(MirrorReflection.size_of(marker)).is_equal(MirrorReflection.DEFAULT_SIZE_M)
+	marker.set_meta(MirrorReflection.SIZE_META, Vector2i(3, 2))
+	assert_vector(MirrorReflection.size_of(marker)).is_equal(Vector2(3, 2))
+	marker.set_meta(MirrorReflection.SIZE_META, Vector2(0, -1))
+	var least := Vector2.ONE * MirrorReflection.MIN_SIZE_M
+	assert_vector(MirrorReflection.size_of(marker)).is_equal(least)
+
+
+func test_a_hidden_glass_marker_shows_no_glass_and_renders_nothing() -> void:
+	_eye.look_at_from_position(GLASS_AT + GLASS_BASIS.z * 2.0, GLASS_AT)
+	_level.visible = false
+	_mirror.refresh()
+	assert_bool(_mirror.glass.visible).is_false()
+	assert_bool(_mirror.rendering()).is_false()
+	_level.visible = true
+	_mirror.refresh()
+	assert_bool(_mirror.glass.visible).is_true()
+	assert_bool(_mirror.rendering()).is_true()
+
+
+## A stand-in shown again faces the own look at once (its body yaw snapped), as AvatarViews snaps
+## a placed body, not twisted from where it was last drawn.
+func test_a_stand_in_shown_again_faces_the_look_at_once() -> void:
+	var player := _player_at(GLASS_AT + GLASS_BASIS.z * 0.8 + Vector3(0, -1.25, 0))
+	var eye_at := player.global_position + Vector3(0, 1.6, 0)
+	_eye.look_at_from_position(eye_at, GLASS_AT)
+	_mirror.refresh()
+	var body := _mirror.self_body
+	var faced := body.body_yaw
+	# Away from the glass: hidden; the player turns half round meanwhile.
+	_eye.look_at_from_position(eye_at, eye_at + GLASS_BASIS.z)
+	_mirror.refresh()
+	assert_bool(body.visible).is_false()
+	player.rotate_y(PI / 2.0)
+	_eye.look_at_from_position(eye_at, GLASS_AT)
+	_mirror.refresh()
+	assert_bool(body.visible).is_true()
+	var aim := SnapshotBuffer.look_angles(player.look_vector(), Vector2.ZERO).x
+	assert_float(angle_difference(body.body_yaw, aim)).is_equal_approx(0.0, 1e-4)
+	assert_float(absf(angle_difference(body.body_yaw, faced))).is_greater(1.0)
+
+
+func test_the_stand_in_carries_with_a_two_handed_item_in_the_own_hand() -> void:
+	var player := _player_at(GLASS_AT + GLASS_BASIS.z * 0.8 + Vector3(0, -1.25, 0))
+	_eye.look_at_from_position(player.global_position + Vector3(0, 1.6, 0), GLASS_AT)
+	_model.fold(&"ItemSpawned", {"item": 9, "kind": CRYSTAL, "position": Vector3(0, 0, 0)})
+	_model.fold(&"ItemPickedUp", {"peer": OWN, "item": 9})
+	assert_bool(_model_mode.find_item_kind(CRYSTAL).is_two_handed()).is_true()
+	_mirror.refresh()
+	assert_bool(_mirror.last_plan().carry).is_true()
 
 
 ## The texel of the reflection's picture the glass shows at glass point (x right, y up), read from

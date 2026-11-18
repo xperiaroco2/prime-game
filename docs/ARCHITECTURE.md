@@ -5805,39 +5805,52 @@ choose and step with `_uk` twins) draws the handoff's samples. Tests: `tests/uni
 #### 4.7.68 The lobby mirror's reflection (#1395)
 GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first person. `MirrorReflection`
 (`client/world/mirror_reflection.gd`, in `ItemWorld` after `PinballViews`) draws it in every window from the own
-`ClientModel` and the local player; the wire, `core/` and `server/` are unchanged.
+`ClientModel`, the client's own mode copy and the local player; the wire, `core/` and `server/` are unchanged.
 - **The glass.** A Marker3D in `GLASS_GROUP` `mirror_glass` gives the reflecting plane: its origin the glass's centre,
-  +X right and +Y up as seen from the room, +Z toward the room, its `size_m` metadata the width and height (default
-  2 x 2.5 m). The lobby has it as a placeholder, `Mirror/Glass`, 1 cm before the greybox box's room face (provisional;
-  `lobby_hall_test.gd` holds it on that face, facing the places). A level without one draws no glass;
-  `ItemWorld.set_level` hands the level over. The glass is an unshaded `QuadMesh` drawn `GLASS_BEHIND_M` (2 mm)
-  behind the plane, showing the lens's picture flipped left to right (the material's UV scale -1, offset 1).
-- **The lens.** A planar reflection: a `Camera3D` in its own `SubViewport` (sharing the window's `World3D`) at the
-  eye mirrored through the plane (`lens_of`), looking square through it (its -Z the plane's +Z, its +X the plane's
-  -X), with an off-axis frustum (`set_frustum`: the glass's height, `offset_of` the glass's centre in the lens's
-  axes, the near plane on the reflecting plane), so its picture is exactly the glass. Nothing behind the plane is
-  drawn (the box, the wall), nor the glass itself (behind the near plane). The eye is the window's current camera
-  (`get_viewport().get_camera_3d()`: the first-person, the close-up's or a lens). Its `cull_mask` is
-  `PhotoLayers.MIRROR_VIEW`: the live view plus `MIRROR_SELF` (§4.7.58), so the remote bodies are in it as in the
-  hall.
+  +X right and +Y up as seen from the room, +Z toward the room, its `SIZE_META` `glass_size_m` metadata the width and
+  height (a `Vector2` or `Vector2i`, at least 5 cm a side; default 2 x 2.5 m; not `size_m`, which `MapData` reads as
+  a room). The lobby has it as a placeholder, `Mirror/Glass`, 1 cm before the greybox box's room face (provisional;
+  `lobby_hall_test.gd` holds it on that face, facing the places). A level without one, or with it hidden
+  (`HallVisibility`), draws no glass; `ItemWorld.set_level` hands the level over. The glass is an unshaded
+  `QuadMesh` drawn `GLASS_BEHIND_M` (2 mm) behind the plane, showing the lens's picture flipped left to right (the
+  material's UV scale -1, offset 1, no texture repeat), on `PhotoLayers.LIVE_AVATAR`: it shows live bodies, so a
+  picture's camera (`PHOTO_VIEW`, §4.7.58) never draws it.
+- **The lens.** A planar reflection: a `Camera3D` in its own `SubViewport` (sharing the window's `World3D`, its 3D
+  audio listener off: it stands behind the glass) at the eye mirrored through the plane (`lens_of`), looking square
+  through it (its -Z the plane's +Z, its +X the plane's -X), with an off-axis frustum (`set_frustum`: the glass's
+  height, `offset_of` the glass's centre in the lens's axes, the near plane on the reflecting plane, the far plane
+  `FAR_M` 80 m beyond it), so its picture is exactly the glass. Nothing behind the plane is drawn (the box, the wall),
+  nor the glass itself (behind the near plane). The eye is the window's current camera
+  (`get_viewport().get_camera_3d()`: the first-person, downed, spectate or pinball close-up camera; through the photo
+  viewfinder, whose lens has its own viewport, the glass shows what the main camera's place would see). Its
+  `cull_mask` is `PhotoLayers.MIRROR_VIEW`: the live view plus `MIRROR_SELF` (§4.7.58), so the remote bodies are in
+  it as in the hall, hidden where `SightHider` or `HallVisibility` hides them. Its environment is a copy of the
+  world's (`lens_environment`, made again when the world's changes) with linear tone mapping at exposure 1 and no
+  glow, colour adjustment, SSR, SSAO or SSIL: the window's own pass maps the glass once, with the room around it
+  (highlights above 1 clip in the 8-bit picture).
 - **The own stand-in.** The own body is drawn nowhere else, so the mirror draws `self_body`: a `RemotePlayerBody`
   with no collision, its shadow off, on `MIRROR_SELF` alone, at the local player's feet, look, crouch, sneak and own
-  velocity (`pose_of`, `AvatarClips` from it), seated by `ClientModel.posed`, in the own roster colour (the host's
-  `ProfileChanged`; nothing predicted). It shows only while the own body stands (`body_life_of` living: a downed or
-  limp own body is drawn as its ragdoll, KE5) and the reflection renders. The first-person hand item is on
-  `LIVE_AVATAR` and so shows in the mirror where it sits before the eye; the stand-in holds no item (kept simple).
+  velocity (`pose_of`, `AvatarClips` from it, carrying with a two-handed item in the own hand), seated by
+  `ClientModel.posed`, in the own roster colour (the host's `ProfileChanged`; nothing predicted). Shown again after
+  being hidden, it faces the look at once (`snap_look`). It shows only while the own body stands (`body_life_of`
+  living: a downed or limp own body is drawn as its ragdoll, KE5) and the reflection renders. The first-person hand
+  item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye; the stand-in holds no item view
+  (kept simple).
 - **Cost.** The lens renders (`UPDATE_ALWAYS`) only while the eye is in front of the plane (`MIN_EYE_M`) and the
   glass is not wholly outside one of its frustum's planes (`seen_by`); else its viewport is off and the stand-in
-  hidden. Its picture is `HEIGHT_PX` 512 rows (the width by the glass's aspect: 410), with no positional shadows and
-  no occlusion culling (an occluder between the mirrored eye and the glass would cull the room). Not measured: the
-  frame time needs a desktop with a GPU (`perf` measures the host).
+  hidden. Its picture is `HEIGHT_PX` 512 rows (the width by the glass's aspect: 410), with no positional shadows, no
+  screen-space effects and no occlusion culling (an occluder between the mirrored eye and the glass would cull the
+  room), so a player at the mirror draws the lobby a second time. Not measured: the frame time needs a desktop with
+  a GPU (`perf` measures the host).
 - **Provisional, not a decision** (taste, the engineer's): the glass's place and size, the resolution, the plain
   unshaded glass (no frame, no tint).
 - **Tests.** `tests/unit/client/world/mirror_reflection_test.gd` (a point before the glass is drawn where the eye
   sees its mirror image, from a square and an oblique eye, through the quad's own UVs and the flip; the glass behind
-  the near plane; rendering only while seen from the front; no glass, no reflection; the stand-in's place, colour,
-  layer, no collision, hidden while down; `clear`), `photo_layers_test.gd`, `lobby_hall_test.gd` (the glass marker)
-  and `item_world_children_test.gd`; the `shot` preview `client/dev/mirror_preview.tscn` shows it.
+  the near plane and off pictures; the lens's linear environment; the far plane; the size; rendering only while seen
+  from the front; no glass or a hidden one, no reflection; the stand-in's place, colour, layer, no collision, the
+  snap, the carry, hidden while down; `clear`), `item_world_mirror_test.gd` (the wiring), `photo_layers_test.gd`,
+  `lobby_hall_test.gd` (the glass marker) and `item_world_children_test.gd`; the `shot` preview
+  `client/dev/mirror_preview.tscn` shows it.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

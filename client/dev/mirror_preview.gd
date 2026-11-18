@@ -70,7 +70,7 @@ func _ready() -> void:
 	camera.make_current()
 	var mirror := MirrorReflection.new()
 	mirror.model = _model
-	mirror.rules = rules
+	mirror.mode = mode
 	mirror.player = own
 	add_child(mirror)
 	mirror.level = room

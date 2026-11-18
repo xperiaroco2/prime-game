@@ -190,7 +190,7 @@ func setup(client: ClientSession, game_mode: GameMode, views: AvatarViews) -> vo
 	pinball.drawn_at = views.drawn_at
 	pinball.keys.send = client.send_intent
 	mirror.model = _model
-	mirror.rules = game_mode.player_rules
+	mirror.mode = game_mode
 	mirror.character = views.character
 	hums.model = _model
 	hums.mode = game_mode

@@ -332,7 +332,8 @@ func test_the_mirror_s_glass_marker_lies_on_the_box_s_room_face() -> void:
 		assert_float(depth).is_less_equal(EPS)
 		nearest = minf(nearest, -depth)
 	assert_float(nearest).is_less(0.02)
-	var size := marker.get_meta(&"size_m") as Vector2
+	assert_bool(marker.has_meta(MirrorReflection.SIZE_META)).is_true()
+	var size := MirrorReflection.size_of(marker)
 	for corner: Vector3 in MirrorReflection.corners_of(plane, size):
 		assert_bool(box.grow(0.02 + EPS).has_point(corner)).is_true()
 	var places := _markers(&"spawn_mirror")

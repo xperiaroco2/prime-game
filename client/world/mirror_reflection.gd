@@ -7,37 +7,47 @@ extends Node3D
 ## its picture drawn on the glass flipped left to right (`glass`, unshaded) is what a mirror shows.
 ## Its near plane is the reflecting plane: nothing behind the glass (the greybox box, the wall) is
 ## drawn, and the glass itself, drawn GLASS_BEHIND_M behind that plane, never reflects itself.
+## The lens draws with a copy of the world's environment that leaves the picture linear (no tone
+## mapping, exposure, glow, colour adjustment, SSR, SSAO or SSIL): the glass is drawn in the room,
+## so the window's own pass maps it once, as the room around it.
 ##
 ## The own player has no body in its own view, so the mirror draws a stand-in (`self_body`): a
 ## RemotePlayerBody with no collision on PhotoLayers.MIRROR_SELF, which only this camera draws, in
 ## the own colour from the roster (the host's ProfileChanged: nothing is predicted), at the local
-## player's own feet, look, crouch and move, only while the own body stands (not downed, limp or
-## dead). Other players are in it as they are in the hall (their bodies on LIVE_AVATAR).
+## player's own feet, look, crouch and move, its arms carrying with a two-handed item in the own
+## hand, only while the own body stands (not downed, limp or dead). Other players are in it as they
+## are in the hall (their bodies on LIVE_AVATAR). The glass is on LIVE_AVATAR too: it shows live
+## bodies, so a picture's camera (PHOTO_VIEW) never draws it.
 ##
 ## Cost: the reflection renders only while the window's current camera is in front of the glass
-## and the glass is inside its frustum (`seen`), at HEIGHT_PX rows, with no positional shadows and
-## no occlusion culling (an occluder behind the mirrored eye would cull the room). Else its
+## and the glass is inside its frustum (`seen_by`), at HEIGHT_PX rows, with no positional shadows
+## and no occlusion culling (an occluder behind the mirrored eye would cull the room). Else its
 ## viewport is off and the stand-in hidden.
 ##
 ## The level gives the glass, a Marker3D in GLASS_GROUP: its origin the reflecting plane's centre,
-## +X right and +Y up as seen from the room, +Z toward the room, its `size_m` metadata the width and
-## height in metres. A level without one draws no glass. Provisional, not a decision: the size, the
+## +X right and +Y up as seen from the room, +Z toward the room, its SIZE_META metadata the width
+## and height in metres (not `size_m`, which MapData reads as a room). A level without one, or with
+## it hidden (HallVisibility), draws no glass. Provisional, not a decision: the size, the
 ## resolution and the plain unshaded glass (no frame, no tint).
 
 const GLASS_GROUP := &"mirror_glass"
+const SIZE_META := &"glass_size_m"
 ## The glass's width and height when its marker names none.
 const DEFAULT_SIZE_M := Vector2(2.0, 2.5)
+const MIN_SIZE_M := 0.05
 ## The reflection's picture height in pixels; its width follows the glass's aspect.
 const HEIGHT_PX := 512
 ## How far behind the reflecting plane the glass is drawn: behind the reflection's near plane.
 const GLASS_BEHIND_M := 0.002
 ## An eye nearer to the plane than this (or behind it) sees no reflection.
 const MIN_EYE_M := 0.05
+## How far beyond the glass the reflection reaches.
 const FAR_M := 80.0
 const BODY := preload("res://client/player/remote_player_body.tscn")
 
 var model: ClientModel
-var rules: PlayerRules
+## The client's own copy of the mode: the player rules and the items' kinds.
+var mode: GameMode
 var character: CharacterSet
 ## The local player: the stand-in follows it (ItemWorld.set_player).
 var player: PlayerController
@@ -58,8 +68,12 @@ var self_body: RemotePlayerBody
 ## The reflecting plane: its origin the glass's centre, +Z toward the room (orthonormal).
 var _plane := Transform3D.IDENTITY
 var _size := DEFAULT_SIZE_M
-var _has_glass := false
+var _marker_at: Node3D
 var _last_plan: AvatarClips.Plan
+## Whether the stand-in was drawn last frame: one shown again faces its look at once.
+var _self_shown := false
+## The world environment the lens's copy was made from.
+var _source_environment: Environment
 
 
 func _init() -> void:
@@ -70,6 +84,7 @@ func _init() -> void:
 	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	viewport.use_occlusion_culling = false
 	viewport.positional_shadow_atlas_size = 0
+	# The lens stands behind the glass: it must hear nothing.
 	viewport.audio_listener_enable_3d = false
 	viewport.size = _pixels(DEFAULT_SIZE_M)
 	camera.name = "Lens"
@@ -84,12 +99,15 @@ func _init() -> void:
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.albedo_texture = viewport.get_texture()
+	# No wrap: the edges' filtering must not blend in the opposite edge.
+	material.texture_repeat = false
 	# A mirror swaps left and right: the picture is sampled at (1 - u, v).
 	material.uv1_scale = Vector3(-1.0, 1.0, 1.0)
 	material.uv1_offset = Vector3(1.0, 0.0, 0.0)
 	glass.material_override = material
 	glass.visible = false
 	add_child(glass)
+	PhotoLayers.assign(glass, PhotoLayers.LIVE_AVATAR, false)
 
 
 func _process(delta: float) -> void:
@@ -99,15 +117,24 @@ func _process(delta: float) -> void:
 ## Renders the reflection this frame when it is seen, else turns it off; `delta` eases the
 ## stand-in's crouch.
 func refresh(delta: float = 0.0) -> void:
+	var shown := _glass_shown()
+	glass.visible = shown
 	var seen := _eye_camera()
-	if not _has_glass or model == null or seen == null or not seen_by(seen):
+	if not shown or model == null or seen == null or not seen_by(seen):
 		_off()
 		return
+	_follow_environment()
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	var at := seen.global_position
+	var near := distance_of(_plane, at)
 	camera.global_transform = lens_of(_plane, at)
-	camera.set_frustum(_size.y, offset_of(_plane, at), distance_of(_plane, at), FAR_M)
+	camera.set_frustum(_size.y, offset_of(_plane, at), near, near + FAR_M)
 	_show_self(delta)
+
+
+## The stand-in's last clip plan, or null (none drawn since it was last hidden).
+func last_plan() -> AvatarClips.Plan:
+	return _last_plan
 
 
 ## Whether the reflection is rendered now.
@@ -118,7 +145,9 @@ func rendering() -> bool:
 ## Whether `seen` (a camera in the tree) sees the glass's face: its eye in front of the plane and
 ## the glass not wholly outside one of its frustum's planes.
 func seen_by(seen: Camera3D) -> bool:
-	if not _has_glass or distance_of(_plane, seen.global_position) < MIN_EYE_M:
+	if not _glass_shown() or not seen.is_inside_tree():
+		return false
+	if distance_of(_plane, seen.global_position) < MIN_EYE_M:
 		return false
 	var corners := corners_of(_plane, _size)
 	for plane: Plane in seen.get_frustum():
@@ -165,6 +194,33 @@ static func corners_of(plane: Transform3D, size: Vector2) -> Array[Vector3]:
 	]
 
 
+## The glass's size a marker names (a Vector2 or a Vector2i, at least MIN_SIZE_M a side), else
+## DEFAULT_SIZE_M.
+static func size_of(marker: Node) -> Vector2:
+	var raw: Variant = marker.get_meta(SIZE_META, DEFAULT_SIZE_M)
+	var size := DEFAULT_SIZE_M
+	if raw is Vector2:
+		size = raw as Vector2
+	elif raw is Vector2i:
+		size = Vector2(raw as Vector2i)
+	return size.max(Vector2(MIN_SIZE_M, MIN_SIZE_M))
+
+
+## The lens's environment from the world's `source`: a copy that leaves the picture linear (the
+## window's pass maps the glass once, with the room) and skips the screen-space effects.
+static func lens_environment(source: Environment) -> Environment:
+	var copy := source.duplicate() as Environment
+	copy.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	copy.tonemap_exposure = 1.0
+	copy.tonemap_white = 1.0
+	copy.glow_enabled = false
+	copy.adjustment_enabled = false
+	copy.ssr_enabled = false
+	copy.ssao_enabled = false
+	copy.ssil_enabled = false
+	return copy
+
+
 ## The stand-in's pose: the local player's feet, look, move, crouch and sneak now, or null.
 static func pose_of(local: PlayerController) -> SnapshotBuffer.Pose:
 	if local == null or not local.is_inside_tree():
@@ -185,11 +241,12 @@ static func pose_of(local: PlayerController) -> SnapshotBuffer.Pose:
 func clear() -> void:
 	_off()
 	if self_body != null:
-		self_body.queue_free()
 		remove_child(self_body)
+		self_body.queue_free()
 		self_body = null
 	_last_plan = null
 	model = null
+	mode = null
 	player = null
 
 
@@ -199,10 +256,34 @@ func _eye_camera() -> Camera3D:
 	return get_viewport().get_camera_3d() if is_inside_tree() else null
 
 
+## Whether the glass shows: a marker that is still in the tree and visible.
+func _glass_shown() -> bool:
+	return (
+		is_instance_valid(_marker_at)
+		and _marker_at.is_inside_tree()
+		and _marker_at.is_visible_in_tree()
+	)
+
+
 func _off() -> void:
 	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_hide_self()
+
+
+func _hide_self() -> void:
 	if self_body != null:
 		self_body.visible = false
+	_self_shown = false
+
+
+## A copy of the world's environment for the lens, made again when the world's changes.
+func _follow_environment() -> void:
+	var world := viewport.find_world_3d()
+	var source := world.environment if world != null else null
+	if source == _source_environment:
+		return
+	_source_environment = source
+	camera.environment = lens_environment(source) if source != null else null
 
 
 ## Draws the stand-in where the own body stands, or hides it.
@@ -210,9 +291,9 @@ func _show_self(delta: float) -> void:
 	var own := model.own_peer
 	var pose := pose_of(player)
 	if own <= 0 or pose == null or model.body_life_of(own) != ClientModel.Life.ALIVE:
-		if self_body != null:
-			self_body.visible = false
+		_hide_self()
 		return
+	var rules := mode.player_rules if mode != null else null
 	var first := self_body == null
 	if first:
 		self_body = BODY.instantiate() as RemotePlayerBody
@@ -226,6 +307,11 @@ func _show_self(delta: float) -> void:
 		self_body.set_character(character)
 		# No shadow: the own view has none of its own body.
 		PhotoLayers.assign(self_body, PhotoLayers.MIRROR_SELF, false)
+	if not _self_shown:
+		# Shown again (or first): the body faces the look at once, not by a turn from the past.
+		self_body.snap_look()
+		_last_plan = null
+	_self_shown = true
 	self_body.visible = true
 	pose.posed = model.posed
 	self_body.set_colour(BodyColours.of(model.colour_of(own)))
@@ -237,6 +323,7 @@ func _show_self(delta: float) -> void:
 	state.crouched = pose.crouched
 	state.posed = pose.posed
 	state.drawn_move = pose.velocity
+	state.carrying = _carries_two_handed(own)
 	state.was_back = _last_plan != null and _last_plan.back
 	var walk := rules.walk_speed_mps if rules != null else 0.0
 	var sprint := rules.sprint_speed_mps if rules != null else 0.0
@@ -244,20 +331,27 @@ func _show_self(delta: float) -> void:
 	self_body.apply_plan(_last_plan)
 
 
+## Whether `peer`'s hand holds a two-handed item (the carry pose), as AvatarViews draws it.
+func _carries_two_handed(peer: int) -> bool:
+	var known: ClientModel.Item = model.items.get(model.hand_item(peer))
+	if known == null or mode == null:
+		return false
+	var kind := mode.find_item_kind(known.kind)
+	return kind != null and kind.is_two_handed()
+
+
 ## Puts the glass on the level's marker, or hides it with none.
 func _place() -> void:
-	var marker := _marker()
-	_has_glass = marker != null
-	glass.visible = _has_glass
-	if not _has_glass:
+	_marker_at = _marker()
+	if _marker_at == null:
+		glass.visible = false
 		_off()
 		return
-	_plane = marker.global_transform.orthonormalized()
-	_size = DEFAULT_SIZE_M
-	if marker.has_meta(&"size_m"):
-		_size = marker.get_meta(&"size_m") as Vector2
+	_plane = _marker_at.global_transform.orthonormalized()
+	_size = size_of(_marker_at)
 	(glass.mesh as QuadMesh).size = _size
 	glass.global_transform = _plane.translated(-_plane.basis.z * GLASS_BEHIND_M)
+	glass.visible = _glass_shown()
 	viewport.size = _pixels(_size)
 
 
@@ -272,5 +366,5 @@ func _marker() -> Node3D:
 
 
 static func _pixels(size: Vector2) -> Vector2i:
-	var wide := maxi(1, roundi(HEIGHT_PX * size.x / maxf(size.y, 0.01)))
+	var wide := maxi(2, roundi(HEIGHT_PX * size.x / maxf(size.y, MIN_SIZE_M)))
 	return Vector2i(wide, HEIGHT_PX)
