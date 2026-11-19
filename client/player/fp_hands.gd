@@ -45,6 +45,9 @@ const RUN_CLIP_MPS := 4.5
 ## The run clip's speed stays between these. Looks.
 const RUN_SCALE_MIN := 0.7
 const RUN_SCALE_MAX := 1.6
+## The package's default body colour (HANDOFF "The colour slot and the light": sRGB 0.40 0.86
+## 0.80), the hands' colour until the own one is known (set_tint).
+const DEFAULT_TINT := Color(0.40, 0.86, 0.80)
 
 ## The package's scene, loaded once for every controller.
 static var _package: PackedScene
@@ -62,7 +65,7 @@ var view: FpView
 var _scene: PackedScene
 var _materials: Array[BaseMaterial3D] = []
 var _albedo: Array[Color] = []
-var _tint := Color.WHITE
+var _tint := DEFAULT_TINT
 var _held: StringName = &""
 var _speed := 0.0
 var _hitting := false

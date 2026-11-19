@@ -4,20 +4,23 @@ extends CanvasLayer
 ## viewmodel and as the art package's HANDOFF asks: a Camera3D at the package's FOV_DEG, its
 ## transform the player camera's every frame, in a transparent SubViewport the size of the screen
 ## laid over the live view, under the HUD (layer LAYER). It shares the level's World3D and draws
-## PhotoLayers.HANDS alone: the hands (FpHands) and the crystal they hold. A soft fill light on that
-## layer alone lights them from the upper left (the package's shots: a directional light, energy
-## FILL_ENERGY, warm white), with the level's own lights (light_level puts HANDS on each light
-## that reaches GROUND). It shows while `shown` and the player camera is the current one (not the
-## downed, spectate or viewfinder camera).
+## PhotoLayers.HANDS alone: the hands (FpHands) and the crystal they hold. A fill light on that
+## layer alone (the package's HANDOFF, "The colour slot and the light": a directional light, energy
+## FILL_ENERGY, warm white, from the right side and a little above) lights them with the level's
+## own lights (light_level). It shows while `shown` and the player camera is the current one (not
+## the downed, spectate or viewfinder camera).
 
 ## The package's vertical field of view, degrees (HANDOFF `[view] fov_deg`).
 const FOV_DEG := 50.0
 ## Under GameUi's layers (1 and up): the hands sit between the 3D view and the HUD.
 const LAYER := -1
-const FILL_ENERGY := 0.35
-const FILL_COLOUR := Color(1.0, 0.95, 0.88)
-## The fill light's direction in the camera's space: from the upper left, slightly behind.
-const FILL_EULER := Vector3(deg_to_rad(-35.0), deg_to_rad(-40.0), 0.0)
+## The HANDOFF's fill light (art n2, 2026-11-19).
+const FILL_ENERGY := 0.3
+const FILL_COLOUR := Color(1.0, 0.93, 0.85)
+## Its `rotation_degrees` under the hands' camera.
+const FILL_EULER := Vector3(deg_to_rad(-50.0), deg_to_rad(-90.0), 0.0)
+## The hands' ambient light, as a share of the live view's (HANDOFF).
+const AMBIENT_SHARE := 0.8
 
 ## The player camera the hands' camera follows.
 var source: Camera3D
@@ -91,15 +94,18 @@ func drawn() -> bool:
 	)
 
 
-## The hands' environment: a copy of the live view's `looks` (its tone, ambient light and
-## exposure) whose background is the transparent clear colour, without the screen-space and
-## volume passes (SSAO, SSIL, SDFGI, fog, volumetric fog, glow) a second full-screen pass of the
-## hands alone needs not pay for; null for none.
+## The hands' environment: a copy of the live view's `looks` (its tone and exposure) whose
+## background is the transparent clear colour, its ambient light at AMBIENT_SHARE of the view's,
+## without the screen-space and volume passes (SSR, SSAO, SSIL, SDFGI, fog, volumetric fog, glow) a
+## second full-screen pass of the hands alone needs not pay for (the HANDOFF's list and glow);
+## null for none.
 static func hands_environment(looks: Environment) -> Environment:
 	if looks == null:
 		return null
 	var own := looks.duplicate() as Environment
 	own.background_mode = Environment.BG_CLEAR_COLOR
+	own.ambient_light_energy = looks.ambient_light_energy * AMBIENT_SHARE
+	own.ssr_enabled = false
 	own.ssao_enabled = false
 	own.ssil_enabled = false
 	own.sdfgi_enabled = false

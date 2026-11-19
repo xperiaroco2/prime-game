@@ -123,6 +123,7 @@ func test_the_hands_environment_is_the_views_without_its_extra_passes() -> void:
 	looks.ssil_enabled = true
 	looks.glow_enabled = true
 	looks.fog_enabled = true
+	looks.ssr_enabled = true
 	looks.ambient_light_energy = 0.7
 	var own := FpView.hands_environment(looks)
 	assert_object(own).is_not_same(looks)
@@ -131,7 +132,8 @@ func test_the_hands_environment_is_the_views_without_its_extra_passes() -> void:
 		assert_bool(own.ssao_enabled or own.ssil_enabled or own.glow_enabled or own.fog_enabled)
 		. is_false()
 	)
-	assert_float(own.ambient_light_energy).is_equal_approx(0.7, 1e-6)
+	assert_float(own.ambient_light_energy).is_equal_approx(0.7 * FpView.AMBIENT_SHARE, 1e-6)
+	assert_bool(own.ssr_enabled).is_false()
 	assert_int(looks.background_mode).is_equal(Environment.BG_SKY)
 	assert_object(FpView.hands_environment(null)).is_null()
 
@@ -161,9 +163,11 @@ func test_the_hands_are_on_their_own_layer_with_no_shadow() -> void:
 func test_the_hands_take_the_own_body_colour() -> void:
 	var hands := _hands()
 	var arms := hands.model.find_child("FPArms", true, false) as MeshInstance3D
+	var material := arms.get_active_material(0) as BaseMaterial3D
+	# Before the own colour is known: the package's default (HANDOFF, sRGB 0.40 0.86 0.80).
+	assert_that(material.albedo_color).is_equal(SKIN * FpHands.DEFAULT_TINT)
 	var colour := BodyColours.of(3)
 	hands.set_tint(colour)
-	var material := arms.get_active_material(0) as BaseMaterial3D
 	assert_that(material.albedo_color).is_equal(SKIN * colour)
 	# Its own copy: the package's material keeps its albedo.
 	assert_object((arms.mesh as BoxMesh).material).is_not_same(material)

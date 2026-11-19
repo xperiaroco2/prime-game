@@ -5873,7 +5873,8 @@ and the pass renders no shadow map (`positional_shadow_atlas_size` 0): the hands
 package (`FpHands.model` null) there is no view and no pass. `LIVE_VIEW` and `PHOTO_VIEW` both leave `HANDS` out, so neither the live view nor a picture
 draws the hands. The view shows while the own player is living and the player camera is its viewport's current one
 (not the downed, spectate or viewfinder camera).
-- **Light:** a soft fill on `HANDS` alone (energy 0.35, warm white, from the upper left) and the level's own
+- **Light** (the HANDOFF's values): a fill on `HANDS` alone (energy 0.3, warm white, from the right and a little
+  above) and the level's own
   lights. `FpView.light_level`, which `GameLevel.swap` runs on every level it adds, puts `HANDS` on the `layers` and
   `light_cull_mask` of each light the live view draws (its `layers` in `LIVE_VIEW`), the lobby's own (layer 11)
   too. A light added later (the dead's hall, a photo's flash) does not light the hands.
@@ -5897,13 +5898,16 @@ draws the hands. The view shows while the own player is living and the player ca
   watched player's crystal as the greybox item, not the hands of that player's own screen.
 - **The colour:** the own body colour from the own profile (`ClientModel.colour_of(own_peer)`, `BodyColours`),
   which `ItemViews` passes on every frame. It multiplies each material's own albedo, as `CharacterRig` tints a
-  remote body.
+  remote body; the package's skin is a neutral texture under a white factor, so the albedo is the body colour
+  (until it is known, the package's default `DEFAULT_TINT`, sRGB 0.40 0.86 0.80). The hands' environment takes
+  `AMBIENT_SHARE` (0.8) of the view's ambient light.
 
 The hands have no sound beyond the existing swing. A later package from the art repo replaces the one GLB (its
-`.import` and its credits): the code uses only the HANDOFF's node and clip names, and the import check (§11.3)
+`.import`, its credits, and the textures Godot extracts from it, which `check` writes and which keep
+`compress/mode=2`): the code uses only the HANDOFF's node and clip names, and the import check (§11.3)
 holds them (`asset_contract.json`'s `body` row: the six clips with their loops and `CrystalSocket`). Without the package's nodes (CI's
 Git LFS stand-in) the hands show nothing and every call is harmless. Stills: `client/dev/fp_hands_preview_<state>.tscn`
-(idle, run, punch, crystal, crystal_hit), the eye in the ship's hall. Tests: `tests/unit/client/player/fp_hands_test.gd`.
+(idle, run, punch, crystal, crystal_hit; punch_default in the package's default colour), the eye in the ship's hall. Tests: `tests/unit/client/player/fp_hands_test.gd`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

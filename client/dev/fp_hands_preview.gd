@@ -2,7 +2,8 @@ extends Node3D
 ## A preview of the first-person hands (#1587, ARCHITECTURE §4.7.68) for `tools\run.cmd shot`: the
 ## eye in the ship's hall (the estate's ship room, read only) on the engine console's use spot,
 ## looking at the console, with FpHands under a live camera and FpView over the view, as the
-## controller puts them, in body colour `colour` (BodyColours). `state` picks the frame: "idle",
+## controller puts them, in body colour `colour` (BodyColours; -1: the package's default,
+## FpHands.DEFAULT_TINT). `state` picks the frame: "idle",
 ## "run" (a quarter into its cycle), "punch" (at its contact, 0.15 s), "crystal" (a charged crystal
 ## held, a second into Crystal_Idle) or "crystal_hit" (at its contact, 0.18 s). Each clip is
 ## seeked and paused, so the still does not depend on the frame rate. Dev only.
@@ -50,7 +51,8 @@ func _ready() -> void:
 	camera.add_child(hand)
 	var hands := FpHands.new()
 	hands.attach(self, camera, hand)
-	hands.set_tint(BodyColours.of(colour))
+	if colour >= 0:
+		hands.set_tint(BodyColours.of(colour))
 	if state.begins_with("crystal"):
 		hands.set_held(&"crystal_charged")
 	if hands.player == null:
