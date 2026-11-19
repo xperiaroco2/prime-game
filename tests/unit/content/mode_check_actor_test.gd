@@ -181,6 +181,7 @@ func test_every_condition_in_core_says_whether_it_reads_the_actor_and_the_target
 		&"PlaceChanges": [true, false, none],
 		&"PlaceInRange": [true, false, none],
 		&"Posed": [true, false, none],
+		&"SettingEquals": [false, false, none],
 		&"StaminaCost": [true, false, none],
 		&"StationInSight": [true, true, none],
 		&"StationUsable": [true, true, none],

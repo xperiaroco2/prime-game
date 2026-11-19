@@ -30,9 +30,12 @@ const SIDE_KEYS: Dictionary[StringName, String] = {
 ## Why the round ended, by the host's reason id: the id of the win condition that ended it
 ## (MatchEnded, #208 b, #548); any other id hides the line. `every_task_done` takes the round's
 ## time as {time} (m:ss). The deck has no key for `no_crew_present` (ui-0.4.0): hidden, a gap.
+## `time_up_no_humans` (#1627: an aliens-only match ran out of time, the aliens lost, no side
+## won) says the tasks are not done, as `time_up`: the deck has no line for a loss with no winner.
 const REASON_KEYS: Dictionary[StringName, String] = {
 	&"every_task_done": "end.reason.all_tasks",
 	&"time_up": "end.reason.time_up",
+	&"time_up_no_humans": "end.reason.time_up",
 }
 ## How the round ended, by the host's reason id, drawn above the reason (prime-game-ui
 ## s10-post-game.md at ui-2.5.4: the party's title for all tasks done, the time's for time up;
@@ -40,11 +43,15 @@ const REASON_KEYS: Dictionary[StringName, String] = {
 const TITLE_KEYS: Dictionary[StringName, String] = {
 	&"every_task_done": "end.title.party",
 	&"time_up": "end.title.time_up",
+	&"time_up_no_humans": "end.title.time_up",
 }
 
 ## The sides whose win draws the danger band (the handoff's humans: the side that spoils the
 ## party, as the pre-game's); any other on the accent band.
 const ALERT_SIDES: Array[StringName] = [&"dissidents"]
+## The reasons that draw the danger band whoever won (#1627): an aliens-only match that ran out of
+## time names no side, and its "Time's up" keeps the alert ink a time-up always had.
+const ALERT_REASONS: Array[StringName] = [&"time_up_no_humans"]
 ## The handoff's places, px from the top or the bottom at the 1920x1080 base.
 const BAND_TOP := 300.0
 const BAND_BOTTOM := 615.0
@@ -122,9 +129,9 @@ func _init() -> void:
 ## `host_tick`: the newest host tick known (-1: none yet). The mode stays in GameUi's call shape;
 ## nothing on the screen reads it since one line names the winner for everyone (#1572).
 func refresh(model: ClientModel, _mode: GameMode, host_tick: int) -> void:
-	_show_winner(model.winner)
 	if model.ended_by != reason or model.round_seconds != round_seconds:
 		show_reason(model.ended_by, model.round_seconds)
+	_show_winner(model.winner)
 	var count := count_shown(model, host_tick)
 	if count != _count:
 		_count = count
@@ -203,12 +210,12 @@ func _play_outro() -> void:
 
 
 ## The winning side's line, and the band's colour by it: the danger band (and title) when a side
-## in ALERT_SIDES won, the accent one otherwise.
+## in ALERT_SIDES won or the reason shown is in ALERT_REASONS, the accent one otherwise.
 func _show_winner(side: StringName) -> void:
 	var key: String = SIDE_KEYS.get(side, "")
 	winner_label.text = key
 	winner_label.visible = not key.is_empty()
-	var alert := ALERT_SIDES.has(side)
+	var alert := ALERT_SIDES.has(side) or ALERT_REASONS.has(reason)
 	band.theme_type_variation = &"ToyBandAlert" if alert else &"ToyBand"
 	title_label.theme_type_variation = &"ToyTitleHeroAlert" if alert else &"ToyTitleHero"
 

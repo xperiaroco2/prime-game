@@ -245,6 +245,8 @@ static func events() -> Dictionary[String, Array]:
 		MatchEndedEvent.new(&"crew"),
 		MatchEndedEvent.new(&"dissidents", &"time_up", {&"time": 600}),
 		MatchEndedEvent.new(&"crew", StringName(ID_32), {}),
+		# #1627: an aliens-only match that ran out of time names no side.
+		MatchEndedEvent.new(&"", &"time_up_no_humans", {&"time": 300}),
 	]
 	found["DisconnectingEvent"] = [DisconnectingEvent.new(2, DisconnectingEvent.LOAD_DEADLINE)]
 	return found

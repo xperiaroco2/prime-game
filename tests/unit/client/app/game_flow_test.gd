@@ -86,6 +86,17 @@ func test_a_match_that_ended_shows_the_end_screen() -> void:
 	assert_int(GameFlow.screen(GameFlow.Session.WELCOMED, model)).is_equal(S.END)
 
 
+func test_a_match_that_ended_with_no_winner_shows_the_end_screen_too() -> void:
+	# #1627: an aliens-only match that runs out of time names no side; the round is over all the same.
+	var model := ClientModel.new(load(MODE) as GameMode)
+	var welcome := WelcomeEvent.new(2, Vector3.ZERO, 1)
+	welcome.phase = &"round"
+	model.fold(&"Welcome", welcome.to_dict())
+	model.fold(&"MatchEnded", {"side": &"", "reason": &"time_up_no_humans", "numbers": {}})
+	assert_str(String(model.winner)).is_empty()
+	assert_int(GameFlow.screen(GameFlow.Session.WELCOMED, model)).is_equal(S.END)
+
+
 func test_the_player_stands_still_outside_the_lobby_and_the_round() -> void:
 	for screen: S in [S.MENU, S.CONNECTING, S.LOADING, S.PREGAME, S.END, S.FAILURE]:
 		assert_bool(GameFlow.frozen(screen)).is_true()

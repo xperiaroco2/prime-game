@@ -295,8 +295,9 @@ func test_host_text_holds_ids_and_numbers_within_their_maxima() -> void:
 		)
 	)
 	assert_int(payload.size()).is_greater(0)
-	# side "crew" (1 + 4), the flag, reason "time_up" (1 + 7), then the count of numbers.
-	var count_at := 5 + 1 + 8
+	# the side's flag, side "crew" (1 + 4), the reason's flag, reason "time_up" (1 + 7), then the
+	# count of numbers.
+	var count_at := 1 + 5 + 1 + 8
 	assert_int(payload[count_at]).is_equal(4)
 	payload[count_at] = 5
 	assert_object(_schema.decode(57, payload)).is_null()

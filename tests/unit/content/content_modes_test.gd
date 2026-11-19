@@ -745,13 +745,15 @@ func test_the_base_mode_writes_the_mvp_player_rules() -> void:
 
 
 func test_the_win_conditions_in_the_base_modes_order() -> void:
-	# §3.4 and §9.5 (2h, #64; M4-2): every task done (crew), no crew present and time up
-	# (dissidents).
+	# §3.4 and §9.5 (2h, #64; M4-2): every task done (crew), no crew present (dissidents), time up
+	# with no humans (no side: the aliens lost, #1627) and time up (dissidents).
 	var mode := _base_mode()
 	var ids: Array[StringName] = []
 	for condition: WinCondition in mode.win_conditions:
 		ids.append(condition.id)
-	assert_array(ids).is_equal([&"every_task_done", &"no_crew_present", &"time_up"])
+	assert_array(ids).is_equal(
+		[&"every_task_done", &"no_crew_present", &"time_up_no_humans", &"time_up"]
+	)
 	var every_task_done := mode.win_conditions[0]
 	assert_str(every_task_done.resource_path).is_equal(
 		"res://content/win_conditions/every_task_done.tres"
@@ -767,7 +769,12 @@ func test_the_win_conditions_in_the_base_modes_order() -> void:
 	assert_object(none_alive).is_not_null()
 	assert_str(none_alive.side).is_equal("crew")
 	assert_bool(none_alive.negate).is_false()
-	var time_up := mode.win_conditions[2]
+	var no_humans := mode.win_conditions[2]
+	assert_str(no_humans.side).is_empty()
+	assert_int(no_humans.conditions.size()).is_equal(3)
+	var setting := no_humans.conditions[2] as SettingEquals
+	assert_str("%s=%d" % [setting.setting, setting.value]).is_equal("dissidents=0")
+	var time_up := mode.win_conditions[3]
 	assert_str(time_up.side).is_equal("dissidents")
 	assert_int(time_up.conditions.size()).is_equal(2)
 	assert_object(time_up.conditions[0]).is_instanceof(ClockEnded)
@@ -861,9 +868,9 @@ func test_the_base_mode_s_default_humans_follow_the_player_count() -> void:
 	assert_array(Array(game.diagnostics)).is_empty()
 
 
-func test_the_base_lobby_takes_no_dissidents_and_time_up_is_still_their_win() -> void:
-	# The engineer's decision (MVP rules), through the real lobby: the host sets 0 dissidents and
-	# a 1-minute round; nobody is a dissident, nothing is delivered, and time up is their win.
+func test_the_base_lobby_takes_no_dissidents_and_time_up_is_the_aliens_loss() -> void:
+	# The real lobby, 0 dissidents and a 1-minute round: the clock runs out, the aliens lost, no side
+	# named (#1627: his answer of 2026-11-19, #1095 c7008982636, replacing the MVP dissident win).
 	var mode := _base_mode()
 	var peers: Array[int] = [1, 2, 3, 4]
 	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
@@ -879,13 +886,14 @@ func test_the_base_lobby_takes_no_dissidents_and_time_up_is_still_their_win() ->
 	assert_array(FixtureDealModes.players_of(game, &"dissident")).is_empty()
 	FixtureWinModes.run_through(game, game.ticked_through() + 60 * Ticks.RATE)
 	assert_str(game.phase_id()).is_equal("end")
-	assert_str(game.state.winner).is_equal("dissidents")
+	assert_str(game.state.winner).is_empty()
 	for peer: int in peers:
 		var ended := game.view_of(peer).events_named(&"MatchEnded")
 		assert_int(ended.size()).is_equal(1)
 		assert_dict(ended[0].to_dict()).is_equal(
-			{"side": &"dissidents", "reason": &"time_up", "numbers": {&"time": 60}}
+			{"side": &"", "reason": &"time_up_no_humans", "numbers": {&"time": 60}}
 		)
+	_end_in_silence_then_lobby(game, peers)
 	assert_array(Array(game.diagnostics)).is_empty()
 
 

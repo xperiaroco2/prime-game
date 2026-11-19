@@ -104,14 +104,39 @@ func test_an_argument_that_is_no_side_is_a_rule_error_and_ends_nothing() -> void
 	ctx.state = game.state
 	ctx.mode = game.mode
 	ctx.outcome = Match.WON
-	for argument: Variant in [&"pirates", null, 3]:
+	# An empty side with no win condition behind it (no reason) is no side either (#1627).
+	for argument: Variant in [&"pirates", null, 3, &""]:
 		ctx.outcome_argument = argument
 		EndMatch.new().run(ctx)
 	assert_int(game.emitted().size()).is_equal(seen)
 	assert_str(game.state.winner).is_empty()
-	assert_int(game.diagnostics.size()).is_equal(3)
+	assert_int(game.diagnostics.size()).is_equal(4)
 	assert_str(game.diagnostics[0]).contains("pirates is not a side of the mode")
 	assert_str(game.diagnostics[1]).contains("carries no side")
+	assert_str(game.diagnostics[3]).contains(" is not a side of the mode")
+
+
+## A win condition with no side (#1627: an aliens-only match that runs out of time) ends the match
+## with no winner: MatchEnded names the empty side and the condition's reason, to everyone.
+func test_a_win_condition_with_no_side_ends_the_match_with_no_winner() -> void:
+	var game := FixtureWinModes.in_round(FixtureWinModes.basic(2), [P1, P2])
+	var seen := game.emitted().size()
+	var ctx := MatchContext.new(game)
+	ctx.state = game.state
+	ctx.mode = game.mode
+	ctx.outcome = Match.WON
+	ctx.outcome_argument = &""
+	ctx.outcome_reason = &"time_up_no_humans"
+	EndMatch.new().run(ctx)
+	var sent := game.emitted().slice(seen).filter(
+		func(e: EmittedEvent) -> bool: return e.event is MatchEndedEvent
+	)
+	assert_int(sent.size()).is_equal(1)
+	assert_str((sent[0] as EmittedEvent).event.to_dict()["side"]).is_empty()
+	assert_str((sent[0] as EmittedEvent).event.to_dict()["reason"]).is_equal("time_up_no_humans")
+	assert_array(Array((sent[0] as EmittedEvent).recipients)).is_equal([P1, P2])
+	assert_str(game.state.winner).is_empty()
+	assert_array(Array(game.diagnostics)).is_empty()
 
 
 ## A `won` that no win condition reported (a rule's) has no reason; a reason without a clock that
