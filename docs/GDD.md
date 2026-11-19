@@ -190,6 +190,9 @@ The engineer's word in the meta session's chat (#1578; [the Reborn ADR](decision
 `docs/ROADMAP.md` "Releases"): M8 is a small but finished version of the game, nothing cut short. It is the slice
 above with:
 - **Aliens only** for M8 to M12: the host sets 0 humans; the humans' levers come in a block of their own later.
+  When such a match runs out of time with the engine not done, the aliens lost and no side is named the winner
+  (the engineer's answer of 2026-11-19, #1627, [#1095 comment 7008982636](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-7008982636);
+  he chose it over "nobody won").
 - **The lobby finished:** the bar, the pinball, changing the character; the photo booth waits for M9.
 - **The first-person hand,** as in first-person shooters: you see your hand, it moves as you run, press a button and
   hit, every moment made to look good.

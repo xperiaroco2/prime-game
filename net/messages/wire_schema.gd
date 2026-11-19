@@ -115,7 +115,9 @@ extends RefCounted
 ## peers holding them, up to MAX_MIRROR_PLACES each), and SettingsChanged's needed_colours and
 ## palettes rise from 32 to 64 entries (MAX_MARKERS; the mirror's kind made the base mode's 33rd
 ## station kind).
-const VERSION := 57
+## 58 since #1627 (no winner): MatchEnded's side under a flag (has_side): an aliens-only match that
+## runs out of time names no side, and an id is never empty on the wire.
+const VERSION := 58
 
 ## MoveClaim's RELIABLE twin (§4.3, #429): the claims a client must not lose (an epoch's first, and
 ## its last claim again right before a player action) go on it; the host hands it to core/ as the
@@ -593,9 +595,10 @@ static func _events() -> Array[WireRow]:
 		_down(
 			57,
 			&"MatchEnded",
-			216,
+			217,
 			[
-				_id("side"),
+				# No side wins an aliens-only match that runs out of time (#1627): the flag is 0.
+				WireField.when("has_side", [_id("side")], {"side": &""}),
 				WireField.when("has_reason", [_id("reason"), _text_numbers("numbers")]),
 			]
 		),

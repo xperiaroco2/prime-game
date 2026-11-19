@@ -146,6 +146,12 @@ func test_items_stations_and_bodies_follow_the_events() -> void:
 	_fold(MatchEndedEvent.new(&"crew", &"no_crew_present", {}))
 	assert_str(String(_model.ended_by)).is_equal("no_crew_present")
 	assert_int(_model.round_seconds).is_equal(-1)
+	assert_bool(_model.ended).is_true()
+	# #1627: an end with no winner still ends the match.
+	_fold(MatchEndedEvent.new(&"", &"time_up_no_humans", {&"time": 300}))
+	assert_str(String(_model.winner)).is_empty()
+	assert_bool(_model.ended).is_true()
+	assert_str(String(_model.ended_by)).is_equal("time_up_no_humans")
 
 
 func test_a_drop_off_is_done_only_when_every_item_routed_to_it_is_delivered() -> void:

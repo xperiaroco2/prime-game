@@ -247,8 +247,11 @@ var shots: Dictionary[int, Shot] = {}
 var film_pictures: Dictionary[int, PackedInt32Array] = {}
 var tasks_done := 0
 var tasks_total := 0
-## The winning side once the match ended; empty before.
+## The winning side once the match ended; empty before, and after an end with no winner (#1627:
+## an aliens-only match that runs out of time, the aliens lost).
 var winner: StringName = &""
+## Whether the match ended (MatchEnded): with a winner or with none.
+var ended := false
 ## Why the match ended (MatchEnded, #548): the id of the win condition that ended it, empty when
 ## none did or before the end; and the round's play time in whole seconds, -1 when it gave none.
 var ended_by: StringName = &""
@@ -521,6 +524,7 @@ func clear_match() -> void:
 	tasks_done = 0
 	tasks_total = 0
 	winner = &""
+	ended = false
 	ended_by = &""
 	round_seconds = -1
 	snapshot_tick = -1
@@ -654,6 +658,7 @@ func _fold_match_event(event_name: StringName, fields: Dictionary) -> void:
 			epoch = fields["epoch"]
 		&"MatchEnded":
 			winner = fields["side"]
+			ended = true
 			ended_by = fields.get("reason", &"")
 			var numbers: Dictionary = fields.get("numbers", {})
 			round_seconds = numbers.get(&"time", -1)

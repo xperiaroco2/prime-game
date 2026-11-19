@@ -7,7 +7,8 @@ extends ContentPart
 ## every player may learn (the tasks done, the clock, who is left).
 
 @export var id: StringName
-## A SideSpec id of the mode.
+## A SideSpec id of the mode, or empty: then the match ends with no side winning (#1627: an
+## aliens-only match that runs out of time, the aliens lost), MatchEnded naming only the reason.
 @export var side: StringName
 @export var conditions: Array[Condition] = []
 
@@ -21,8 +22,11 @@ func holds(ctx: MatchContext) -> bool:
 
 func check(mode: GameMode) -> PackedStringArray:
 	var found := PackedStringArray()
-	if mode.find_side(side) == null:
+	if not side.is_empty() and mode.find_side(side) == null:
 		found.append("win condition %s names side %s, which the mode does not declare" % [id, side])
+	if side.is_empty() and id.is_empty():
+		# With no side, its id is all MatchEnded tells (the reason): EndMatch refuses an empty one.
+		found.append("a win condition with no side has no id")
 	if conditions.is_empty():
 		found.append("win condition %s has no conditions" % id)
 	return found

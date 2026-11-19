@@ -5,8 +5,11 @@ extends RuleEffect
 ## MatchEnded with that side and, when a win condition reported the `won`, its id as the reason
 ## with the round's play time (`time`, whole seconds the clock ran; none when it never started),
 ## #548. No names, no roles (§5: the reason and the time are public). The clock stops because
-## End's clock does not run. An argument that is no side of the mode is a rule error: logged, and
-## nothing is recorded or emitted.
+## End's clock does not run. An empty side from a win condition (WinCondition.side empty,
+## #1627) ends the match with no side winning: MatchState.winner stays empty and MatchEnded names
+## the empty side with the condition's reason. Any other argument that is no side of the mode
+## (an empty one with no win condition behind it among them) is a rule error: logged, and nothing
+## is recorded or emitted.
 ## The dead leave the dead's hall here (#1489): at End they are the dead of today's end.
 ##
 ## Emits: MatchEnded (everyone). No demands.
@@ -21,7 +24,8 @@ func run(ctx: MatchContext) -> void:
 		ctx.error("EndMatch: the outcome %s carries no side" % ctx.outcome)
 		return
 	var side := StringName(str(argument))
-	if ctx.mode.find_side(side) == null:
+	var no_winner := side.is_empty() and not ctx.outcome_reason.is_empty()
+	if not no_winner and ctx.mode.find_side(side) == null:
 		ctx.error("EndMatch: %s is not a side of the mode" % side)
 		return
 	ctx.state.winner = side

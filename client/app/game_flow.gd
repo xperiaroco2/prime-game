@@ -51,7 +51,7 @@ static func screen(session: Session, model: ClientModel) -> Screen:
 		return Screen.LOADING
 	if spec.phase_class == PregamePhase:
 		return Screen.PREGAME
-	if not model.winner.is_empty() or spec.senders_of(Intents.RETURN_TO_LOBBY) != 0:
+	if model.ended or spec.senders_of(Intents.RETURN_TO_LOBBY) != 0:
 		return Screen.END
 	return Screen.ROUND
 

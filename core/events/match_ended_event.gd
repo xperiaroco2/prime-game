@@ -11,7 +11,8 @@ extends MatchEvent
 ## The kind of audience() (ModeCheck reads it without an instance).
 const AUDIENCE_KIND := Audience.Kind.EVERYONE
 
-## The winning side's id.
+## The winning side's id, or empty when no side won (#1627: an aliens-only match that ran out of
+## time; then the reason is never empty).
 var side: StringName
 ## The id of the win condition that ended the match (WinCondition.id), or empty when none did (a
 ## `won` reported by a rule): then to_dict() has neither `reason` nor `numbers`.
