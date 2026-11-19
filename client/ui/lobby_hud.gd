@@ -20,6 +20,7 @@ extends Control
 ##   ship at the boot, #1285), `Ready` (a pip and "Ready: yes/no") and `Mic` (on: `mic` tinted
 ##   `icon_on`; off: `mic-off` tinted `icon_off`). Above it, beyond the handoff, the voice hint
 ##   until a microphone is picked (M5-6).
+## Over the pinball's close-up only `Mic` shows (set_close_up(), #1400).
 ## The lobby's name and the code are not on this HUD (the handoff): the code is the Esc menu's head
 ## (s05). Ready is the bound `ready` key (F by default, #211). Styled only through the shared
 ## theme's variations (no override; size constants read into `custom_minimum_size` with
@@ -78,6 +79,8 @@ var _hand_over_cue_key := ""
 var _aim_text := ""
 ## The own ship with no session (set_ship()).
 var _ship := false
+## The pinball's close-up is up (set_close_up()).
+var _close_up := false
 
 
 func _init() -> void:
@@ -145,10 +148,22 @@ func show_hint(key: String) -> void:
 func set_ship(on: bool) -> void:
 	_ship = on
 	show_hint(KeyLabel.of_action(&"ui_cancel") if on else "")
-	for node: Control in [cross, status, players, ready_tile, mic]:
-		node.visible = not on
-	if on:
-		voice_hint.visible = false
+	_show_parts()
+
+
+## The pinball's close-up (#1400; the engineer's M8 review, #1095 c7021998428, answer 7): over the
+## table only the mic shows; the crosshair, Aim, the ready count, the roster, the Ready plate and
+## the voice hint hide until the view is back at the eye.
+func set_close_up(on: bool) -> void:
+	if on == _close_up:
+		return
+	_close_up = on
+	_show_parts()
+
+
+## Whether set_close_up() hides the HUD but the mic.
+func close_up_shown() -> bool:
+	return _close_up
 
 
 ## The microphone: on while anybody may hear the own player (VoiceSender.live()).
@@ -189,7 +204,7 @@ func show_hand_over(key: String, cue_key: String = "") -> void:
 ## hears there).
 func show_voice_hint(text: String) -> void:
 	voice_label.text = text
-	voice_hint.visible = not text.is_empty() and not _ship
+	voice_hint.visible = not text.is_empty() and not _ship and not _close_up
 
 
 ## The rows' names as drawn, in order (the own row's "<name> (you)").
@@ -219,11 +234,20 @@ func _show_aim() -> void:
 	if _hand_over_key.is_empty():
 		aim_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_INHERIT
 		aim_label.text = _aim_text
-		aim.visible = not _aim_text.is_empty()
+		aim.visible = not _aim_text.is_empty() and not _close_up
 		return
 	aim_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	aim_label.text = HudText.hand_over_cue(_hand_over_key, _hand_over_cue_key)
-	aim.visible = true
+	aim.visible = not _close_up
+
+
+## Each part's visibility by the own ship (only the hint) and the close-up (only the mic).
+func _show_parts() -> void:
+	for node: Control in [cross, status, players, ready_tile]:
+		node.visible = not _ship and not _close_up
+	mic.visible = not _ship
+	voice_hint.visible = not voice_label.text.is_empty() and not _ship and not _close_up
+	_show_aim()
 
 
 ## The texts with placeholders and data, in the current language.

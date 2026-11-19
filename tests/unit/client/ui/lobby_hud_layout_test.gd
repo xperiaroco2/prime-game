@@ -433,6 +433,49 @@ static func _label(hud: LobbyHud, path: String) -> Label:
 	return hud.get_node(path) as Label
 
 
+## The pinball's close-up (#1400; the engineer's M8 review, answer 7): only the mic shows over the
+## table, also when Aim or the voice hint change under it, and everything is back after.
+func test_the_pinball_close_up_shows_only_the_mic() -> void:
+	var hud := await _hud()
+	hud.show_aim("item.package")
+	hud.show_voice_hint("Pick a microphone")
+	var hidden: Array[Control] = [
+		hud.cross, hud.aim, hud.status, hud.players, hud.ready_tile, hud.voice_hint
+	]
+	for node in hidden:
+		assert_bool(node.visible).is_true()
+	hud.set_close_up(true)
+	assert_bool(hud.close_up_shown()).is_true()
+	hud.show_aim("item.mug")
+	hud.show_hand_over("E")
+	hud.show_voice_hint("Pick a microphone")
+	for node in hidden:
+		assert_bool(node.visible).override_failure_message(String(node.name)).is_false()
+	assert_bool(hud.mic.is_visible_in_tree()).is_true()
+	hud.set_close_up(false)
+	for node in hidden:
+		assert_bool(node.visible).override_failure_message(String(node.name)).is_true()
+	assert_bool(hud.mic.is_visible_in_tree()).is_true()
+
+
+## The own ship (only the hint) and the close-up (only the mic) together: neither brings back what
+## the other hides.
+func test_the_close_up_and_the_own_ship_hide_together() -> void:
+	var hud := await _hud()
+	hud.show_voice_hint("Pick a microphone")
+	hud.set_ship(true)
+	hud.set_close_up(true)
+	hud.set_close_up(false)
+	for node: Control in [hud.cross, hud.status, hud.players, hud.ready_tile, hud.mic]:
+		assert_bool(node.visible).override_failure_message(String(node.name)).is_false()
+	assert_bool(hud.voice_hint.visible).is_false()
+	hud.set_close_up(true)
+	hud.set_ship(false)
+	for node: Control in [hud.cross, hud.status, hud.players, hud.ready_tile, hud.voice_hint]:
+		assert_bool(node.visible).override_failure_message(String(node.name)).is_false()
+	assert_bool(hud.mic.visible).is_true()
+
+
 ## A LobbyHud under the shared theme at the 1920x1080 base in the handoff's `wait`, after its sizes
 ## were read.
 func _hud() -> LobbyHud:

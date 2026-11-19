@@ -65,6 +65,9 @@ class Local:
 	## Whether the photo camera's viewfinder is up (PhotoViewfinder.active(), #786): no crosshair
 	## and no Aim over the lens.
 	var viewing := false
+	## Whether the pinball's close-up is up (PinballCloseUp.active(), #1400): the lobby HUD shows
+	## only the mic over the table.
+	var close_up := false
 	## Whether anyone may hear the own player now (VoiceSender.live()).
 	var mic := false
 	## The own raise's progress (LifeView.raise_shown()), 0 to 1; negative for none.
