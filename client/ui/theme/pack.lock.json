@@ -1,5 +1,5 @@
 {
-  "commit": "64438ffb0a3734a73879497ca90cf53e111889e4",
+  "commit": "fdd22f3b1eb5424c15aa8ab40ca53c9916d39691",
   "deferred": {
     "fonts/OFL-Onest.txt": "071195d8806e226faeee60259c28ca67b458227af5195a73f5cfcab06e3003bc",
     "fonts/OFL-Unbounded.txt": "31e5d4e83955e7103c34570dd49b0570ef490800bd65b42923c0dd02445263b3"
@@ -58,7 +58,7 @@
     "icons/spin-up.svg": "683214aae0a3b172241f75ae0ab5cd141e6321d3a4fddb4301229bd0b8abe854",
     "icons/swatch-disc.svg": "e89e85ea7651eb01b327230d96b7273bcbf571cd2ef1b7d09c876397bd89d506",
     "icons/teammate-mark.svg": "8238cd33b9ea3e8378fd888ef645d12b1352264538b614be07f91ffa3320d69a",
-    "toy.pack.json": "6d30a3113d3d3e98639120a9114dc7058671f9bd67a01f85e5fdc212ba449ea2"
+    "toy.pack.json": "78b7b02ede18eddadc98769fa8d2f4a2fdd1249767a5fe976be1e075cad7b97d"
   },
   "imported": {
     "cards/delivery-1.png": "1ec1cc493d4d6914e97c1402f95b4034c0db0360a0319791760b794c4ec33406",
@@ -122,5 +122,5 @@
     "icons/teammate-mark.svg": "8238cd33b9ea3e8378fd888ef645d12b1352264538b614be07f91ffa3320d69a"
   },
   "repo": "xperiaroco2/prime-game-ui",
-  "tag": "ui-2.5.4"
+  "tag": "ui-2.5.5"
 }

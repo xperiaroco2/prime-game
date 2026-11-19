@@ -1,7 +1,7 @@
 {
   "format": "prime-game-ui/pack",
   "schema": 1,
-  "version": "2.5.4",
+  "version": "2.5.5",
   "style": "toy",
   "dtcg": "2025.10",
   "reference": {"width":1920,"height":1080},
@@ -7107,7 +7107,7 @@
     {"path":"icons/slot-empty-hand.svg","kind":"icon","sha256":"1ad0f46411d60f4be8cbfb6aa830f62abd380d955941c3e2c66a0db94616aa2c","licence":"own work","licence_file":"icons/LICENCES.json","source":"pages/components/icons/slot-empty-hand.svg","size":[64,64],"drawn_px":57,"svg_scale":0.9,"tint":"multiply"},
     {"path":"icons/spin-down.svg","kind":"icon","sha256":"9a7feb310bbc2b30bab96265b72689065c97a0d233a7a27ac15bd9aebf3e3cfb","licence":"own work","licence_file":"icons/LICENCES.json","source":"pages/components/icons/spin-down.svg","size":[27,27],"drawn_px":27,"svg_scale":1,"tint":"multiply"},
     {"path":"icons/spin-up.svg","kind":"icon","sha256":"683214aae0a3b172241f75ae0ab5cd141e6321d3a4fddb4301229bd0b8abe854","licence":"own work","licence_file":"icons/LICENCES.json","source":"pages/components/icons/spin-up.svg","size":[27,27],"drawn_px":27,"svg_scale":1,"tint":"multiply"},
-    {"path":"icons/swatch-disc.svg","kind":"icon","sha256":"e89e85ea7651eb01b327230d96b7273bcbf571cd2ef1b7d09c876397bd89d506","licence":"own work","licence_file":"icons/LICENCES.json","source":"pages/components/icons/swatch-disc.svg","size":[26,26],"drawn_px":60,"svg_scale":2.31,"tint":"multiply"},
+    {"path":"icons/swatch-disc.svg","kind":"icon","sha256":"e89e85ea7651eb01b327230d96b7273bcbf571cd2ef1b7d09c876397bd89d506","licence":"own work","licence_file":"icons/LICENCES.json","source":"pages/components/icons/swatch-disc.svg","size":[26,26],"drawn_px":26,"svg_scale":1,"tint":"multiply"},
     {"path":"icons/teammate-mark.svg","kind":"icon","sha256":"8238cd33b9ea3e8378fd888ef645d12b1352264538b614be07f91ffa3320d69a","licence":"own work","licence_file":"icons/LICENCES.json","source":"pages/components/icons/teammate-mark.svg","size":[24,24],"drawn_px":30,"svg_scale":1.25,"tint":"multiply"}
   ]
 }

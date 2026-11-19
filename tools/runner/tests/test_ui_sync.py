@@ -404,7 +404,7 @@ class CommittedCopyTest(unittest.TestCase):
         self.assertEqual(ui_sync.verify(ROOT), [])
         lock = ui_sync.read_lock(ROOT)
         assert lock is not None
-        self.assertEqual(lock["tag"], "ui-2.5.4")
+        self.assertEqual(lock["tag"], "ui-2.5.5")
         # #520 imports the card art; since ui-0.8.0 the pack also carries the font licence texts, which are not landed
         # (since ui-2.0.0 two, #1559: the texts are in docs/credits/licenses/onest/ and unbounded/).
         self.assertEqual(
