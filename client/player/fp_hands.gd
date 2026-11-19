@@ -1,6 +1,6 @@
 class_name FpHands
 extends Node3D
-## The first-person hands (#1587; ARCHITECTURE §4.7.68): the art package's viewmodel (concept A,
+## The first-person hands (#1587; ARCHITECTURE §4.7.69): the art package's viewmodel (concept A,
 ## prime-game-art#136, its HANDOFF.md) under the local player's camera, at an identity transform,
 ## its axes the camera's. Every mesh of it, and the crystal it holds, is on PhotoLayers.HANDS
 ## alone with no shadow, so only FpView's own camera draws it (at the package's 50 degrees) and

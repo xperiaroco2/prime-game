@@ -1,6 +1,6 @@
 class_name FpView
 extends CanvasLayer
-## The first-person hands' own camera (#1587; ARCHITECTURE §4.7.68), as first-person games draw a
+## The first-person hands' own camera (#1587; ARCHITECTURE §4.7.69), as first-person games draw a
 ## viewmodel and as the art package's HANDOFF asks: a Camera3D at the package's FOV_DEG, its
 ## transform the player camera's every frame, in a transparent SubViewport the size of the screen
 ## laid over the live view, under the HUD (layer LAYER). It shares the level's World3D and draws

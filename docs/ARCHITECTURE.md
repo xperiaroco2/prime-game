@@ -5860,11 +5860,11 @@ GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first 
   `lobby_hall_test.gd` (the glass marker) and `item_world_children_test.gd`; the `shot` preview
   `client/dev/mirror_preview.tscn` shows it.
 
-#### 4.7.68 The first-person hands (#1587)
+#### 4.7.69 The first-person hands (#1587)
 The own player's hands, as first-person games draw a viewmodel (concept A, prime-game-art#136; the art package's
 `HANDOFF.md`). `FpHands` (`client/player/fp_hands.gd`) instances the package (`assets/body/fp_hands/fp_hands.glb`,
 §11.1's `body/`) under the player's camera at an identity transform, every mesh of it on `PhotoLayers.HANDS` (visual
-layer 17) alone with no shadow. `FpView` (`client/player/fp_view.gd`, a CanvasLayer under the HUD at layer -1) draws
+layer 16) alone with no shadow. `FpView` (`client/player/fp_view.gd`, a CanvasLayer under the HUD at layer -1) draws
 that layer, and only that layer, through its own `Camera3D` at the package's 50 degrees in a transparent SubViewport
 the size of the screen. The SubViewport shares the level's World3D, and its camera copies the player camera's
 transform every frame. Its environment is a copy of the live view's (the hall's or the world's;

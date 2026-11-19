@@ -1,5 +1,5 @@
 extends Node3D
-## A preview of the first-person hands (#1587, ARCHITECTURE §4.7.68) for `tools\run.cmd shot`: the
+## A preview of the first-person hands (#1587, ARCHITECTURE §4.7.69) for `tools\run.cmd shot`: the
 ## eye in the ship's hall (the estate's ship room, read only) on the engine console's use spot,
 ## looking at the console, with FpHands under a live camera and FpView over the view, as the
 ## controller puts them, in body colour `colour` (BodyColours; -1: the package's default,

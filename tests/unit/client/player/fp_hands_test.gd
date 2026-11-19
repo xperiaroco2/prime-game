@@ -1,5 +1,5 @@
 extends GdUnitTestSuite
-## The first-person hands (client/player/FpHands, FpView; #1587, ARCHITECTURE §4.7.68), on a
+## The first-person hands (client/player/FpHands, FpView; #1587, ARCHITECTURE §4.7.69), on a
 ## fixture built in memory with the package's node and clip names (the real GLB is Git LFS content,
 ## absent on CI): the state clips, the hit and the return from it, the run's speed, the crystal on
 ## the socket at 40 % of its light and never lighting the hands, the colour, the HANDS layer, the
