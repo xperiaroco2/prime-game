@@ -60,9 +60,10 @@ wait for their yes. That covers every later `issue-task` and `pr-rebase` run of 
 
 **The week's budget** (the engineer's answers of 2026-10-05): read [budget.md](budget.md) now and before each wave.
 
-**Prerequisites** (check them before the restatement): the human pulled `main` in `D:\prime-game` after saving all
-scenes in the editor, and `D:/prime-game/.claude/workflows/issue-task.js` exists (`Test-Path`) and knows the v2 args
-(`Select-String -Path D:/prime-game/.claude/workflows/issue-task.js -Pattern plan_review -Quiet`: an older copy logs
+**Prerequisites** (check them before the restatement): the human pulled `main` in the main checkout (`<main>`, its
+absolute path, AGENT_WORKFLOW §2) after saving all
+scenes in the editor, and `<main>/.claude/workflows/issue-task.js` exists (`Test-Path`) and knows the v2 args
+(`Select-String -Path <main>/.claude/workflows/issue-task.js -Pattern plan_review -Quiet`: an older copy logs
 and ignores them, so the reviews they add would silently not run). Missing: ask the human to pull; a session
 opened before the pull needs `/reload-skills` to find the workflows by name.
 
@@ -182,7 +183,7 @@ A workflow that threw, a crash, a PC restart, a plan limit, or a new session wit
   even mid-wave (while the human is away: once your runs end, MANAGERS.md §5). Above it, an `Instructions:` line when
   a merge since your start changed root `CLAUDE.md`, `docs/MANAGERS.md`, `.claude/rules/` or `.claude/agents/`: read
   the diff it prints once per new merge and go on, never a handover (#930); a root `CLAUDE.md` change goes into the
-  next launches' notes. "Behind origin/main": this turn's For-you carries `cd D:\prime-game; git pull --ff-only`.
+  next launches' notes. "Behind origin/main": this turn's For-you carries `cd <main>; git pull --ff-only`.
 - **The turn-end order**: (1) A handover due and work left: hand over (launch nothing; arm the timer only while (a)
   waits for an agent), even mid-wave, but not while your own `merge`, `merge-train` or `publish` runs; nothing left:
   the final wave comment, no timer. (2) A run of yours in flight: arm the timer (after 14 wakes none). (3) A stop for

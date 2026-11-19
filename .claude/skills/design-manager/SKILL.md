@@ -1,20 +1,21 @@
 ---
 name: design-manager
-description: 'A pointer: the design track''s manager session runs in the private design repo D:\prime-game-design (xperiaroco2/prime-game-design), on that repo''s own design-manager skill. Use when a kickoff says "Track: design", names this skill, or a human says "дизайн-менеджер" or "design manager" in D:\prime-game: say where the session belongs and stop. Not for a mechanic''s issue filing alone (new-mechanic) or a stage of tasks (orchestrate-stage).'
+description: 'A pointer: the design track''s manager session runs in the private design repo ..\prime-game-design (xperiaroco2/prime-game-design), on that repo''s own design-manager skill. Use when a kickoff says "Track: design", names this skill, or a human says "дизайн-менеджер" or "design manager" in <main>: say where the session belongs and stop. Not for a mechanic''s issue filing alone (new-mechanic) or a stage of tasks (orchestrate-stage).'
 ---
 
 # Design manager: a pointer (docs/MANAGERS.md; docs/AGENT_WORKFLOW.md §7.3)
 
 The design track's manager works in the private repo **xperiaroco2/prime-game-design**, checkout
-`D:\prime-game-design`, on that repo's skill `.claude/skills/design-manager/SKILL.md` and its root `CLAUDE.md`: its
+`..\prime-game-design`, on that repo's skill `.claude/skills/design-manager/SKILL.md` and its root `CLAUDE.md`: its
 research, references, idea batches and brainstorms are committed there, straight to its `main`, with no checks (the
 engineer's decisions, [#1095 comment 6200062331](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200062331)
 and [comment 6200108169](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200108169); #1124).
 
-If this session started here, in `D:\prime-game`, on a design kickoff: do nothing else. Your first message says, in
-the engineer's language, that the design manager runs in the design repo, and its "For you:" item is: close this
-session, open a new one in `D:\prime-game-design`, bypass permissions, effort high, and paste the same kickoff. Then
-stop.
+If this session started here, in prime-game's main checkout, on a design kickoff: do nothing else. Your first
+message says, in the engineer's language, that the design manager runs in the design repo, and its "For you:" item
+is: close this session, open a new one in the design repo's checkout beside this one (its absolute path,
+`(Resolve-Path ..\prime-game-design).Path` from here), bypass permissions, effort high, and paste the same kickoff.
+Then stop.
 
 What stays in this repo:
 - **The decided rules:** `docs/GDD.md` and `docs/design/` (with `docs/design/COMPASS.md`, the design track's lens,

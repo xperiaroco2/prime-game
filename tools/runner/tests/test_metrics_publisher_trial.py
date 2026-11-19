@@ -206,7 +206,7 @@ class PublisherTrialBuildTest(unittest.TestCase):
     def test_the_report_and_the_record(self) -> None:
         lines = test_metrics.QualityTest.lines
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(metrics, "PUB_TRIAL_FROM", "2026-10-01T00:00:00Z"):
-            folder = Path(tmp) / "projects" / "D--prime-game"
+            folder = Path(tmp) / "projects" / "C--prime-game"
             wf = folder / test_metrics.QualityTest.SID / "subagents" / "workflows"
             for n, start, model in ((70, 0, SONNET), (71, 30, OPUS)):
                 Fixture.run(wf / f"wf_{n}", [

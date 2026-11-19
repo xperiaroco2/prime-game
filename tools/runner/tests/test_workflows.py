@@ -98,7 +98,7 @@ ARGS = {
     "n": 7,
     "pr": 8,
     "title": "t",
-    "wt": "D:/prime-game/.claude/worktrees/7",
+    "wt": "C:/prime-game/.claude/worktrees/7",
     "branch": "tooling/7-x",
     "notes": "n",
     "why": "w",
@@ -173,7 +173,7 @@ SNAPSHOT_CASES = {
             {
                 "branch": "core/7-x",
                 "base": "release/m5",
-                "wt": "D:\\prime-game\\.claude\\worktrees\\7",
+                "wt": "C:\\prime-game\\.claude\\worktrees\\7",
                 "notes": "Line one.\nLine two with `code` and §5.",
                 "coord": "c",
                 "decisions": "- d1\n- d2",
@@ -554,7 +554,7 @@ class WorkflowTest(unittest.TestCase):
         # each command one PowerShell line that starts with `cd` to its absolute folder, ready to paste.
         stuck = {"available": True, "exit_2": True, "findings": [], "notes": "tools/out/mutants/m1 is still listed"}
         core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
-        backslashes = {"wt": "D:\\prime-game\\.claude\\worktrees\\7"}
+        backslashes = {"wt": "C:\\prime-game\\.claude\\worktrees\\7"}
         jobs = [
             ("issue-task.js", dict(ARGS, branch="core/7-x", **backslashes), core),
             ("issue-task.js", dict(ARGS, branch="core/7-x", test_review=True), dict(core, queues={"test-review": [stuck]})),
@@ -576,13 +576,13 @@ class WorkflowTest(unittest.TestCase):
                     self.assertEqual(steps, HUMAN_STEPS_SCHEMA)
                     self.assertIn(HUMAN_STEPS_ASK, prompt)
                     self.assertIn("ONE PowerShell 5.1 line that starts with `cd <absolute folder>;`", prompt)
-                    self.assertIn("`cd D:\\prime-game;` for the main checkout", prompt)
-                    self.assertIn("`cd D:\\prime-game\\.claude\\worktrees\\7;` for your worktree", prompt)
+                    self.assertIn("`cd C:\\prime-game;` for the main checkout", prompt)
+                    self.assertIn("`cd C:\\prime-game\\.claude\\worktrees\\7;` for your worktree", prompt)
                     self.assertIn("never `&&`", prompt)
                     self.assertIn('never a pointer such as "the command in the PR body"', prompt)
                     # A human step is one the agent must not take: it previews the command, runs only a read-only one.
                     self.assertIn("Preview it from that folder first", prompt)
-                    self.assertIn("never one that does his step, changes `D:\\prime-game` or prompts", prompt)
+                    self.assertIn("never one that does his step, changes `C:\\prime-game` or prompts", prompt)
                     self.assertNotIn("Run it yourself", prompt)
                     self.assertIn('A step without a command (a click in GitHub, a decision) has command ""', prompt)
                     # The ask is its own paragraph right before the result's, so every earlier line stays as it was.
@@ -595,6 +595,51 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(seen.count("publish"), 2)  # the full publisher and the one that reports a mutants stop
         # The two workflows cannot share a module, so each carries its own copy of the ask: they must not drift apart.
         self.assertEqual(len(asks), 1, sorted(asks))
+
+    def test_the_main_checkout_comes_from_the_worktree_path(self) -> None:
+        # #1621: the checkout moved from D:\prime-game to C:\prime-game and both scripts still named D:/prime-game.
+        # The main checkout is now the folder above .claude/worktrees/<name> of args.wt, wherever it sits.
+        elsewhere = {"wt": "E:\\games\\pg\\.claude\\worktrees\\7"}
+        core = {"paths": ["core/x.gd"], "findings": [MAJOR]}
+        jobs = [
+            ("issue-task.js", dict(ARGS, branch="core/7-x", **elsewhere), core),
+            ("pr-rebase.js", dict(ARGS, **elsewhere), core),
+        ]
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            with self.subTest(workflow=name):
+                self.assertIsNone(result["error"])
+                prompts = [event["prompt"] for event in agents(result)]
+                self.assertTrue(prompts)
+                for prompt in prompts:
+                    self.assertNotRegex(prompt, r"[A-Za-z]:[\\/]+prime-game")
+                self.assertTrue(any("Never change E:/games/pg itself" in p for p in prompts))
+                self.assertTrue(any("`cd E:\\games\\pg;` for the main checkout" in p for p in prompts))
+                self.assertTrue(any("changes `E:\\games\\pg` or prompts" in p for p in prompts))
+
+    def test_a_git_bash_or_slash_ended_worktree_gives_the_same_main_checkout(self) -> None:
+        # A Git Bash wt (/e/games/pg/...) once would have made MAINW \e\games\pg, the stray folder a Windows program
+        # makes of such a path (#1621's review); a trailing slash must not hide .claude/worktrees/<name> either.
+        spellings = (
+            "/e/games/pg/.claude/worktrees/7",
+            "E:/games/pg/.claude/worktrees/7/",
+            "E:\\games\\pg\\.claude\\worktrees\\7\\",
+        )
+        jobs = [("pr-rebase.js", dict(ARGS, wt=wt), {"paths": ["core/x.gd"], "findings": [MAJOR]}) for wt in spellings]
+        for wt, result in zip(spellings, run_jobs(jobs)):
+            with self.subTest(wt=wt):
+                self.assertIsNone(result["error"])
+                prompts = [event["prompt"] for event in agents(result)]
+                self.assertTrue(any("`cd E:\\games\\pg;` for the main checkout" in p for p in prompts))
+                self.assertTrue(any("Never change E:/games/pg itself" in p for p in prompts))
+
+    def test_a_worktree_outside_claude_worktrees_is_refused(self) -> None:
+        # The main checkout is derived from args.wt (#1621), so a wt that is not <checkout>/.claude/worktrees/<name>
+        # stops the run before any agent instead of naming a wrong folder in every prompt.
+        jobs = [(name, dict(ARGS, wt="C:/prime-game"), {}) for name in ("issue-task.js", "pr-rebase.js")]
+        for (name, _, _), result in zip(jobs, run_jobs(jobs)):
+            with self.subTest(workflow=name):
+                self.assertIn("args.wt must be <checkout>/.claude/worktrees/<name>", result["error"] or "")
+                self.assertEqual(agents(result), [])
 
     def test_the_leak_test_gets_a_netcode_review(self) -> None:
         # #115 touched only tests/ and tools/: no netcode review was routed, and one run by hand found a major.
@@ -648,7 +693,7 @@ class WorkflowTest(unittest.TestCase):
         self.assertEqual(len(sentences), 1, f"the sentence differs between scripts: {sorted(sentences)}")
         sentence = next(iter(sentences))
         for part in ("§5 (per-peer filtering)", "§4.2 (each event's audience)", "§4.6 (the client, the bots and the leak test)",
-                     "`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6`"):
+                     "`cd /c/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6`"):
             self.assertIn(part, sentence)
 
     def test_reviewers_read_architecture_by_section_and_never_root_claude_md(self) -> None:
@@ -663,7 +708,7 @@ class WorkflowTest(unittest.TestCase):
             ("issue-task.js", dict(ARGS, lean=True), {"paths": ["tools/x.py"]}),
             ("pr-rebase.js", dict(ARGS, second_review=True, skeptic=True), {"paths": ["core/x.gd"], "findings": [MAJOR]}),
         ]
-        outline = "`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline"
+        outline = "`cd /c/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md` prints its outline"
         results = run_jobs(jobs)
         for (name, args, _), result in zip(jobs, results):
             self.assertIsNone(result["error"])
@@ -706,7 +751,7 @@ class WorkflowTest(unittest.TestCase):
                 self.assertNotIn("CLAUDE.md", read)
                 self.assertNotIn(".claude/rules/", read)
                 self.assertIn("the ARCHITECTURE sections it names, by section, never the whole doc", read)
-                self.assertIn("`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md`", read)
+                self.assertIn("`cd /c/prime-game/.claude/worktrees/7 && tools/run.sh section docs/ARCHITECTURE.md`", read)
         read = next(p for p in calls(given, "implement:")[0]["prompt"].split("\n\n") if p.startswith("Read: "))
         self.assertEqual(read, "Read: `gh issue view 7 --comments`; r.")
 
@@ -754,10 +799,10 @@ PLAYCHECK_LINE = (
 # background, a new log, `wait`; for ARGS.
 MUTANTS_RUN = (
     "Run each spec in the background, never in the foreground (a foreground call dies at 600 s, and setup and the "
-    "baseline come before the first mutant): `cd /d/prime-game/.claude/worktrees/7 && tools/run.sh mutants "
+    "baseline come before the first mutant): `cd /c/prime-game/.claude/worktrees/7 && tools/run.sh mutants "
     '<spec.json> > <log> 2>&1; echo "exit=$?" >> <log>` in the Bash tool with run_in_background true and its timeout '
     "3600000, a NEW log under a7/ of your scratchpad for each run (mutants-1.log, mutants-2.log, ...), then "
-    "`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in separate calls until it finishes, as the "
+    "`cd /c/prime-game/.claude/worktrees/7 && tools/run.sh wait <log>` in separate calls until it finishes, as the "
     "bounded waits below say. A spec may hold several mutants (setup and the baseline then run once); one run at a "
     "time: another mutants run in the same checkout exits 1."
 )
@@ -765,7 +810,7 @@ MUTANTS_RERUN = (
     "then run that mutant again in the background (a NEW log under a7/ of your scratchpad, then "
     "`tools/run.sh wait <log>`, as the bounded waits below say) to show it killed"
 )
-PNG = "D:/prime-game/.claude/worktrees/7/tools/out/playcheck/spectate/01.png"
+PNG = "C:/prime-game/.claude/worktrees/7/tools/out/playcheck/spectate/01.png"
 SHOTS = {"available": True, "scenarios": ["spectate"], "exit_codes": [0], "pngs": [PNG]}
 # lean (#332, docs/decisions/2026-10-04-lean-workflow-agent-types.md): the agent type each role's label prefix gets.
 LEAN_WRITERS = ("task-implementer", "task-publisher")
@@ -1497,7 +1542,7 @@ class PipelineV2Test(unittest.TestCase):
                         "every `verify`, `publish`, `mutants` and `gh pr checks --watch` step in this prompt",
                         "run_in_background",
                         f"under {scratch}/ of your scratchpad",
-                        'cd /d/prime-game/.claude/worktrees/7 && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>',
+                        'cd /c/prime-game/.claude/worktrees/7 && tools/run.sh <command> > <log> 2>&1; echo "exit=$?" >> <log>',
                         "tools/run.sh wait <log>",
                         "`tools\\run.cmd wait <log>`",
                         "300000",
@@ -1671,7 +1716,7 @@ LONG = "First line of a long text that goes on well past one line of the manager
 SUMMARY = "#7 is done in 3 commits; verify passed at HEAD abc1234.\n\n" + "What changed: a paragraph. " * 250
 BLOCKER = {"severity": "blocker", "file": "core/match/vote.gd", "line": 3, "problem": LONG, "fix": "Rewrite it: " + LONG * 3}
 STEPS = [
-    {"why": "After PR #9 merges, remove the task's worktree (previewed with `git worktree list`).", "command": "cd D:\\prime-game; tools\\run.cmd worktree-done 7"},
+    {"why": "After PR #9 merges, remove the task's worktree (previewed with `git worktree list`).", "command": "cd C:\\prime-game; tools\\run.cmd worktree-done 7"},
     {"why": "Decide whether #7 closes at 18 of 20 runs: (a) accept, (b) wait for #354. Recommended: (a). Answer on PR #9.", "command": ""},
 ]
 NEEDS = [
@@ -1786,7 +1831,7 @@ class CompactResultTest(unittest.TestCase):
         self.assertIsNone(STOPPED.search(json.dumps(ok["returned"], ensure_ascii=False)))
 
     def test_pr_rebase_keeps_every_field_the_manager_acts_on(self) -> None:
-        step_fix = {"why": "Re-run the trial merge after #8.", "command": "cd D:\\prime-game; tools\\run.cmd merge-check --base main"}
+        step_fix = {"why": "Re-run the trial merge after #8.", "command": "cd C:\\prime-game; tools\\run.cmd merge-check --base main"}
         rebased = {"up_to_date": True, "verify_green": True, "published": True, "ci_green": True, "old_tip": "a" * 40, "new_tip": "b" * 40,
                    "changed_paths": ["core/x.gd"], "conflicts": [LONG, LONG], "fixes": [LONG], "problems": [], "human_steps": STEPS[:1]}
         fixed = {"fixed": [LONG, LONG], "not_fixed": [LONG], "verify_green": True, "published": True, "ci_green": False, "human_steps": [step_fix]}
@@ -2106,7 +2151,7 @@ class PlanPhaseTest(unittest.TestCase):
         implement = calls(result, "implement")[0]["prompt"]
         self.assertIn(
             f"the plan agent read these files at {SHA}. Trust it while a file is unchanged since that sha: first run in the Bash tool "
-            f"`cd /d/prime-game/.claude/worktrees/7 && git diff --name-only {SHA} -- 'core/match/vote.gd' "
+            f"`cd /c/prime-game/.claude/worktrees/7 && git diff --name-only {SHA} -- 'core/match/vote.gd' "
             "'tests/unit/match/vote_test.gd'` once (again after a rebase)",
             implement,
         )
@@ -2417,7 +2462,7 @@ class CheckpointTest(unittest.TestCase):
                     self.assertTrue(b["prompt"].index(RULE_HEAD) < b["prompt"].index("Do NOT publish"))
                     # #597: measured by a runner command, never by arithmetic on the harness's reminder; the backstop
                     # holds whatever ctx printed, and past 200k "only the final verify left" no longer lets it finish.
-                    for words in ("`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh ctx --at 150000 --hard 200000`", "every ~15 tool calls and after each verify", "When it prints HANDOFF NOW",
+                    for words in ("`cd /c/prime-game/.claude/worktrees/7 && tools/run.sh ctx --at 150000 --hard 200000`", "every ~15 tool calls and after each verify", "When it prints HANDOFF NOW",
                                   "or after 60 tool calls in any case (whatever ctx printed, also when it found no transcript)",
                                   "If only the final verify and the return are left, finish instead, unless ctx printed past 200,000.",
                                   "a7/handoff-1.md", "done (", "left (", "decisions (", "gotchas (", "verify state (",
@@ -2501,7 +2546,7 @@ class CheckpointTest(unittest.TestCase):
         third = calls(result, "implement")[2]
         (rule,) = [p for p in third["prompt"].split("\n\n") if p.startswith(STOP_HEAD)]
         self.assertTrue(third["prompt"].index(STOP_HEAD) < third["prompt"].index("Do NOT publish"))
-        for words in ("`cd /d/prime-game/.claude/worktrees/7 && tools/run.sh ctx --at 150000 --hard 200000` every ~15 tool calls and after each verify",
+        for words in ("`cd /c/prime-game/.claude/worktrees/7 && tools/run.sh ctx --at 150000 --hard 200000` every ~15 tool calls and after each verify",
                       "When it prints `HANDOFF NOW: past 200,000` (a plain HANDOFF NOW does not stop you), or when it found no transcript and you have made 150 tool calls, stop at your last green commit",
                       "a whole `verify --changed` passed on", "leave no background job", "a WIP commit first, so all of it has a sha",
                       "(1) keep the work after that commit", "`git update-ref refs/dropped/7-<HEAD's short sha> HEAD`",
@@ -2786,7 +2831,7 @@ class UpdateRunTest(unittest.TestCase):
             with self.subTest(reviewer=review["label"]):
                 self.assertIn(f"diff {HEAD}..HEAD`, 29 changed lines in 2 files since the PR's published head {HEAD}", review["prompt"])
                 self.assertIn("only as context", review["prompt"])
-                self.assertNotIn(": `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files", review["prompt"])
+                self.assertNotIn(": `git -C /c/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files", review["prompt"])
         pub = calls(result, "publish")[0]["prompt"]
         line = next(x for x in pub.split("\n\n") if x.startswith(UPDATE_LINE))
         self.assertIn(f"the update path: the reviewers read only the delta since the PR's published head {HEAD}, 29 changed lines in 2 files, none under core/", line)
@@ -2813,7 +2858,7 @@ class UpdateRunTest(unittest.TestCase):
                     self.assertIn(want, labels)
                 self.assertNotIn("plan:#7", labels)
                 for review in calls(result, "review:"):
-                    self.assertIn(": `git -C /d/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files", review["prompt"])
+                    self.assertIn(": `git -C /c/prime-game/.claude/worktrees/7 diff origin/main...HEAD` and the files", review["prompt"])
                     self.assertNotIn(HEAD, review["prompt"])
                 pub = calls(result, "publish")[0]["prompt"]
                 self.assertIn(f"{UPDATE_LINE}the full chain ({out['why']}): the reviewers read the whole PR diff", pub)

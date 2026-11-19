@@ -17,7 +17,7 @@ skill itself).
    plan-issue comment.
 5. **A release branch** (only when the kickoff names one, once, after the yes; merges.md "A release branch"): from the main checkout, without leaving your
    shell anywhere else, `git fetch origin && git branch release/m<k> origin/main && git push -u origin release/m<k>
-   && git worktree add D:/prime-game/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours (§5); say
+   && git worktree add <main>/.claude/worktrees/release-m<k> release/m<k>`. That worktree is yours (§5); say
    both in the first wave comment.
 7. Find the files that tasks running in parallel will all touch (mode `.tres` files, `docs/ARCHITECTURE.md`,
    registries, event folders) and split ownership **up front**: who owns which class, which task creates which

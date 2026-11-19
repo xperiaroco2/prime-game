@@ -21,7 +21,7 @@ For you:
    The scenario: a join over a dead service waits 30 s.
 3. Pull the main checkout:
 ```powershell
-cd D:\\prime-game; git pull
+cd C:\\prime-game; git pull
 ```
 
 Order from here: #484, then #485.
@@ -88,7 +88,7 @@ class BlockTest(unittest.TestCase):
         self.assertEqual(len(items), 3, items)
         self.assertTrue(items[0][0].startswith("1. Merge PR #490"))
         self.assertEqual(items[1][1], "   The scenario: a join over a dead service waits 30 s.")
-        self.assertEqual(items[2][1:], ["```powershell", "cd D:\\prime-game; git pull", "```"])
+        self.assertEqual(items[2][1:], ["```powershell", "cd C:\\prime-game; git pull", "```"])
         self.assertNotIn("Order from here", "\n".join(line for item in items for line in item))
 
     def test_nothing_and_none(self) -> None:

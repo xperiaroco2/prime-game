@@ -12,7 +12,8 @@ export const meta = {
 // Saved project workflow (docs/AGENT_WORKFLOW.md §7.1; skill orchestrate-stage).
 // args:
 //   n       the PR's issue (required)            pr      the PR number (required)
-//   wt      its worktree, D:/... (required)       branch  its branch (required)
+//   wt      its worktree, <checkout>/.claude/worktrees/<name> (required)
+//   branch  its branch (required)
 //   base    the PR's base, default 'main'
 //   why     what merged and what conflicts, with the PRs and handoffs to read (required)
 //   steps   how to reconcile: which side's files and payloads to keep, follow-ups the two PRs named
@@ -31,7 +32,7 @@ export const meta = {
 // all off by default, as in issue-task.js: with none of them every agent's prompt, label, phase, schema and options
 // stay as they were (tools/runner/tests/test_workflows.py snapshots them), but for the deliberate changes of the
 // default prompts that rewrote those snapshots (#413's and #456's RULES lines, #339's netcode sections, #468's reading
-// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it, #1257's REVIEW_RULES without the hooks-path and wait lines). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
+// line, #818's REVIEW_RULES and Start-Sleep in the wait line, #815's ADR line, #816's section reads and #834's docs/ARCHITECTURE.md in it, #1257's REVIEW_RULES without the hooks-path and wait lines, #1621's main checkout taken from args.wt and the drive root in the stray-write line). The agents each one adds count toward the agent number the kickoff approves (2 to 4 without them):
 //   second_review true: an extra netcode-security-reviewer pass with an attacker's lens wherever the netcode review
 //                 is routed. +1 agent there
 //   skeptic       true, or a number: one read-only agent tries to refute each blocker or major finding before the
@@ -62,8 +63,14 @@ for (const k of ['n', 'pr', 'wt', 'branch', 'why']) {
 }
 const N = A.n
 const PR = A.pr
-const WT = A.wt.replace(/\\/g, '/')
+// A Git Bash wt (/c/x) becomes C:/x, so MAINW never reads \c\x, the stray folder a Windows program makes of it (#1621).
+const WT = A.wt.replace(/\\/g, '/').replace(/^\/([A-Za-z])(?=\/)/, (m, d) => d.toUpperCase() + ':')
 const WTB = WT.replace(/^([A-Za-z]):/, (m, d) => '/' + d.toLowerCase())
+// The main checkout: the folder above .claude/worktrees/<name>, where `start` makes every worktree, so no drive
+// letter or folder is assumed (#1621). MAINW is its PowerShell form.
+const MAIN = WT.replace(/\/+$/, '').replace(/\/\.claude\/worktrees\/[^/]+$/, '')
+if (MAIN === WT.replace(/\/+$/, '')) throw new Error(`pr-rebase: args.wt must be <checkout>/.claude/worktrees/<name>, got ${A.wt}`)
+const MAINW = MAIN.replace(/\//g, '\\')
 const BASE = A.base || 'main'
 const SCRATCH = `r${PR}`
 // A release base (release/m<k>, any base that is not main or a task branch) is always passed, so the base never
@@ -141,7 +148,7 @@ const ADR_RULE = '- The task\'s ADR (each docs/decisions/ file the issue links):
 const REVIEW_RULES = [READ_RULE, ADR_RULE].join('\n')
 const RULES = [
   `You are a task agent of prime-game, run unattended by ${A.manager || 'the manager session'}. No human answers questions: never ask in chat. Root CLAUDE.md applies in full.`,
-  `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR #${PR}, issue #${N}, base ${BASE}). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\`. Never change D:/prime-game itself or another worktree.`,
+  `- Work ONLY in the worktree ${WT} (branch ${A.branch}, PR #${PR}, issue #${N}, base ${BASE}). Start every shell command with \`cd ${WTB} && ...\` (Git Bash) or \`Set-Location ${WT}; ...\`. Never change ${MAIN} itself or another worktree.`,
   `- Never: merge a PR, push to main, push by hand or force-push (the branch goes up only through \`tools\\run.cmd publish\`), close an issue, edit the body of #${A.plan || 30}. Do not run commands you expect to prompt. No Godot windows. Temporary files only under the subfolder ${SCRATCH}/ of your scratchpad (it is shared with every other agent). LF line endings. Never weaken, skip or delete a test to make it pass.`,
   '- Commits: Conventional Commits ending with the attribution line your system reminder gives for commits. An edit of any path under .claude/ or addons/ prompts unless the session runs in bypass: list it for the human instead. Never delete, move or edit anything under addons/, not even a stray ~*.TMP (ignored: leave it); list any needed cleanup in the handoff for the human.',
   '- Never use `git stash` (one stash serves every worktree, so the guard asks before a drop of an entry it cannot show is yours). To set work aside: a WIP commit, later `git reset --soft HEAD~1` (free in your own worktree).',
@@ -155,7 +162,7 @@ const RULES = [
   WAIT_RULE,
   READ_RULE,
   ADR_RULE,
-  '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached D:\\ and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under `D:\\c\\`.',
+  '- Write no file outside your worktree and your scratchpad subfolder, not even an empty throwaway: it prompts and blocks the run (`cat > ../../../../tmp_unused` from a worktree reached the drive root and waited two hours) or leaves a stray file for a human. Never open a command with a no-op write such as `cat > "$TMP/x" 2>/dev/null;`: `$TMP`, `$TEMP`, `$TMPDIR` and `/tmp` are the system Temp folder, not your scratchpad; output you drop goes to `/dev/null` (Git Bash) or `$null` (PowerShell). A Git Bash path `/c/...` given to `tools\\run.cmd`, PowerShell or another Windows program writes under a stray `\\c\\` folder at the drive root.',
 ].join('\n')
 
 const REVIEW = { type: 'object', properties: { reviewer: { type: 'string' }, verdict: { type: 'string' }, findings: { type: 'array', items: { type: 'object', properties: { severity: { type: 'string', enum: ['blocker', 'major', 'minor', 'nit'] }, file: { type: 'string' }, line: { type: 'number' }, problem: { type: 'string' }, fix: { type: 'string' } }, required: ['severity', 'problem'] } } }, required: ['verdict', 'findings'] }
@@ -163,7 +170,7 @@ const SKEPTIC_SCHEMA = { type: 'object', properties: { refuted: { type: 'boolean
 // human_steps (#266), as in issue-task.js: each step the engineer takes himself comes back with its whole command, which
 // the manager copies into the chat as is (docs/HUMAN_SESSIONS.md, "Talking to the humans").
 const HUMAN_STEPS_SCHEMA = { type: 'array', items: { type: 'object', properties: { why: { type: 'string' }, command: { type: 'string' } }, required: ['why', 'command'] } }
-const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd D:\\prime-game;\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`D:\\prime-game\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
+const HUMAN_STEPS = `human_steps: each step only the engineer can take after you (a cleanup, a leftover worktree to remove, a PNG to drag into the PR, a decision), as {why, command}. command: the whole command, ready to paste: ONE PowerShell 5.1 line that starts with \`cd <absolute folder>;\` (\`cd ${MAINW};\` for the main checkout, where his terminal is; \`cd ${WT.replace(/\//g, '\\')};\` for your worktree), commands joined with \`;\` (never \`&&\`), never a pointer such as "the command in the PR body". Preview it from that folder first (\`--dry-run\` where the command has one, a read-only listing such as \`git worktree list\`); run it outright only when it is read-only, never one that does his step, changes \`${MAINW}\` or prompts. A step without a command (a click in GitHub, a decision) has command "" and says in why what to do and where. The PR and your comment on the issue may carry the commands too.`
 // Bounded waits (#303, always on), the same text as in issue-task.js (test_workflows.py compares the two): one
 // paragraph for each agent that runs verify, publish or a CI watch, placed after the steps it replaces. No agent here
 // gets `loops` (#574, issue-task's implementer): each one publishes.
@@ -250,7 +257,7 @@ if (!reb.verify_green || !reb.published) {
 phase('Review')
 const paths = reb.changed_paths || []
 const base = [
-  `Fresh read-only review of PR #${PR} (issue #${N}) after its rebase on origin/${BASE} (worktree ${WT}; D:/prime-game is main). Budget: at most about 60 tool calls; do not edit anything; you may run \`tools\\run.cmd test <path>\` in the worktree.`,
+  `Fresh read-only review of PR #${PR} (issue #${N}) after its rebase on origin/${BASE} (worktree ${WT}; ${MAIN} is main). Budget: at most about 60 tool calls; do not edit anything; you may run \`tools\\run.cmd test <path>\` in the worktree.`,
   REVIEW_RULES,
   `The rebase agent reported: ${JSON.stringify(reb)}`,
   `Check that each conflict resolution keeps both sides' intent and that the fixes for the new base are correct: \`git -C ${WTB} range-diff <old_tip>...<new_tip>\` where the tips are known, and \`git -C ${WTB} diff origin/${BASE}...HEAD\`. One copy of each shared class, used consistently; no lost or duplicate lines in data files; no weakened test.${A.focus ? '\n' + A.focus : ''}`,
@@ -293,7 +300,7 @@ if (SKEPTICS) {
   if (skeptic.unchecked.length) log(`#${PR}: ${skeptic.unchecked.length} blocker or major finding(s) over the skeptic limit of ${SKEPTICS} go to the fix unchecked`)
   if (checked.length) {
     const verdicts = await parallel(checked.map(s => () => agent([
-      `PR #${PR} (issue #${N}) after its rebase on origin/${BASE} (worktree ${WT}; D:/prime-game is main).`,
+      `PR #${PR} (issue #${N}) after its rebase on origin/${BASE} (worktree ${WT}; ${MAIN} is main).`,
       REVIEW_RULES,
       'A skeptic\'s read-only check of ONE review finding (skeptic), before a fix agent fixes it. Budget: at most about 30 tool calls. Edit nothing; you may run `tools\\run.cmd test <path>` in the worktree.',
       `The finding, from the ${s.from}: ${JSON.stringify(s.finding)}`,

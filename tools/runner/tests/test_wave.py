@@ -114,7 +114,7 @@ def journal(folder: Path, agents: list[tuple], last_write: float | None = None) 
 
 
 def issue_args(n: int, **more: object) -> dict:
-    return {"n": n, "title": f"tooling: task {n}", "wt": f"D:/prime-game/.claude/worktrees/{n}",
+    return {"n": n, "title": f"tooling: task {n}", "wt": f"C:/prime-game/.claude/worktrees/{n}",
             "branch": f"tooling/{n}-task", "base": "main", **more}  # fmt: skip
 
 
@@ -126,7 +126,7 @@ class Project:
     """A transcript folder in a temp directory; each test writes its own manager session."""
 
     def __init__(self, root: Path) -> None:
-        self.dir = root / "projects" / "D--prime-game"
+        self.dir = root / "projects" / "C--prime-game"
         self.dir.mkdir(parents=True)
         self.lines: list[object] = [{"type": "custom-title", "customTitle": "AI productivity трек: хвиля 2"}]
 
@@ -164,7 +164,7 @@ class Project:
         return wave.render(wave.Wave(s, wave.build_runs(s), metrics.parse_time(since), now))
 
 
-MAIN = "D:/prime-game"
+MAIN = "C:/prime-game"
 
 
 def sha(n: int) -> str:
@@ -314,7 +314,7 @@ class WaveTest(unittest.TestCase):
     def test_launch_pairs_with_its_result_by_tool_use_id(self) -> None:
         self.p.add(
             assistant(0, "msg-1", [workflow("t1", name="issue-task", args={"n": 5}),
-                                   workflow("t2", scriptPath="D:/prime-game/.claude/workflows/issue-task.js",
+                                   workflow("t2", scriptPath="C:/prime-game/.claude/workflows/issue-task.js",
                                             args={"n": 6})]),
             launched(1, "t2", "wf_b"),
             {"type": "user", "timestamp": at(1), "message": {"role": "user", "content": [
@@ -424,7 +424,7 @@ class WaveTest(unittest.TestCase):
         body = self.p.body()
         running = body.split("## Running")[1].split("## Handover")[0]
         row = self.row(running, "wf_open")
-        for want in ("#6", "tooling: task 6", "D:/prime-game/.claude/worktrees/6", "tooling/6-task", "| main |",
+        for want in ("#6", "tooling: task 6", "C:/prime-game/.claude/worktrees/6", "tooling/6-task", "| main |",
                      "review:code:#6 (Review)", "| 30 | 5 |"):  # fmt: skip
             self.assertIn(want, row)
         finished = body.split("## Running")[0]
@@ -519,7 +519,7 @@ class WaveTest(unittest.TestCase):
 
     def test_human_steps_in_both_shapes(self) -> None:
         steps = [
-            {"why": "Remove the worktree", "command": "cd D:\\prime-game; tools\\run.cmd worktree-done 5"},
+            {"why": "Remove the worktree", "command": "cd C:\\prime-game; tools\\run.cmd worktree-done 5"},
             {"why": "Drag the PNG into the PR", "command": ""},
             "Review and merge PR #9",
             {"why": "A fenced one", "command": "echo ```"},
@@ -533,7 +533,7 @@ class WaveTest(unittest.TestCase):
         ])  # fmt: skip
         body = self.p.body()
         self.assertIn("**#5 human steps** (wf_pr)", body)
-        self.assertIn("- Remove the worktree\n\n```powershell\ncd D:\\prime-game; tools\\run.cmd worktree-done 5\n```",
+        self.assertIn("- Remove the worktree\n\n```powershell\ncd C:\\prime-game; tools\\run.cmd worktree-done 5\n```",
                       body)  # fmt: skip
         self.assertIn("- Drag the PNG into the PR\n\n- Review", body, "no fence for an empty command")
         self.assertEqual(body.count("Drag the PNG"), 1, "a step both agents returned is listed once")
@@ -922,7 +922,7 @@ class WaveTest(unittest.TestCase):
         # A POSIX-flavoured path is how the main checkout reaches housekeeping on Linux; Python 3.11 used to turn it
         # into the drive-relative "D:prime-game".
         for main in (PurePosixPath(MAIN), PureWindowsPath(MAIN), Path(MAIN)):
-            self.assertEqual(wave.cd_main(main), "cd D:\\prime-game; ", repr(main))
+            self.assertEqual(wave.cd_main(main), "cd C:\\prime-game; ", repr(main))
 
     def test_housekeeping_filters(self) -> None:
         def wt(name: str, branch: str | None, head: str) -> str:
@@ -964,7 +964,7 @@ class WaveTest(unittest.TestCase):
         part = self.section(target.read_text(encoding="utf-8"), "Housekeeping")
 
         def block(command: str) -> str:
-            return f"```powershell\ncd D:\\prime-game; {command}\n```"
+            return f"```powershell\ncd C:\\prime-game; {command}\n```"
 
         lines = part.splitlines()
         self.assertEqual(lines[2], "For you: close the Claude session in worktree 260 ('solo' (pid 4242, idle, last "

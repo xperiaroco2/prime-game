@@ -14,7 +14,7 @@ from pathlib import Path
 from runner import cli, metrics
 from runner.tests.test_metrics import assistant, at, bash, tool_result, usage, write_lines
 
-CHECKOUT = Path("D:/prime-game")
+CHECKOUT = Path("C:/prime-game")
 SESSION = "11111111-2222-3333-4444-555555555555"
 UNTIL = "2026-10-02T11:00:00Z"
 REWRITE = usage(write=100_000)  # $0.50 of cache write on Opus 5.5: the whole context written again
@@ -103,7 +103,7 @@ class IdleCauseTest(unittest.TestCase):
             (use("PowerShell", command="tools\\run.cmd wait a558\\verify-1.log"), "wait", False),
             (use("Bash", command="tools/run.sh verify > v.log 2>&1", run_in_background=True), "verify", True),
             (use("Bash", command="tools/run.sh mutants spec.json"), "verify", False),
-            (use("PowerShell", command='& "D:\\prime-game\\tools\\run.cmd" publish'), "verify", False),
+            (use("PowerShell", command='& "C:\\prime-game\\tools\\run.cmd" publish'), "verify", False),
             (use("PowerShell", command="Start-Sleep -Seconds 60"), "sleep", False),
             (use("Bash", command="for i in $(seq 1 99); do grep -q ok x.log && break; sleep 5; done"), "sleep", False),
             (use("Bash", command="gh pr checks 9 --watch"), "shell", False),
@@ -149,7 +149,7 @@ class IdleReportTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        self.dir = self.root / "projects" / "D--prime-game"
+        self.dir = self.root / "projects" / "C--prime-game"
         idle_run(self.dir / SESSION / "subagents" / "workflows" / "wf_idle")
         write_lines(self.dir / f"{SESSION}.jsonl", [assistant(0, "own1", READ), assistant(30, "own2", REWRITE)])
 
@@ -237,7 +237,7 @@ class IdleTrackTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        art = self.root / "projects" / "D--prime-game-art"
+        art = self.root / "projects" / "C--prime-game-art"
         idle_run(art / "s-art" / "subagents" / "workflows" / "wf_art")
         (art / "s-art" / "subagents" / "workflows" / "wf_art" / "agent-a-two.jsonl").write_text("", encoding="utf-8")
         write_lines(art / "s-art" / "subagents" / "agent-h.jsonl", [

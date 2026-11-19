@@ -31,6 +31,7 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | Surface | The Claude desktop app (Code tab), ≥ 2.1.281 on both machines. The `claude` on PATH is updated or removed 👤 so Rider cannot start an old build. `doctor` fails below 2.1.281 | 👤 / [M0] |
 | Shell | PowerShell 5.1 is the agent's primary shell. No `&&`/`||`: chain with `; if ($LASTEXITCODE -eq 0) { … }`. Structured arguments go in files, not inline JSON | [M0] root `CLAUDE.md` |
 | Machine paths | `GODOT_BIN`, `GODOT_GUI_BIN`, `PYTHON_BIN`, `GDTOOLKIT_DIR` in the `env` of each human's `~/.claude/settings.json`, so every session, worktree, hook and subagent sees them ([ADR](decisions/2026-09-28-machine-env-in-user-settings.md)). A human's own terminal needs no Windows variables for them: before any command the runner fills each one the process environment lacks from the `env` of the project's `.claude/settings.local.json`, then of `~/.claude/settings.json` (`$CLAUDE_CONFIG_DIR/settings.json` when that is set), and `tools\run.cmd` finds `PYTHON_BIN` there before Python starts. The process environment wins; `doctor` says where each came from and warns when none has it. The runner also puts `TEMP` and `TMP` in their long form when they hold an 8.3 short path (`C:\Users\XPERIA~1\...`, which the desktop app may give a shell while git and `Path.resolve` give `C:\Users\xperiaroco\...`), and so does the runner tests' package for a bare `python -m unittest`; `doctor` warns about the short one, whose fix is the long path in that `env` (#542) | [applied] engineer |
+| Checkouts | No tool, workflow or skill assumes a drive or folder (#1621): the **main checkout** is wherever the human cloned prime-game (the engineer's `C:\prime-game` since 2026-11-18; `D:\prime-game` before, in ADRs and history). A session finds it as the folder above `.git` from `git rev-parse --path-format=absolute --git-common-dir` (the runner's `main_checkout`; a task worktree sits in its `.claude\worktrees\<name>`, which the workflows strip from `args.wt`). The other repos are cloned beside it, in the same parent folder: `..\prime-game-ui`, `..\prime-game-art`, `..\prime-game-design`, `..\prime-game-audio`. Docs write `<main>` for the main checkout's absolute path; a command for a human carries the real one | [applied] |
 | Personal settings | Each human's `~/.claude/settings.json` holds `"language"` and `"permissions": {"defaultMode": "acceptEdits"}`. Personal rules go in `~/.claude/CLAUDE.md`. Nothing personal in shared files | [applied] engineer |
 | `.claude/settings.local.json` | Personal permission approvals, plus in the main checkout on Windows the `claudeMdExcludes` patterns that the full `doctor` adds (§3 "Which copy loads", #385, #406); gitignored and untracked | [applied] |
 | Godot import scope | `docs/.gdignore` keeps the editor from importing anything under `docs/` | [applied] |
@@ -291,7 +292,8 @@ rules.
   restricts that human's own sessions. 👤 Both humans keep **usage credits off** or set a spend cap: the only hard
   stop on money.
 - **Routing check [applied]:** each subagent transcript under
-  `~/.claude/projects/D--prime-game/<session>/subagents/agent-*.jsonl` records the model that actually served it,
+  `~/.claude/projects/<key>/<session>/subagents/agent-*.jsonl` (`<key>`: the main checkout's path with every
+  character but a letter or digit as `-`, `C--prime-game`) records the model that actually served it,
   and `agent-*.meta.json` next to it the `agentType` and any requested `model`. `tools\run.cmd agents-check`
   (this session; `--all` for every session of the main checkout and its worktrees, from any of them) asserts the model
   **family**, not exact IDs: the requested model, else the agent file's `model:`. `availableModels` is the shared list
@@ -331,7 +333,7 @@ since #518 (§9); they serve whoever brings the idea, the engineer or the option
 | `onboard` | both | "налаштуй мене": runs `doctor`, writes user settings after approval, prints the human-only checklist (§12) |
 | `orchestrate-stage` | engineer | A manager kickoff for a stage (no "ultracode", `docs/MANAGERS.md` §2): the manager session runs one `issue-task` workflow per issue (§7.1). Since #561 `SKILL.md` is a core (the kickoff, the launch steps, the completion loop, reporting, the turn end) with an index naming, for each event, the file beside it that holds the rest, each keeping its § numbers: `stage-setup.md`, `launch-args.md`, `resume.md`, `merges.md`, `notifications.md`, `gotchas.md`, `kickoff-template.md`, besides `budget.md` and `handover.md` |
 | `night-audit` | engineer | Started each night by the Desktop scheduled task `night-audit` (a manager runs it as a workflow only by hand, for a missed night): one read-only audit lens, every finding re-checked by one skeptic, issues and a summary on the "Night jobs" issue (§15) |
-| `design-manager` | engineer | A pointer: the design track's manager runs in the private design repo `D:\prime-game-design` on that repo's own skill (§7.3, #1124); a design kickoff in `D:\prime-game` is sent there |
+| `design-manager` | engineer | A pointer: the design track's manager runs in the private design repo `..\prime-game-design` on that repo's own skill (§7.3, #1124); a design kickoff in `<main>` is sent there |
 | `director` | engineer | The engineer's director, one main session in two shifts a day (night, day) over every track's sub-sessions: clears, starts and archives them on his word, digests what needs him into the pinned "Engineer's inbox" issue when he asks, relays his answers, reports the night, merges through the gate on his word or, for a technical PR, his standing word, and changes the shift by clear and kickoff; launches no workflow and decides nothing (§7.2; the secretary until #1364) |
 
 - No skill is named `doctor`, `verify` or `run` (they would replace bundled commands).
@@ -506,7 +508,7 @@ task itself. It was the **secretary** (#485) until his word of 2026-10-29 ~00:30
 ([copied on #1364](https://github.com/xperiaroco2/prime-game/issues/1364#issuecomment-6482122331)) made it the
 **director**: one main session that runs every track's work as its own linked sub-sessions, in two shifts a day.
 
-- **Who:** one session of the engineer's, Opus at high effort, bypass, in `D:\prime-game` (it only reads the
+- **Who:** one session of the engineer's, Opus at high effort, bypass, in `<main>` (it only reads the
   checkout), on the skill `director` (`.claude/skills/director/SKILL.md`), titled "Директор: ніч DD.MM" or
   "Директор: день DD.MM": the same session runs both shifts, cleared between them. Its sub-sessions get short
   Ukrainian names, "<трек>: <частина>" ("Арт: корабель") or the track alone ("Гра"). Its cost counts in the
@@ -599,13 +601,13 @@ the session, the card and the guard's reason.
 
 **Set up** (the engineer, once): the issue and its pin.
 ```powershell
-cd D:\prime-game; gh issue create --title "Engineer's inbox" --body "The director session rewrites this body (docs/AGENT_WORKFLOW.md §7.2)."
+cd <main>; gh issue create --title "Engineer's inbox" --body "The director session rewrites this body (docs/AGENT_WORKFLOW.md §7.2)."
 ```
 ```powershell
-cd D:\prime-game; gh issue pin <the new issue's number>
+cd <main>; gh issue pin <the new issue's number>
 ```
 **Start** (the engineer, once: the first director, or a fresh one when the director session is lost): a plain new
-Desktop session (not a scheduled task) in `D:\prime-game`, no worktree, model Opus, effort high, bypass (the app
+Desktop session (not a scheduled task) in `<main>`, no worktree, model Opus, effort high, bypass (the app
 refuses a start above the starter's mode or effort, and bypass clears, archives and raises efforts without a card),
 with the kickoff below pasted. At each shift change after that the same session is cleared and picks up its own
 kickoff from its handover comment, and nothing is pasted. A fresh director gets no notes from the old session's
@@ -637,8 +639,8 @@ its own repo since #1124.) Game design is a track of its own, `design`, beside g
 the project lead and the game designer, works through one manager session at a time, which keeps the design context
 across sessions and hands over like any manager (`docs/MANAGERS.md`).
 
-- **Where:** the private repo **xperiaroco2/prime-game-design**, checkout `D:\prime-game-design` (the engineer's
-  decisions, [#1095 comment 6200062331](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200062331):
+- **Where:** the private repo **xperiaroco2/prime-game-design**, checkout `..\prime-game-design` beside the main one
+  (the engineer's decisions, [#1095 comment 6200062331](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200062331):
   the design "lives its own life", and [comment 6200108169](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200108169):
   a separate repo). Its research, references, idea batches and brainstorms are committed straight to its `main`, with no
   checks; its root `CLAUDE.md` holds its rules, its `design-research` workflow and `design-reader` and `design-writer`
@@ -646,16 +648,16 @@ across sessions and hands over like any manager (`docs/MANAGERS.md`).
   variant). What stays here: the decided rules (`docs/GDD.md`, `docs/design/`, with `docs/design/COMPASS.md`, which
   the design repo reads by path), each landing through a docs PR on the design-only fast path (§4.2, #1123), and the
   archive of 2026-10-15 (`docs/design/research/`, `docs/design/ideas/`).
-- **Who:** one session of the engineer's in `D:\prime-game-design`, Opus, bypass, effort high, on that repo's skill
+- **Who:** one session of the engineer's in `..\prime-game-design`, Opus, bypass, effort high, on that repo's skill
   `design-manager`, started by its kickoff (`Track: design`, plan issue #1095). This repo's
   `.claude/skills/design-manager/SKILL.md` is only a pointer there.
-- **Its lens:** `docs/design/COMPASS.md` (`D:\prime-game\docs\design\COMPASS.md` from the design repo), read
+- **Its lens:** `docs/design/COMPASS.md` (`..\prime-game\docs\design\COMPASS.md` from the design repo), read
   whole at each start: the tone (described without other works' names: the repo is public; the names are in the
   engineer's personal memory), the tone test, the pillars' checklist and how an idea moves.
 - **Powers:** it researches (workflows of up to 12 agents a launch after his yes, #1095 comment 6200108169), proposes
   and records; it never decides content; its docs PRs here merge only on his word for that PR, through the gate.
 - **Budget:** the `design` line of `.claude/skills/orchestrate-stage/budget.md`. `tools\run.cmd metrics --track
-  design` (run in `D:\prime-game`) counts the design repo's sessions with the main checkout's (its sessions' default
+  design` (run in `<main>`) counts the design repo's sessions with the main checkout's (its sessions' default
   track is `design`), and `metrics --run`, `wave --stalled` and the director's `inbox` read that repo too (#1124).
 
 ## 8. Permissions, guards and hooks
@@ -759,7 +761,7 @@ commands, by the repository they name (issue #68, a read of another repository m
 [intervention](interventions/2026-09-30-engineer-full-freedom-in-own-worktree.md)). The own worktree is the
 `.claude/worktrees/<n>` that the session's working directory is in; a session whose shell starts in the main
 checkout (a manager's task session) owns the first worktree its command enters with `cd`, `Set-Location` or
-`git -C` (`cd D:/prime-game/.claude/worktrees/51 && git rebase origin/main` passes; a second worktree in the same
+`git -C` (`cd <main>/.claude/worktrees/51 && git rebase origin/main` passes; a second worktree in the same
 command asks), unless another live Claude session works in that worktree (`sessions.active_on`): then it owns
 none. On a desktop the main checkout is never owned: the designer's sessions and the engineer's `start --here`
 sessions keep every prompt. **A cloud session** (§2.1; `CLAUDE_CODE_REMOTE` true and not CI, the test `doctor`
@@ -785,7 +787,7 @@ files in `.git` (`hooks.GitFiles`, no git call).
 A manager whose shell stands in a worktree (a `cd` in the Bash tool persists between its calls) makes that
 worktree every agent's own, and each agent's own worktree someone else's: on the M3 night run a publisher's
 autosquash in its own worktree asked that way, and a replay with `tools\run.cmd permissions` showed the same
-command passing from `D:\prime-game`. So the manager enters worktrees only through subshells `(cd <wt> && ...)`,
+command passing from `<main>`. So the manager enters worktrees only through subshells `(cd <wt> && ...)`,
 `git -C <wt>` or PowerShell `Push-Location`/`Pop-Location`, and its shell stays in the main checkout
 ([intervention](interventions/2026-10-01-engineer-night-run-prompts.md)).
 
@@ -930,8 +932,8 @@ xperiaroco2/prime-game-art` is still denied, `gh secret set` still asks. Any oth
 organization the account belongs to) asks as before.
 
 #### 8.2.8 Targets and the prompt
-- In a worktree session the rest of the project stays protected: `rm -rf D:/prime-game/core` and
-  `git -C D:/prime-game clean -fdx` ask there.
+- In a worktree session the rest of the project stays protected: `rm -rf <main>/core` and
+  `git -C <main> clean -fdx` ask there.
 - It resolves each target against the session's working directory, `cd`, and the variables the same command assigns;
   `$TEMP`, `$env:TEMP` and `~` are outside the project, so scratch copies never ask. A target it cannot resolve (an
   unknown variable, `$(...)`, a PowerShell `(...)` argument) asks when its text names a protected path. Content is
@@ -986,7 +988,7 @@ wildcard or a system path is denied in every mode). The hook allows no shell wri
   code that writes and names one: `Analysis.protected`);
 - beyond the session's own worktree, the temp folder (the scratchpad) and the disposable folders (`tests/scratch/`,
   `tools/out/`, `.godot/`), or to a path it cannot resolve (`Paths.free`, `Analysis.beyond`): the main checkout from
-  a worktree, another worktree, a sibling repository, home. A `rm D:/prime-game/core/x.gd` from a worktree keeps
+  a worktree, another worktree, a sibling repository, home. A `rm <main>/core/x.gd` from a worktree keeps
   Claude Code's own prompt, as deletes outside the agent's worktree must. A loop variable after a known folder
   (`$S/p$n.md`) counts as a file in it; one that starts the path (`rm $f`) does not.
 
@@ -1470,7 +1472,7 @@ on) with the `git diff` from origin/main at that start, and the main checkout be
 diff --name-only HEAD...origin/main` there); the rule is in `wave.py`'s docstring. A section says
 "None." when it has nothing, and "Unavailable: <error>" (with a warn line) when its source failed: the rest of the
 body is still written and `wave` exits 0. Housekeeping, from `git worktree list --porcelain` in the main checkout: one
-fenced PowerShell block per command (`cd D:\prime-game; tools\run.cmd worktree-done <n>`; for the manager's
+fenced PowerShell block per command (`cd <main>; tools\run.cmd worktree-done <n>`; for the manager's
 `release-m<k>` worktree its `git worktree remove` and `git branch -D`) for each worktree whose branch's PR merged and
 whose work is on main (directly, or through a release or parent branch whose own PR into main merged later), with no
 running run of this session there, its HEAD at the merged head and no live Claude session in it; the manager runs
@@ -2170,5 +2172,5 @@ CODEOWNERS since #85).
   `gh issue list --search "\"Found by: night-audit\" in:body"`. A wrong one is closed by a human (label `invalid`).
 
 **The engineer's one-time setup 👤:** after the merge, start the first nightly run by hand and check it:
-`cd D:\prime-game; gh workflow run nightly.yml --ref main`, then `gh run list --workflow nightly.yml --limit 1`
+`cd <main>; gh workflow run nightly.yml --ref main`, then `gh run list --workflow nightly.yml --limit 1`
 (`-f ref=release/m5` added: that ref alone).

@@ -101,14 +101,14 @@ class InFlightTest(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         projects = self.root / "projects"
-        self.art = Session(projects / "D--prime-game-art", ART, "Анімації прибульців (art #196)", "D:\\prime-game-art")
-        self.design = Session(projects / "D--prime-game-design", DESIGN, "Console hologram spin-up states",
-                              "D:\\prime-game-design")  # fmt: skip
-        (projects / "D--prime-game").mkdir(parents=True)
+        self.art = Session(projects / "C--prime-game-art", ART, "Анімації прибульців (art #196)", "C:\\prime-game-art")
+        self.design = Session(projects / "C--prime-game-design", DESIGN, "Console hologram spin-up states",
+                              "C:\\prime-game-design")  # fmt: skip
+        (projects / "C--prime-game").mkdir(parents=True)
         env = mock.patch.dict(os.environ, {"CLAUDE_CODE_SESSION_ID": "the-caller", "CLAUDE_CONFIG_DIR": str(self.root)})
         env.start()
         self.addCleanup(env.stop)
-        checkout = mock.patch.object(metrics, "main_checkout", return_value=Path("D:/prime-game"))
+        checkout = mock.patch.object(metrics, "main_checkout", return_value=Path("C:/prime-game"))
         checkout.start()
         self.addCleanup(checkout.stop)
 
@@ -137,7 +137,7 @@ class InFlightTest(unittest.TestCase):
         lines = [x for x in out.splitlines() if x.startswith("in flight: ")]
         self.assertEqual(len(lines), 1, out)
         line = lines[0]
-        for want in ("'Анімації прибульців (art #196)'", "checkout prime-game-art", "cwd D:\\prime-game-art",
+        for want in ("'Анімації прибульців (art #196)'", "checkout prime-game-art", "cwd C:\\prime-game-art",
                      "last record 2026-10-03 09:29Z", f"transcript {ART}",
                      "wf_c2-flight (clothes-step) started 2026-10-03 09:28Z, its journal last written 09:50Z"):  # fmt: skip
             self.assertIn(want, line)
@@ -174,11 +174,11 @@ class InFlightTest(unittest.TestCase):
         self.assertIn("whether its process lives is unknown", out)
 
     def test_a_session_with_no_title_is_named_by_its_cwd(self) -> None:
-        untitled = Session(self.art.folder, ART, None, "D:\\prime-game-art")
+        untitled = Session(self.art.folder, ART, None, "C:\\prime-game-art")
         untitled.launch(88, "t2", "wf_c2-flight", done=False)
         untitled.write()
         _rc, out = self.main()
-        self.assertIn("in flight: (no title) (checkout prime-game-art, cwd D:\\prime-game-art", out)
+        self.assertIn("in flight: (no title) (checkout prime-game-art, cwd C:\\prime-game-art", out)
 
     def test_a_run_resumed_under_a_new_id_is_listed_once(self) -> None:
         self.art.launch(60, "t1", "wf_old", done=False, args=tw.issue_args(7))
@@ -298,7 +298,7 @@ class InFlightTest(unittest.TestCase):
 
     def test_liveness_names_the_live_process_start_and_desktop_id(self) -> None:
         def file(pid: int, sid: str, started: float, host: str = "") -> sessions.Session:
-            return sessions.Session(pid=pid, session_id=sid, cwd="D:/prime-game-art", status="idle", updated=0,
+            return sessions.Session(pid=pid, session_id=sid, cwd="C:/prime-game-art", status="idle", updated=0,
                                     name="x", started=started, host_session=host)  # fmt: skip
 
         files = [file(1, ART, 100.0, "local_old"), file(2, ART, 200.0, "local_new"), file(3, DESIGN, 50.0)]

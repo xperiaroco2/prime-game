@@ -15,7 +15,7 @@ from runner import cli, metrics
 from runner.common import Failure
 from runner.tests.test_metrics import assistant, at, tool_result, usage, write_lines
 
-CHECKOUT = Path("D:/prime-game")
+CHECKOUT = Path("C:/prime-game")
 SINCE = at(60)  # the reset
 DAYS = 3.5
 UNTIL = at(60 + DAYS * 1440)
@@ -34,24 +34,24 @@ def meta_line(minutes: float, text: str) -> dict:
 class TrackFixture:
     """A config folder with the transcripts of the checkouts (the design one is missing) and a worktree; each call below is 1% of the week.
 
-    D--prime-game                     g1: a skill's isMeta line naming meta, a tool result, then a kickoff with
+    C--prime-game                     g1: a skill's isMeta line naming meta, a tool result, then a kickoff with
                                       "Track: Game": game; a call before --since and one after --until (left out), one
                                       in the window, a hand-run subagent's and a workflow agent's (its message written
                                       twice, counted once): 4%.
                                       lab: its kickoff says game, `--session lab=meta` wins: meta 1%.
                                       plain: no Track line: untracked 1%.
                                       old: only a call before --since: not listed.
-    D--prime-game--claude-worktrees-7 wt: "Track: meta": meta 1%.
-    D--prime-game-ui                  ui1: no Track line: ui 1%; and g1's message again (a forked session): once.
+    C--prime-game--claude-worktrees-7 wt: "Track: meta": meta 1%.
+    C--prime-game-ui                  ui1: no Track line: ui 1%; and g1's message again (a forked session): once.
                                       ui2: "Track: art" beats the checkout: art 1%.
-    D--prime-game-art                 a1: no Track line: art 1%.
-    D--prime-game-old                 x: not a track checkout: never read.
+    C--prime-game-art                 a1: no Track line: art 1%.
+    C--prime-game-old                 x: not a track checkout: never read.
     """
 
     def __init__(self, root: Path) -> None:
         self.base = root
         p = root / "projects"
-        main = p / "D--prime-game"
+        main = p / "C--prime-game"
         write_lines(main / "g1.jsonl", [
             meta_line(0, "Track: meta"),
             tool_result(1, "t0", "Track: meta"),
@@ -68,15 +68,15 @@ class TrackFixture:
         write_lines(main / "lab.jsonl", [kickoff(100, "Track: game"), assistant(101, "lab1", ONE)])
         write_lines(main / "plain.jsonl", [kickoff(100, "ultracode: no track here"), assistant(101, "plain1", ONE)])
         write_lines(main / "old.jsonl", [kickoff(10, "Track: game"), assistant(11, "old1", ONE)])
-        write_lines(p / "D--prime-game--claude-worktrees-7" / "wt.jsonl", [
+        write_lines(p / "C--prime-game--claude-worktrees-7" / "wt.jsonl", [
             kickoff(200, "a session in a worktree\n  Track: meta"), assistant(201, "wt1", ONE),
         ])
-        write_lines(p / "D--prime-game-ui" / "ui1.jsonl", [
+        write_lines(p / "C--prime-game-ui" / "ui1.jsonl", [
             kickoff(300, "ultracode: the UI track's manager"), assistant(301, "ui1", ONE), assistant(302, "g1-in", ONE),
         ])
-        write_lines(p / "D--prime-game-ui" / "ui2.jsonl", [kickoff(300, "Track: art"), assistant(301, "ui2", ONE)])
-        write_lines(p / "D--prime-game-art" / "a1.jsonl", [kickoff(400, "art"), assistant(401, "a1", ONE)])
-        write_lines(p / "D--prime-game-old" / "x.jsonl", [kickoff(400, "Track: game"), assistant(401, "x1", ONE)])
+        write_lines(p / "C--prime-game-ui" / "ui2.jsonl", [kickoff(300, "Track: art"), assistant(301, "ui2", ONE)])
+        write_lines(p / "C--prime-game-art" / "a1.jsonl", [kickoff(400, "art"), assistant(401, "a1", ONE)])
+        write_lines(p / "C--prime-game-old" / "x.jsonl", [kickoff(400, "Track: game"), assistant(401, "x1", ONE)])
 
 
 class TracksTest(unittest.TestCase):
@@ -103,8 +103,8 @@ class TracksTest(unittest.TestCase):
 
     def test_the_folders_of_the_three_checkouts_and_their_worktrees(self) -> None:
         names = [(d.name, c["track"]) for c in metrics.track_checkouts(CHECKOUT, self.root) for d in c["folders"]]
-        self.assertEqual(names, [("D--prime-game", None), ("D--prime-game--claude-worktrees-7", None),
-                                 ("D--prime-game-ui", "ui"), ("D--prime-game-art", "art")])  # fmt: skip
+        self.assertEqual(names, [("C--prime-game", None), ("C--prime-game--claude-worktrees-7", None),
+                                 ("C--prime-game-ui", "ui"), ("C--prime-game-art", "art")])  # fmt: skip
 
     def test_a_sessions_track_label_then_kickoff_then_checkout(self) -> None:
         spend = self.spend({"lab": "meta"})
@@ -120,7 +120,7 @@ class TracksTest(unittest.TestCase):
         })
 
     def test_a_translated_kickoff_keeps_its_track_by_the_key_not_the_name(self) -> None:
-        main = self.root / "projects" / "D--prime-game"
+        main = self.root / "projects" / "C--prime-game"
         write_lines(main / "uk.jsonl", [kickoff(100, "Обсяг: #1\nТрек: meta"), assistant(101, "uk1", ONE)])
         write_lines(main / "lower.jsonl", [kickoff(100, "track: UI"), assistant(101, "lower1", ONE)])
         write_lines(main / "name.jsonl", [kickoff(100, "Трек: мета"), assistant(101, "name1", ONE)])
@@ -135,7 +135,7 @@ class TracksTest(unittest.TestCase):
                  'SKILL.md">\nThis is an automated run of a scheduled task. The user is not present to answer '
                  'questions.\n\nultracode: continue the meta track. Continue from the latest comment titled "Handover '
                  'to a fresh manager session" on #302.\nTrack: meta\nBounds: ...\n</scheduled-task>')  # fmt: skip
-        write_lines(self.root / "projects" / "D--prime-game" / "sched.jsonl", [
+        write_lines(self.root / "projects" / "C--prime-game" / "sched.jsonl", [
             kickoff(100, frame), assistant(101, "sched1", ONE),
         ])
         got = {s["id"]: (s["track"], s["source"]) for s in self.spend()["sessions"]}
@@ -146,10 +146,10 @@ class TracksTest(unittest.TestCase):
         skill = Path(__file__).resolve().parents[3] / ".claude" / "skills" / "orchestrate-stage"
         template = skill / "kickoff-template.md"  # the skill's §10 since #561
         self.assertIn(line, template.read_text(encoding="utf-8").splitlines())  # §10's template line as it stands
-        write_lines(self.root / "projects" / "D--prime-game" / "tpl.jsonl", [
+        write_lines(self.root / "projects" / "C--prime-game" / "tpl.jsonl", [
             kickoff(100, f"ultracode: orchestrate stage <k>\n{line}"), assistant(101, "tpl1", ONE),
         ])
-        write_lines(self.root / "projects" / "D--prime-game-ui" / "tplui.jsonl", [
+        write_lines(self.root / "projects" / "C--prime-game-ui" / "tplui.jsonl", [
             kickoff(100, line), assistant(101, "tplui1", ONE),
         ])
         got = {s["id"]: (s["track"], s["source"]) for s in self.spend()["sessions"]}
@@ -172,7 +172,7 @@ class TracksTest(unittest.TestCase):
         self.assertNotIn("old", calls)
 
     def test_cache_reads_count_at_the_central_weight_with_the_bracket(self) -> None:
-        write_lines(self.root / "projects" / "D--prime-game-art" / "a2.jsonl", [
+        write_lines(self.root / "projects" / "C--prime-game-art" / "a2.jsonl", [
             assistant(500, "a2", usage(inp=1_000_000, read=10_000_000)),
         ])
         art = self.spend()["tracks"]["art"]  # a1 and ui2 at $23 each, a2 at $4 of input and $2 of cache reads
@@ -195,8 +195,8 @@ class TracksTest(unittest.TestCase):
         self.assertEqual(lines[4], "every session of the 3 checkouts read: 10.0% (10.7 to 9.0%) (untracked 1.0% in "
                                    "1 session: plain), against the weekly counter (get_usage), which also counts the "
                                    "account's sessions elsewhere")  # fmt: skip
-        self.assertEqual(lines[5], "checkouts read: main D--prime-game with 1 worktree; ui D--prime-game-ui; art "
-                                   "D--prime-game-art; design (prime-game-design) not on this machine, its spend "
+        self.assertEqual(lines[5], "checkouts read: main C--prime-game with 1 worktree; ui C--prime-game-ui; art "
+                                   "C--prime-game-art; design (prime-game-design) not on this machine, its spend "
                                    "unknown here")  # fmt: skip
         self.assertEqual(len(lines), 6)  # --compact: the lines alone
         record = json.loads((self.root / "out" / "tracks.json").read_text(encoding="utf-8"))
@@ -215,7 +215,7 @@ class TracksTest(unittest.TestCase):
         self.assertTrue(every[5].startswith("design: not on this machine "), every[5])  # #1124: no design checkout
         self.assertTrue(every[6].startswith("untracked: 1.0% "), every[6])
         table = self.run_main("all", compact=False)
-        self.assertIn("| meta | lab | D--prime-game | --session | 1 | $23 | 1.00% |", table)
+        self.assertIn("| meta | lab | C--prime-game | --session | 1 | $23 | 1.00% |", table)
 
     def test_the_design_track_follows_the_four_before_other_names(self) -> None:
         every = self.run_main("all", labels=("plain=design", "lab=audio")).splitlines()
@@ -225,7 +225,7 @@ class TracksTest(unittest.TestCase):
     def test_the_last_line_names_the_largest_untracked_sessions(self) -> None:
         none_left = self.run_main("game", labels=("plain=meta",)).splitlines()[-2]
         self.assertIn("(untracked 0.0%), against", none_left)
-        main = self.root / "projects" / "D--prime-game"
+        main = self.root / "projects" / "C--prime-game"
         for i, sid in enumerate(["0a-small", "0b-large-session", "0c-mid", "0d-mid"]):
             calls = [assistant(101 + k, f"{sid}-{k}", ONE) for k in range([1, 3, 2, 2][i])]
             write_lines(main / f"{sid}.jsonl", [kickoff(100, "Трек: гра"), *calls])

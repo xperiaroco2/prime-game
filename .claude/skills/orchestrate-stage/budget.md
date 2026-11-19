@@ -31,10 +31,10 @@ proposal of [comment 6473700454](https://github.com/xperiaroco2/prime-game/issue
   50, art 50 for the month from 2026-10-15 ([#1095 comment 6200108169](https://github.com/xperiaroco2/prime-game/issues/1095#issuecomment-6200108169)),
   each share a limit, not a slice ([PR #1127 comment 6201363154](https://github.com/xperiaroco2/prime-game/pull/1127#issuecomment-6201363154)).
   2A replaces those shares from the reset of 2026-10-27.
-- The tracks: **game** (the milestones; `D:\prime-game`, PRs into `main`), **UI** (`D:\prime-game-ui`), **art**
-  (`D:\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `D:\prime-game`, PRs into
+- The tracks: **game** (the milestones; `<main>`, PRs into `main`), **UI** (`..\prime-game-ui`), **art**
+  (`..\prime-game-art`), **meta** (AI productivity and token efficiency, #170 and #302; `<main>`, PRs into
   `main`), **design** (game design with the engineer, AGENT_WORKFLOW §7.3, plan #1095; the private repo
-  `D:\prime-game-design`, committed straight to its `main`, and its decisions in `D:\prime-game` through docs PRs). The
+  `..\prime-game-design`, committed straight to its `main`, and its decisions in `<main>` through docs PRs). The
   engineer's 5% is his own sessions', the director's among them (AGENT_WORKFLOW §7.2, #485, #1364), until he says
   otherwise.
   The buffer, when the row has one, lies below the 93% stop (below).

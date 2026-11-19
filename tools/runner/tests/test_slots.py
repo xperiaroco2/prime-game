@@ -299,7 +299,7 @@ class QuietTest(SlotsCase):
 
     def quiet(self, arg: str, now: datetime = NOW) -> list[str]:
         out: list[str] = []
-        me = {"worktree": "D:/prime-game", "branch": "main"}
+        me = {"worktree": "C:/prime-game", "branch": "main"}
         self.assertEqual(slots.quiet_command(arg, self.env(), now=now, me=me, out=out.append), 0)
         return out
 
@@ -318,7 +318,7 @@ class QuietTest(SlotsCase):
         self.assertEqual(
             data,
             {"until": "2026-10-05T15:00:00Z", "since": "2026-10-05T12:00:00Z", "slots": 1,
-             "worktree": "D:/prime-game", "branch": "main"},
+             "worktree": "C:/prime-game", "branch": "main"},
         )  # fmt: skip
         self.assertIn("slots: quiet until 2026-10-05T15:00:00Z", out[0])
         self.assertIn("take 1 of the 2 slots", out[0])
@@ -533,7 +533,7 @@ class StatusTest(StatusCase):
         holder = self.pool(count=1, name="busy")
         holder.acquire()
         now = datetime.now(UTC)  # the waiter file is stamped with the real time, and a stale one is left out
-        slots.write_quiet(self.where, 2, now=now - timedelta(minutes=30), me={"worktree": "D:/prime-game"})
+        slots.write_quiet(self.where, 2, now=now - timedelta(minutes=30), me={"worktree": "C:/prime-game"})
         left = json.dumps({"worktree": "D:/wt/killed", "pid": 999999})
         (self.where / "slot-2.json").write_text(left, encoding="utf-8")
         seen: list[list[str]] = []

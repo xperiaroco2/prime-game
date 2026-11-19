@@ -73,7 +73,7 @@ surprises, `\\` arriving as `\`, `.cmd` quirks: AGENT_WORKFLOW §2.2.
   (AGENT_WORKFLOW §11.2).
 
 ## Routing
-Code → `code-reviewer` (+ `netcode-security-reviewer`: `core/ server/ net/ voice/ tests/harness/ client/`, not `client/ui/`), `.gd/.tscn/.tres` → `godot-api-checker`, tests → `test-runner`; skills by description; a manager kickoff: `orchestrate-stage` (`docs/MANAGERS.md`), a design kickoff: `design-manager` (`D:\prime-game-design`).
+Code → `code-reviewer` (+ `netcode-security-reviewer`: `core/ server/ net/ voice/ tests/harness/ client/`, not `client/ui/`), `.gd/.tscn/.tres` → `godot-api-checker`, tests → `test-runner`; skills by description; a manager kickoff: `orchestrate-stage` (`docs/MANAGERS.md`), a design kickoff: `design-manager` (`..\prime-game-design`).
 
 ## Definition of done (AGENT_WORKFLOW §4.2)
 1. `verify` (lint and check) green, its tail pasted; CI (the full suite) green on the PR; red → stop and report

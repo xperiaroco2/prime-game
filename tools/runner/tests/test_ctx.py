@@ -12,7 +12,7 @@ from unittest import mock
 
 from runner import agents_check, cli, ctx
 
-WT = Path("D:/prime-game/.claude/worktrees/597")
+WT = Path("C:/prime-game/.claude/worktrees/597")
 
 
 def call(context: int, model: str = "claude-opus-5-5") -> dict:
@@ -46,7 +46,7 @@ class CtxTest(unittest.TestCase):
         return rc, buf.getvalue()
 
     def test_below_the_threshold_it_says_go_on(self) -> None:
-        path = transcript(self.dir / "agent-a.jsonl", "work in D:/prime-game/.claude/worktrees/597", [40000, 120500])
+        path = transcript(self.dir / "agent-a.jsonl", "work in C:/prime-game/.claude/worktrees/597", [40000, 120500])
         rc, out = self.run_ctx("--transcript", str(path))
         self.assertEqual(rc, 0)
         self.assertIn("ctx: 120,500 tokens of context (hand over at 150,000)", out)
@@ -78,31 +78,31 @@ class CtxTest(unittest.TestCase):
 
     def test_the_folder_matches_every_spelling_and_no_longer_name(self) -> None:
         pattern = ctx.folder_pattern(WT)
-        for text in ("D:/prime-game/.claude/worktrees/597", "cd /d/prime-game/.claude/worktrees/597 && x",
-                     json.dumps("D:\\prime-game\\.claude\\worktrees\\597\\tools"), "d:/Prime-Game/.claude/worktrees/597."):  # fmt: skip
+        for text in ("C:/prime-game/.claude/worktrees/597", "cd /c/prime-game/.claude/worktrees/597 && x",
+                     json.dumps("C:\\prime-game\\.claude\\worktrees\\597\\tools"), "c:/Prime-Game/.claude/worktrees/597."):  # fmt: skip
             self.assertTrue(pattern.search(text), text)
-        for text in ("D:/prime-game/.claude/worktrees/5970", "D:/prime-game/.claude/worktrees/59", "E:/prime-game/.claude/worktrees/597"):
+        for text in ("C:/prime-game/.claude/worktrees/5970", "C:/prime-game/.claude/worktrees/59", "E:/prime-game/.claude/worktrees/597"):
             self.assertFalse(pattern.search(text), text)
 
     def test_the_newest_recent_transcript_naming_the_worktree_is_the_callers(self) -> None:
         now = time.time()
-        project = self.dir / "projects" / "D--prime-game" / "sid"
-        mine = transcript(project / "subagents" / "workflows" / "wf_1" / "agent-mine.jsonl", "Work ONLY in the worktree D:/prime-game/.claude/worktrees/597", [170000], now - 60)
-        transcript(project / "subagents" / "workflows" / "wf_1" / "agent-old.jsonl", "D:/prime-game/.claude/worktrees/597", [90000], now - 600)
-        transcript(project / "subagents" / "workflows" / "wf_2" / "agent-other.jsonl", "D:/prime-game/.claude/worktrees/572", [10000], now)
-        transcript(project / "subagents" / "workflows" / "wf_1" / "journal.jsonl", "D:/prime-game/.claude/worktrees/597", [], now)
-        stale = transcript(self.dir / "projects" / "D--prime-game--claude-worktrees-597" / "s.jsonl", "D:/prime-game/.claude/worktrees/597", [1], now - 7 * 3600)
-        dirs = agents_check.project_dirs(Path("D:/prime-game"), self.dir)
-        self.assertEqual([d.name for d in dirs], ["D--prime-game", "D--prime-game--claude-worktrees-597"])
+        project = self.dir / "projects" / "C--prime-game" / "sid"
+        mine = transcript(project / "subagents" / "workflows" / "wf_1" / "agent-mine.jsonl", "Work ONLY in the worktree C:/prime-game/.claude/worktrees/597", [170000], now - 60)
+        transcript(project / "subagents" / "workflows" / "wf_1" / "agent-old.jsonl", "C:/prime-game/.claude/worktrees/597", [90000], now - 600)
+        transcript(project / "subagents" / "workflows" / "wf_2" / "agent-other.jsonl", "C:/prime-game/.claude/worktrees/572", [10000], now)
+        transcript(project / "subagents" / "workflows" / "wf_1" / "journal.jsonl", "C:/prime-game/.claude/worktrees/597", [], now)
+        stale = transcript(self.dir / "projects" / "C--prime-game--claude-worktrees-597" / "s.jsonl", "C:/prime-game/.claude/worktrees/597", [1], now - 7 * 3600)
+        dirs = agents_check.project_dirs(Path("C:/prime-game"), self.dir)
+        self.assertEqual([d.name for d in dirs], ["C--prime-game", "C--prime-game--claude-worktrees-597"])
         self.assertEqual(ctx.find_transcript(dirs, WT, now), mine)
         os.utime(stale, (now, now))
         self.assertEqual(ctx.find_transcript(dirs, WT, now), stale)
-        self.assertIsNone(ctx.find_transcript(dirs, Path("D:/prime-game/.claude/worktrees/9"), now))
+        self.assertIsNone(ctx.find_transcript(dirs, Path("C:/prime-game/.claude/worktrees/9"), now))
 
     def test_without_a_transcript_argument_it_finds_the_callers(self) -> None:
-        transcript(self.dir / "projects" / "D--prime-game" / "sid" / "agent-mine.jsonl", "D:/prime-game/.claude/worktrees/597", [155000])
+        transcript(self.dir / "projects" / "C--prime-game" / "sid" / "agent-mine.jsonl", "C:/prime-game/.claude/worktrees/597", [155000])
         with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": str(self.dir)}), mock.patch.object(ctx, "ROOT", WT), \
-                mock.patch("runner.metrics.main_checkout", return_value=Path("D:/prime-game")):  # fmt: skip
+                mock.patch("runner.metrics.main_checkout", return_value=Path("C:/prime-game")):  # fmt: skip
             rc, out = self.run_ctx()
         self.assertEqual(rc, 0)
         self.assertIn("ctx: 155,000 tokens of context (hand over at 150,000), from agent-mine.jsonl", out)

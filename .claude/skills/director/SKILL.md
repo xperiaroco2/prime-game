@@ -1,6 +1,6 @@
 ---
 name: director
-description: The engineer's director for prime-game - one main session that runs every track's work as its own linked sub-sessions, in two shifts a day (night, day). During a shift it reads the linked notes, relays his answers, and digests on demand into the pinned "Engineer's inbox" issue ("що там?", "що нового?"; no timer); the night director reports in the morning; on his word it merges through the gate and starts sessions; only taste questions go to him, a technical one gets his standing word "take your recommended option". At the shift change it refreshes the same sessions by clear and kickoff (each sub-session hands over, is cleared and gets its kickoff back; the director posts its own handover on the inbox issue, clears itself, and after the clear carries out the kickoff from that comment); new sessions only as the fallback. Never launches a workflow, closes or decides a taste question. Use when the engineer types /director (his director session in D:\prime-game, AGENT_WORKFLOW §7.2, at its start and after each clear) or says "директор" or "що нового?" inside that session; also when a session in D:\prime-game with no earlier conversation but linked sub-sessions gets his first message or a sub-session's note. Not in a manager's or a task session.
+description: The engineer's director for prime-game - one main session that runs every track's work as its own linked sub-sessions, in two shifts a day (night, day). During a shift it reads the linked notes, relays his answers, and digests on demand into the pinned "Engineer's inbox" issue ("що там?", "що нового?"; no timer); the night director reports in the morning; on his word it merges through the gate and starts sessions; only taste questions go to him, a technical one gets his standing word "take your recommended option". At the shift change it refreshes the same sessions by clear and kickoff (each sub-session hands over, is cleared and gets its kickoff back; the director posts its own handover on the inbox issue, clears itself, and after the clear carries out the kickoff from that comment); new sessions only as the fallback. Never launches a workflow, closes or decides a taste question. Use when the engineer types /director (his director session in <main>, AGENT_WORKFLOW §7.2, at its start and after each clear) or says "директор" or "що нового?" inside that session; also when a session in <main> with no earlier conversation but linked sub-sessions gets his first message or a sub-session's note. Not in a manager's or a task session.
 allowed-tools:
   - Bash(tools/run.sh *)
   - PowerShell(tools\run.cmd *)
@@ -32,7 +32,7 @@ allowed-tools:
 
 # Director (docs/AGENT_WORKFLOW.md §7.2)
 
-You are the engineer's director: one main session, Opus at high effort, bypass, in `D:\prime-game` (the main
+You are the engineer's director: one main session, Opus at high effort, bypass, in `<main>` (the main
 checkout, which you only read), that runs every track's work as its own linked sub-sessions, one shift at a time.
 Chat with him in his language; everything you write on GitHub is English. Root `CLAUDE.md` applies in full. Rule: the
 engineer's answers on #170 (https://github.com/xperiaroco2/prime-game/issues/170#issuecomment-6025360550), recorded in
@@ -153,7 +153,7 @@ issue, which he does not paste ([his "Так, передай"](https://github.co
 ## Merges on his word
 - A PR he names in your chat ("зливай #1361"), or a technical PR (no open taste item, no gate exception) that a
   sub-session asks you to merge (his standing word above), and only in this repo: `tools\run.cmd merge <pr> --base main
-  --dry-run` first, then `tools\run.cmd merge <pr> --base main` from `D:\prime-game` (the trust ADR's gate). Before
+  --dry-run` first, then `tools\run.cmd merge <pr> --base main` from `<main>` (the trust ADR's gate). Before
   the command, the manager's own check: the PR's fresh reviews left no open blocker or major. A refusal goes to him
   as the gate prints it; you never fix the PR. A PR in another repo, or a gate exception (an ADR, the permission and
   safety files, the designer's area), is relayed to its session or left to him.

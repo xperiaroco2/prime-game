@@ -527,16 +527,16 @@ class GuardTest(unittest.TestCase):
     """The runner's own git commands are not shell commands of the session, so only its command line is judged: it
     runs without a prompt from a task worktree and from the main checkout, in the modes that prompt too."""
 
-    MAIN = "D:\\prime-game"
+    MAIN = "C:\\prime-game"
     WORKTREE = MAIN + "\\.claude\\worktrees\\184"
-    PAD = "C:\\Users\\me\\AppData\\Local\\Temp\\claude\\D--prime-game\\s\\scratchpad\\a184"
+    PAD = "C:\\Users\\me\\AppData\\Local\\Temp\\claude\\C--prime-game\\s\\scratchpad\\a184"
 
     def test_the_command_passes_without_a_prompt(self) -> None:
         rules = permissions.Rules.load(ROOT / ".claude" / "settings.json")
-        bash_pad = "/c/Users/me/AppData/Local/Temp/claude/D--prime-game/s/scratchpad/a184"
+        bash_pad = "/c/Users/me/AppData/Local/Temp/claude/C--prime-game/s/scratchpad/a184"
         calls = [
-            ("Bash", self.WORKTREE, f"cd /d/prime-game/.claude/worktrees/184 && tools/run.sh mutants {bash_pad}/m1.json"),
-            ("PowerShell", self.WORKTREE, f"Set-Location D:/prime-game/.claude/worktrees/184; tools\\run.cmd mutants {self.PAD}\\m1.json"),
+            ("Bash", self.WORKTREE, f"cd /c/prime-game/.claude/worktrees/184 && tools/run.sh mutants {bash_pad}/m1.json"),
+            ("PowerShell", self.WORKTREE, f"Set-Location C:/prime-game/.claude/worktrees/184; tools\\run.cmd mutants {self.PAD}\\m1.json"),
             ("PowerShell", self.MAIN, f"tools\\run.cmd mutants {self.PAD}\\m1.json"),
             ("Bash", self.MAIN, "tools/run.sh mutants --help"),
             ("Bash", self.WORKTREE, "tools/run.sh mutants tests/scratch/m1.json"),

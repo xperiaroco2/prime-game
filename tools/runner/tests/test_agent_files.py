@@ -82,7 +82,7 @@ class ReviewerAgentFilesTest(unittest.TestCase):
             with self.subTest(agent=name):
                 self.assertIn("from the worktree under review (prefix `cd <worktree> &&`", whole)
                 self.assertIn("`cd <dir> &&`", allowed(name))
-        command = "cd D:/prime-game/.claude/worktrees/433 && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6"
+        command = "cd C:/prime-game/.claude/worktrees/433 && tools/run.sh section docs/ARCHITECTURE.md 5 4.2 4.6"
         got = permissions.verdict(SETTINGS, guard, "Bash", command, str(ROOT), MAIN, OwnRepo(), False)
         self.assertEqual(got[0], permissions.PASS, got)
 

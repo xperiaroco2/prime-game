@@ -3,7 +3,7 @@
 The baseline of docs/decisions/2026-10-02-ai-productivity-baseline-and-pipeline-v2.md (item 1) as a runner command.
 
 Where the transcripts are: ~/.claude/projects/<key>/ (CLAUDE_CONFIG_DIR replaces ~/.claude), where <key> is the main
-checkout's path with every character other than a letter or a digit replaced by "-" (D:\\prime-game -> D--prime-game),
+checkout's path with every character other than a letter or a digit replaced by "-" (C:\\prime-game -> C--prime-game),
 plus <key>--claude-worktrees-<n>/ for sessions started inside a worktree. The main checkout is the parent of
 `git rev-parse --path-format=absolute --git-common-dir`, so every worktree gives the same answer (workflow agents that
 work in a worktree log under their parent session's folder anyway). Per session <sid> of such a folder:
@@ -1812,7 +1812,7 @@ def main_checkout(root: Path = ROOT) -> Path:
 
 
 def project_key(checkout: Path) -> str:
-    """Claude Code's folder name for a working directory: D:\\prime-game -> D--prime-game."""
+    """Claude Code's folder name for a working directory: C:\\prime-game -> C--prime-game."""
     return re.sub(r"[^A-Za-z0-9]", "-", str(checkout))
 
 

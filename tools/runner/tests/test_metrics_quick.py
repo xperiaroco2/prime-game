@@ -39,7 +39,7 @@ class QuickTaskTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
-        self.dir = Path(self.tmp.name) / "projects" / "D--prime-game"
+        self.dir = Path(self.tmp.name) / "projects" / "C--prime-game"
         wf = self.dir / SID / "subagents" / "workflows"
         saved = self.dir / SID / "workflows"
         (saved / "scripts").mkdir(parents=True)

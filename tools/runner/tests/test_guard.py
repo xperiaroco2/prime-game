@@ -9,7 +9,7 @@ from runner import guard
 from runner.common import ROOT as ROOT_PATH
 
 B, P = guard.BASH, guard.POWERSHELL
-ROOT = "D:\\prime-game"
+ROOT = "C:\\prime-game"
 SCRATCH = "/c/Users/me/AppData/Local/Temp/claude/scratchpad"
 
 
@@ -45,11 +45,11 @@ ASKS = [
     (B, "git checkout -- addons/gdUnit4"),
     (B, "git -C addons checkout ."),
     (B, "git rm -r addons/gdUnit4"),
-    (B, "cp x /d/prime-game/.claude/settings.json"),
+    (B, "cp x /c/prime-game/.claude/settings.json"),
     (B, "cat > .claude/settings.json <<'EOF'\n{}\nEOF"),
     (B, "git status; cp x .claude/worktrees/5/addons/y"),
     (P, "Copy-Item $env:TEMP\\s.json .claude\\settings.json"),
-    (P, "Copy-Item -Path x -Destination D:\\prime-game\\addons\\gdUnit4\\"),
+    (P, "Copy-Item -Path x -Destination C:\\prime-game\\addons\\gdUnit4\\"),
     (P, "Copy-Item x -Destination:addons\\y"),
     (P, "Move-Item addons\\gdUnit4 $env:TEMP\\old"),
     (P, "Set-Content -Path .claude\\settings.local.json -Value '{}'"),
@@ -58,7 +58,7 @@ ASKS = [
     (P, "Remove-Item addons\\gdUnit4 -Recurse -Force"),
     (P, "Get-ChildItem addons -Recurse | Remove-Item"),
     (P, "Get-ChildItem addons -Filter *.tmp | ForEach-Object { Remove-Item $_.FullName }"),
-    (P, '[IO.File]::WriteAllText("D:\\prime-game\\.claude\\settings.json", "{}")'),
+    (P, '[IO.File]::WriteAllText("C:\\prime-game\\.claude\\settings.json", "{}")'),
     (P, "Set-Location addons; Remove-Item plugin.cfg"),
     (P, "Expand-Archive gdUnit4.zip -DestinationPath addons"),
     (P, "Invoke-WebRequest https://example.com/y.zip -OutFile addons\\y.zip"),
@@ -69,10 +69,10 @@ ASKS = [
     (P, "cmd /c copy x addons\\y"),
     (P, '"{}" > .claude\\settings.json'),
     (P, "$j = '{}'\nSet-Content .claude/settings.json $j"),
-    (P, 'Set-Location D:\\prime-game; $p = Join-Path $root addons; Remove-Item "$p\\x"'),
-    (B, "cd /d/prime-game/tools && cp x ../addons/y"),
+    (P, 'Set-Location C:\\prime-game; $p = Join-Path $root addons; Remove-Item "$p\\x"'),
+    (B, "cd /c/prime-game/tools && cp x ../addons/y"),
     (B, 'cp x "$CLAUDE_PROJECT_DIR/.claude/settings.json"'),
-    (B, 'S=/d/prime-game/addons; rm -f "$S/x.gd"'),
+    (B, 'S=/c/prime-game/addons; rm -f "$S/x.gd"'),
     # Found by the stage 4 reviewers.
     (B, "find . -name '*.gd' -exec cp {} addons/ \\;"),
     (B, "xargs -I{} cp {} .claude/settings.json < list.txt"),
@@ -116,7 +116,7 @@ SILENT = [
     (B, "find addons -name '*.gd' | head"),
     (B, "diff .claude/settings.json /tmp/x.json"),
     (B, "cd addons && ls"),
-    (B, "cd /d/prime-game && git status --short"),
+    (B, "cd /c/prime-game && git status --short"),
     (B, 'echo "cp x addons/" > /tmp/note.txt'),
     (B, "python -c \"import json; print(json.load(open('.claude/settings.json')))\""),
     (B, "\"$PYTHON_BIN\" - <<'EOF'\nfrom pathlib import Path\nfor p in Path('addons').rglob('*.gd'):\n"
@@ -158,35 +158,35 @@ SILENT = [
     # Scratch copies outside the project are neither its dependencies nor its settings.
     (B, f'S="{SCRATCH}"; mkdir -p "$S/lab/addons/fake" && cp x.gd "$S/lab/addons/fake/"'),
     (B, f"cd {SCRATCH} && mkdir -p gitig/.claude && cd gitig && echo '{{}}' > .claude/settings.local.json"),
-    (B, f"S={SCRATCH}\ncd $S/fcgdu && cp -r /d/prime-game/addons/gdUnit4 addons/"),
+    (B, f"S={SCRATCH}\ncd $S/fcgdu && cp -r /c/prime-game/addons/gdUnit4 addons/"),
     (B, "cp -r addons/gdUnit4 /tmp/lab/addons/ && cp x ~/.claude/settings.json"),
     (P, 'Copy-Item x "$env:TEMP\\lab\\addons\\y"; New-Item -ItemType Directory "$HOME\\lab\\.claude"'),
 ]
 
 
-NIGHT_PAD = "C:/Users/xperi/AppData/Local/Temp/claude/D--prime-game/17021f90/scratchpad"
+NIGHT_PAD = "C:/Users/xperi/AppData/Local/Temp/claude/C--prime-game/17021f90/scratchpad"
 NIGHT_PAD_PS = NIGHT_PAD.replace("/", "\\")
 
 # (shell, command): recursive deletes and git resets that lose work in the project (issue #47); each must ask.
 DANGEROUS = [
     (B, "rm -rf ."),
-    (B, "rm -rf D:/prime-game/core"),
+    (B, "rm -rf C:/prime-game/core"),
     (P, "Remove-Item -Recurse core"),
     (B, "git reset --hard"),
     (B, "git reset HEAD~1"),
     (P, "rm -r core"),
     (P, "Remove-Item core -r -Force"),
-    (P, "Remove-Item -Path D:\\prime-game\\core -Recurse:$true"),
+    (P, "Remove-Item -Path C:\\prime-game\\core -Recurse:$true"),
     (P, "cmd /c rmdir /s /q core"),
     (P, "git reset --hard"),
     (P, "git reset HEAD~1"),
-    (B, "rm -fr /d/prime-game"),
+    (B, "rm -fr /c/prime-game"),
     (B, "rm -Rf /"),
     (B, "rm -rf /d/"),
     (B, "rm --recursive core/match"),
     (B, "rm -rf *"),
     (B, "rm -rf docs/addons"),
-    (B, "cd /d/prime-game/.claude/worktrees/5 && rm -rf ."),
+    (B, "cd /c/prime-game/.claude/worktrees/5 && rm -rf ."),
     (B, "rm -rf $(git rev-parse --show-toplevel)/core"),
     (B, 'rm -rf "$PWD"'),
     (B, 'cd "$(git rev-parse --show-toplevel)" && rm -rf build'),
@@ -201,7 +201,7 @@ DANGEROUS = [
     (B, "git reset --soft origin/main"),
     (B, "git reset abc1234"),
     (B, "git reset HEAD~1 --"),
-    (B, "git -C /d/prime-game reset --hard"),
+    (B, "git -C /c/prime-game reset --hard"),
     (B, "cd tools && git reset -q --hard"),
     # Found by the fresh review of #47: computed targets, runner output, roots and home, spellings.
     (B, 'rm -rf "$(realpath core)"'),
@@ -220,7 +220,7 @@ DANGEROUS = [
     (P, "Remove-Item -Recurse $HOME"),
     (P, "Remove-Item -Recurse -Force $env:USERPROFILE"),
     (B, 'rm -rf "$TEMP"'),
-    (P, "Set-Location $env:TEMP; Get-ChildItem -Path D:\\prime-game\\core | Remove-Item -Recurse"),
+    (P, "Set-Location $env:TEMP; Get-ChildItem -Path C:\\prime-game\\core | Remove-Item -Recurse"),
     (B, "git reset v0.1.0"),
     (B, "git reset origin/release-1.2"),
     (B, "git reset main"),
@@ -269,11 +269,11 @@ DANGEROUS = [
 HARMLESS = [
     # The three prompts of the overnight run wf_65292cf4-8b4 (issue #47), and their PowerShell twins.
     (B, f'SP="{NIGHT_PAD}"; rm -rf "$SP/sandbox" 2>/dev/null; mkdir -p "$SP/sandbox"'),
-    (B, f"S={NIGHT_PAD}/old && rm -rf $S && mkdir -p $S && cd D:/prime-game/.claude/worktrees/45"),
-    (B, f"cd D:/prime-game/.claude/worktrees/33 && S={NIGHT_PAD} && git reset -q && git add -A"),
+    (B, f"S={NIGHT_PAD}/old && rm -rf $S && mkdir -p $S && cd C:/prime-game/.claude/worktrees/45"),
+    (B, f"cd C:/prime-game/.claude/worktrees/33 && S={NIGHT_PAD} && git reset -q && git add -A"),
     (P, f'$SP = "{NIGHT_PAD_PS}"; Remove-Item "$SP\\sandbox" -Recurse -Force -ErrorAction SilentlyContinue'),
     (P, f'$S = "{NIGHT_PAD_PS}\\old"; Remove-Item -Recurse -Force $S; New-Item -ItemType Directory $S'),
-    (P, "Set-Location D:\\prime-game\\.claude\\worktrees\\33; git reset -q"),
+    (P, "Set-Location C:\\prime-game\\.claude\\worktrees\\33; git reset -q"),
     # Other scratch deletes.
     (B, "rm -rf /tmp/lab ~/scratch"),
     (B, 'rm -rf "$TEMP/x" "$TMPDIR/y"'),
@@ -335,7 +335,7 @@ HARMLESS = [
     (B, "rm -r tests/scratch/x"),
     (B, "rm -rf tests/scratch"),
     (B, "rm -rf .claude/worktrees/46/tests/scratch/probe"),
-    (B, "cd /d/prime-game/.claude/worktrees/46 && rm -r tests/scratch/probe && tools/run.sh test tests/scratch"),
+    (B, "cd /c/prime-game/.claude/worktrees/46 && rm -r tests/scratch/probe && tools/run.sh test tests/scratch"),
     (P, "Remove-Item -Recurse -Force tests\\scratch\\probe"),
     (P, "Get-ChildItem tests\\scratch | Remove-Item -Recurse"),
     # Found by the second fresh review of #47.
@@ -366,9 +366,9 @@ class FakeRepo(guard.NoRepo):
 
     def branch(self, checkout: str) -> str | None:
         return {
-            "d:/prime-game": "main",
-            "d:/prime-game/.claude/worktrees/51": self.own,
-            "d:/prime-game/.claude/worktrees/47": "tooling/47-guard",
+            "c:/prime-game": "main",
+            "c:/prime-game/.claude/worktrees/51": self.own,
+            "c:/prime-game/.claude/worktrees/47": "tooling/47-guard",
         }.get(checkout)
 
     def busy(self, checkout: str) -> bool:
@@ -485,9 +485,9 @@ OWN_WORK = [
     (B, "for d in core tests; do git clean -fd $d/x; done"),
     (P, "git checkout -- (git diff --name-only)"),
     # A worktree nested in the own worktree, by absolute path (git matches no other worktree by it, #457).
-    (B, "git worktree remove --force D:/prime-game/.claude/worktrees/51/tools/out/measure/w1"),
-    (B, "for i in 1 2; do git worktree remove --force D:/prime-game/.claude/worktrees/51/tools/out/measure/w$i; done"),
-    (B, "git worktree move D:/prime-game/.claude/worktrees/51/tools/out/w1 /tmp/w1"),
+    (B, "git worktree remove --force C:/prime-game/.claude/worktrees/51/tools/out/measure/w1"),
+    (B, "for i in 1 2; do git worktree remove --force C:/prime-game/.claude/worktrees/51/tools/out/measure/w$i; done"),
+    (B, "git worktree move C:/prime-game/.claude/worktrees/51/tools/out/w1 /tmp/w1"),
     # Options are read as git reads them (#105): bundled short flags, values, unique prefixes, and a prefix that a
     # nested shell inherits.
     (B, "GIT_SEQUENCE_EDITOR=: git rebase -qi --autosquash origin/main"),
@@ -509,7 +509,7 @@ OWN_WORK = [
     (B, "rm -rf tests/integration/tmp && tools/run.sh test tests/integration"),
     (B, "rm -rf *"),
     (B, 'rm -rf "$(git rev-parse --show-toplevel)/core"'),
-    (B, "rm -rf D:/prime-game/.claude/worktrees/51/core"),
+    (B, "rm -rf C:/prime-game/.claude/worktrees/51/core"),
     (B, "find core -delete"),
     (B, "cd core && git reset --hard && rm -rf match"),
     (P, "git reset --hard"),
@@ -521,54 +521,54 @@ OWN_WORK = [
     (P, "rm -r tests\\integration\\tmp"),
     (P, "git stash drop; git branch -D tooling/51-freedom-backup"),
     (B, f"git update-ref -d refs/heads/{TASK}-backup"),
-    (B, "git worktree remove --force D:/prime-game/.claude/worktrees/51"),
+    (B, "git worktree remove --force C:/prime-game/.claude/worktrees/51"),
 ]
 
 # The same work reached the way a manager's task session does it: its shell starts in the main checkout, and each
 # command first moves into its worktree.
 MANAGED_WORK = [
-    (B, "cd D:/prime-game/.claude/worktrees/51 && git reset --hard"),
-    (B, "cd /d/prime-game/.claude/worktrees/51 && git rebase origin/main"),
+    (B, "cd C:/prime-game/.claude/worktrees/51 && git reset --hard"),
+    (B, "cd /c/prime-game/.claude/worktrees/51 && git rebase origin/main"),
     (
         B,
-        "cd /d/prime-game/.claude/worktrees/51 && git add -A && git commit -q --fixup=HEAD && "
+        "cd /c/prime-game/.claude/worktrees/51 && git add -A && git commit -q --fixup=HEAD && "
         "GIT_SEQUENCE_EDITOR=: git rebase -q -i --autosquash origin/release/m3",
     ),
-    (B, "cd D:/prime-game/.claude/worktrees/51 && git clean -fdx"),
-    (B, "cd D:/prime-game/.claude/worktrees/51 && git checkout -- core/x.gd"),
-    (B, "cd D:/prime-game/.claude/worktrees/51 && rm -rf tests/integration/tmp"),
-    (B, "git -C D:/prime-game/.claude/worktrees/51 reset --hard origin/main"),
-    (P, "Set-Location D:\\prime-game\\.claude\\worktrees\\51; git reset --hard"),
-    (P, "cd D:\\prime-game\\.claude\\worktrees\\51; git rebase origin/main"),
-    (P, "Set-Location D:\\prime-game\\.claude\\worktrees\\51; Remove-Item -Recurse -Force core\\match"),
+    (B, "cd C:/prime-game/.claude/worktrees/51 && git clean -fdx"),
+    (B, "cd C:/prime-game/.claude/worktrees/51 && git checkout -- core/x.gd"),
+    (B, "cd C:/prime-game/.claude/worktrees/51 && rm -rf tests/integration/tmp"),
+    (B, "git -C C:/prime-game/.claude/worktrees/51 reset --hard origin/main"),
+    (P, "Set-Location C:\\prime-game\\.claude\\worktrees\\51; git reset --hard"),
+    (P, "cd C:\\prime-game\\.claude\\worktrees\\51; git rebase origin/main"),
+    (P, "Set-Location C:\\prime-game\\.claude\\worktrees\\51; Remove-Item -Recurse -Force core\\match"),
     # #457: the commands that asked on 2026-09-30, 10-01, 10-03 and 10-05 in their own worktree.
-    (B, "cd /d/prime-game/.claude/worktrees/51 && GIT_SEQUENCE_EDITOR=\"python seq.py\" git rebase -q -i origin/main"),
-    (B, "cd /d/prime-game/.claude/worktrees/51 && git -c core.editor=true rebase -q -i --autosquash origin/main"),
-    (B, "cd D:/prime-game/.claude/worktrees/51 && for f in x y; do git checkout --ours core/$f.gd; done"),
+    (B, "cd /c/prime-game/.claude/worktrees/51 && GIT_SEQUENCE_EDITOR=\"python seq.py\" git rebase -q -i origin/main"),
+    (B, "cd /c/prime-game/.claude/worktrees/51 && git -c core.editor=true rebase -q -i --autosquash origin/main"),
+    (B, "cd C:/prime-game/.claude/worktrees/51 && for f in x y; do git checkout --ours core/$f.gd; done"),
     (
         B,
-        "cd /d/prime-game/.claude/worktrees/51 && for i in 1 2; do "
-        "git worktree remove --force /d/prime-game/.claude/worktrees/51/tools/out/measure/w$i; done",
+        "cd /c/prime-game/.claude/worktrees/51 && for i in 1 2; do "
+        "git worktree remove --force /c/prime-game/.claude/worktrees/51/tools/out/measure/w$i; done",
     ),
 ]
 
 # (shell, command) from the own worktree that reach the main checkout, another worktree or another branch: each asks.
 BEYOND_OWN = [
-    (B, "git -C D:/prime-game reset --hard"),
-    (B, "cd D:/prime-game && git reset --hard"),
+    (B, "git -C C:/prime-game reset --hard"),
+    (B, "cd C:/prime-game && git reset --hard"),
     (B, "cd ../47 && git reset --hard"),
     (B, "git -C ../47 rebase origin/main"),
-    (B, "git -C D:/prime-game/.claude/worktrees/47 clean -fdx"),
-    (B, "cd D:/prime-game && git clean -fdx"),
-    (B, "git --work-tree=D:/prime-game checkout -- core"),
-    (B, "git --git-dir=D:/prime-game/.git reset --hard"),
-    (B, "git --git-dir D:/prime-game/.git/worktrees/47 reset --hard"),
-    (B, "git -C D:/prime-game restore core"),
+    (B, "git -C C:/prime-game/.claude/worktrees/47 clean -fdx"),
+    (B, "cd C:/prime-game && git clean -fdx"),
+    (B, "git --work-tree=C:/prime-game checkout -- core"),
+    (B, "git --git-dir=C:/prime-game/.git reset --hard"),
+    (B, "git --git-dir C:/prime-game/.git/worktrees/47 reset --hard"),
+    (B, "git -C C:/prime-game restore core"),
     (B, "git checkout -- ../47/core"),
-    (B, "git restore D:/prime-game/core/x.gd"),
-    (B, "rm -rf D:/prime-game/core"),
+    (B, "git restore C:/prime-game/core/x.gd"),
+    (B, "rm -rf C:/prime-game/core"),
     (B, "rm -rf ../47/core"),
-    (B, "rm -rf D:/prime-game/.claude/worktrees/47"),
+    (B, "rm -rf C:/prime-game/.claude/worktrees/47"),
     (B, "rm -rf ."),
     (B, "rm -rf ../51"),
     (B, "git rebase origin/main tooling/47-guard"),
@@ -615,23 +615,23 @@ BEYOND_OWN = [
     (B, "D=$(realpath core) bash -c 'rm -rf \"$D\"'"),
     (B, "D=$X bash -c 'rm -rf \"$D\"'"),
     (B, f"git -c core.hooksPath=/dev/null push origin {TASK}"),
-    (B, "git worktree remove D:/prime-game/.claude/worktrees/47"),
+    (B, "git worktree remove C:/prime-game/.claude/worktrees/47"),
     (B, "git worktree remove --force ../47"),
-    (P, "git -C D:\\prime-game reset --hard"),
-    (P, "Set-Location D:\\prime-game; git clean -fdx"),
-    (P, "Remove-Item -Recurse -Force D:\\prime-game\\core"),
+    (P, "git -C C:\\prime-game reset --hard"),
+    (P, "Set-Location C:\\prime-game; git clean -fdx"),
+    (P, "Remove-Item -Recurse -Force C:\\prime-game\\core"),
     (P, "Set-Location ..\\47; git checkout -- core"),
     (P, "git rebase origin/main tooling/47-guard"),
     (P, "git branch -D tooling/47-guard"),
     (P, "git checkout -f main"),
     # A manager's task session that moved into its worktree, then reaches another checkout.
-    (B, "cd D:/prime-game/.claude/worktrees/51 && git -C ../47 reset --hard"),
-    (B, "cd D:/prime-game/.claude/worktrees/51 && cd D:/prime-game && git clean -fdx"),
+    (B, "cd C:/prime-game/.claude/worktrees/51 && git -C ../47 reset --hard"),
+    (B, "cd C:/prime-game/.claude/worktrees/51 && cd C:/prime-game && git clean -fdx"),
     # Found by the review of #51: git names a worktree by the last parts of its path.
     (B, "git worktree remove 47"),
     (B, "git worktree remove --force worktrees/47"),
     (B, "git worktree move 47 /tmp/x"),
-    (B, "cd D:/prime-game/.claude/worktrees/51 && git worktree remove --force 47"),
+    (B, "cd C:/prime-game/.claude/worktrees/51 && git worktree remove --force 47"),
     # What #457 keeps asking: the same work in another worktree or on another branch, a relative worktree name (git's
     # last-parts lookup may find another session's nested worktree), a path whose literal part leaves the own
     # worktree, and git over other repositories' worktrees in a loop.
@@ -639,14 +639,14 @@ BEYOND_OWN = [
     (B, "cd ../47 && GIT_SEQUENCE_EDITOR=vim git rebase -i origin/main"),
     (B, "git worktree remove --force tools/out/measure/w1"),
     (B, "for i in 1 2; do git worktree remove --force tools/out/measure/w$i; done"),
-    (B, "git worktree remove D:/prime-game/.claude/worktrees/51/../47"),
-    (B, "for i in 1; do git worktree remove D:/prime-game/.claude/worktrees/51/$i/../../47; done"),
-    (B, "for i in 1; do git worktree remove D:/prime-game/.claude/worktrees/$i; done"),
-    (B, "for i in 1; do git worktree remove D:/prime-game/.claude/worktrees/51$i; done"),
-    (B, "for n in 2 3; do git -C D:/prime-game/.claude/worktrees/$n reset --hard; done"),
+    (B, "git worktree remove C:/prime-game/.claude/worktrees/51/../47"),
+    (B, "for i in 1; do git worktree remove C:/prime-game/.claude/worktrees/51/$i/../../47; done"),
+    (B, "for i in 1; do git worktree remove C:/prime-game/.claude/worktrees/$i; done"),
+    (B, "for i in 1; do git worktree remove C:/prime-game/.claude/worktrees/51$i; done"),
+    (B, "for n in 2 3; do git -C C:/prime-game/.claude/worktrees/$n reset --hard; done"),
     (B, "git restore ../47/core/$f.gd"),
     (B, "for f in a b; do git restore ../47/core/$f.gd; done"),
-    (B, "for f in a b; do git checkout -- D:/prime-game/core/$f.gd; done"),
+    (B, "for f in a b; do git checkout -- C:/prime-game/core/$f.gd; done"),
     (B, "for f in a b; do git checkout -- core/$f/../../../47/core; done"),
     (B, "git checkout -- addons/$f"),
     (B, "for f in a b; do git restore addons/$f; done"),
@@ -659,12 +659,12 @@ BEYOND_OWN = [
     (P, "git checkout -- (Get-ChildItem .claude -Filter settings*)"),
     (B, "for f in a b; do git checkout -- */$f; done"),
     # The repository and the working tree are judged apart; GIT_DIR and GIT_WORK_TREE count like the options.
-    (B, "git --git-dir=D:/prime-game/.git --work-tree=. reset --hard HEAD~3"),
-    (B, "GIT_DIR=D:/prime-game/.git git reset --hard HEAD~3"),
-    (B, "export GIT_DIR=D:/prime-game/.git; git reset --hard HEAD~3"),
-    (B, "GIT_WORK_TREE=D:/prime-game git checkout -- core"),
+    (B, "git --git-dir=C:/prime-game/.git --work-tree=. reset --hard HEAD~3"),
+    (B, "GIT_DIR=C:/prime-game/.git git reset --hard HEAD~3"),
+    (B, "export GIT_DIR=C:/prime-game/.git; git reset --hard HEAD~3"),
+    (B, "GIT_WORK_TREE=C:/prime-game git checkout -- core"),
     (B, 'GIT_DIR="$(cat f)" git reset --hard'),
-    (P, "$env:GIT_DIR = 'D:\\prime-game\\.git'; git reset --hard HEAD~3"),
+    (P, "$env:GIT_DIR = 'C:\\prime-game\\.git'; git reset --hard HEAD~3"),
     # A checkout in a nested shell leaves the task branch for the rest of the command too.
     (B, "bash -c 'git checkout main'; git reset --hard origin/main"),
     (B, "git rebase -x 'rm -rf ../../core' origin/main"),
@@ -694,7 +694,7 @@ MAIN_CHECKOUT = [
     (B, "GIT_SEQUENCE_EDITOR=vim git rebase -i origin/main"),
     (B, "git checkout -- $(git diff --name-only)"),
     (B, "for f in a b; do git checkout --ours core/$f.gd; done"),
-    (B, "git worktree remove --force D:/prime-game/tools/out/measure/w1"),
+    (B, "git worktree remove --force C:/prime-game/tools/out/measure/w1"),
     (P, "git rebase origin/main"),
     (P, "git clean -fdx"),
     (P, "git restore core"),
@@ -786,9 +786,9 @@ class OwnWorktreeTest(unittest.TestCase):
 
     def test_a_worktree_another_session_works_in_is_not_claimed(self) -> None:
         repo = FakeRepo(busy=("12",))
-        self.assertTrue(in_own(B, "cd D:/prime-game/.claude/worktrees/12 && git reset --hard", cwd=ROOT, repo=repo))
-        self.assertTrue(in_own(B, "cd D:/prime-game/.claude/worktrees/12 && rm -rf core", cwd=ROOT, repo=repo))
-        own = "cd D:/prime-game/.claude/worktrees/51 && git reset --hard"
+        self.assertTrue(in_own(B, "cd C:/prime-game/.claude/worktrees/12 && git reset --hard", cwd=ROOT, repo=repo))
+        self.assertTrue(in_own(B, "cd C:/prime-game/.claude/worktrees/12 && rm -rf core", cwd=ROOT, repo=repo))
+        own = "cd C:/prime-game/.claude/worktrees/51 && git reset --hard"
         self.assertEqual(in_own(B, own, cwd=ROOT, repo=repo), [])
 
     def test_without_the_repository_no_branch_is_the_sessions_own(self) -> None:
@@ -796,7 +796,7 @@ class OwnWorktreeTest(unittest.TestCase):
         self.assertEqual(in_own(B, "git reset --hard", repo=guard.NoRepo()), [])
 
     def test_only_the_first_worktree_a_command_enters_is_owned(self) -> None:
-        command = "cd D:/prime-game/.claude/worktrees/51 && cd ../47 && git reset --hard"
+        command = "cd C:/prime-game/.claude/worktrees/51 && cd ../47 && git reset --hard"
         self.assertTrue(in_own(B, command, cwd=ROOT))
 
     def test_protected_paths_still_ask_in_the_own_worktree(self) -> None:
@@ -805,7 +805,7 @@ class OwnWorktreeTest(unittest.TestCase):
         self.assertTrue(in_own(P, "Remove-Item -Recurse .claude"))
 
     def test_reason_says_why_git_asks(self) -> None:
-        text = guard.reason(in_own(B, "git rebase origin/main tooling/47-guard; git -C D:/prime-game clean -fdx"))
+        text = guard.reason(in_own(B, "git rebase origin/main tooling/47-guard; git -C C:/prime-game clean -fdx"))
         self.assertIn("rewrites another branch (tooling/47-guard)", text)
         self.assertIn("outside this session's own worktree", text)
         self.assertIn("§8.2", text)
@@ -823,7 +823,7 @@ class CloudRepo(FakeRepo):
         self.main_branch = main_branch
 
     def branch(self, checkout: str) -> str | None:
-        return self.main_branch if checkout == "d:/prime-game" else super().branch(checkout)
+        return self.main_branch if checkout == "c:/prime-game" else super().branch(checkout)
 
     def refs(self) -> set[str]:
         return super().refs() | {CLOUD_TASK, "release/m6", "origin/release/m6"}
@@ -849,7 +849,7 @@ CLOUD_WORK = [
     (B, "git stash drop"),
     (B, "rm -rf core/tmp"),
     (B, "cd core && git reset --hard HEAD~1 && rm -rf tmp"),
-    (B, "cd /tmp && git -C D:/prime-game reset --soft HEAD~1"),
+    (B, "cd /tmp && git -C C:/prime-game reset --soft HEAD~1"),
     (P, "git reset --soft HEAD~2; Remove-Item -Recurse tests\\integration\\tmp"),
     # Found by the review of #381: a nested shell keeps the cloud session's task branch.
     (B, "bash -c 'git reset --soft HEAD~1'"),
@@ -863,7 +863,7 @@ CLOUD_WORK = [
 # (shell, command) that still asks in a cloud session on its task branch: other checkouts, other branches, the
 # repository itself, the checkout's folder, and the protected paths.
 CLOUD_BEYOND = [
-    (B, "git -C D:/prime-game/.claude/worktrees/47 reset --hard"),
+    (B, "git -C C:/prime-game/.claude/worktrees/47 reset --hard"),
     (B, "cd .claude/worktrees/47 && git rebase origin/main"),
     (B, "git --git-dir=.git/worktrees/47 --work-tree=.claude/worktrees/47 clean -fdx"),
     (B, "git checkout -- .claude/worktrees/47/core"),
@@ -873,7 +873,7 @@ CLOUD_BEYOND = [
     (B, "rm -rf .git"),
     (B, "rm -rf .g*"),
     (B, "rm -rf .git/refs"),
-    (B, "rm -rf D:/prime-game"),
+    (B, "rm -rf C:/prime-game"),
     (B, "cd .. && rm -rf prime-game"),
     (B, "rm -rf addons/gdUnit4"),
     (B, "git checkout -- addons"),
@@ -883,7 +883,7 @@ CLOUD_BEYOND = [
     (B, "git switch main && git reset --hard origin/main"),
     (B, "git checkout -f main"),
     (B, "git branch -D tooling/365-other"),
-    (B, "git worktree remove D:/prime-game"),
+    (B, "git worktree remove C:/prime-game"),
     (B, "git -c core.hooksPath=/dev/null push"),
     # Found by the review of #381: ignored files (`-x`, `-X`) include .claude/settings.local.json and the other
     # worktrees, which a second -f removes as nested repositories; a magic pathspec can name them.
@@ -914,7 +914,7 @@ CLOUD_BEYOND = [
     # .git, .claude and the other worktrees.
     (B, "git checkout -- $(git ls-files)"),
     (B, "for f in a b; do git restore core/$f.gd; done"),
-    (B, "git worktree remove --force D:/prime-game/tools/out/measure/w1"),
+    (B, "git worktree remove --force C:/prime-game/tools/out/measure/w1"),
 ]
 
 
@@ -962,7 +962,7 @@ class CloudCheckoutTest(unittest.TestCase):
     def test_a_worktree_in_the_cloud_keeps_its_own_rules(self) -> None:
         own = ROOT + "\\.claude\\worktrees\\51"
         self.assertEqual(in_cloud(B, "git reset --hard HEAD~1", cwd=own), [])
-        self.assertTrue(in_cloud(B, "git -C D:/prime-game reset --hard", cwd=own))
+        self.assertTrue(in_cloud(B, "git -C C:/prime-game reset --hard", cwd=own))
 
     def test_the_task_branch_form_matches_publish(self) -> None:
         from runner import publish
@@ -993,7 +993,7 @@ class GuardTest(unittest.TestCase):
 
     def test_a_worktree_session_still_protects_the_main_checkout(self) -> None:
         worktree = ROOT + "\\.claude\\worktrees\\47"
-        self.assertTrue(guard.check("rm -rf D:/prime-game/core", B, worktree, worktree))
+        self.assertTrue(guard.check("rm -rf C:/prime-game/core", B, worktree, worktree))
         self.assertEqual(guard.check("rm -rf /tmp/x", B, worktree, worktree), [])
         self.assertEqual(guard.check("rm -r tests/scratch/x", B, worktree, worktree), [])
         # Issue #51: inside its own worktree the agent deletes freely (until then these asked). The flipped asserts
@@ -1042,16 +1042,16 @@ class GuardTest(unittest.TestCase):
         self.assertIn("§8.2", text)
 
     def test_relative_writes_from_inside_addons_ask(self) -> None:
-        self.assertTrue(check(P, "Remove-Item plugin.cfg", "D:\\prime-game\\addons\\gdUnit4"))
-        self.assertTrue(check(B, "rm plugin.cfg", "/d/prime-game/addons/gdUnit4"))
-        self.assertEqual(check(P, "Remove-Item plugin.cfg", "D:\\prime-game\\tools"), [])
-        self.assertEqual(check(P, "Get-Content plugin.cfg", "D:\\prime-game\\addons\\gdUnit4"), [])
+        self.assertTrue(check(P, "Remove-Item plugin.cfg", "C:\\prime-game\\addons\\gdUnit4"))
+        self.assertTrue(check(B, "rm plugin.cfg", "/c/prime-game/addons/gdUnit4"))
+        self.assertEqual(check(P, "Remove-Item plugin.cfg", "C:\\prime-game\\tools"), [])
+        self.assertEqual(check(P, "Get-Content plugin.cfg", "C:\\prime-game\\addons\\gdUnit4"), [])
         self.assertEqual(check(B, "rm plugin.cfg", "C:\\Users\\me\\scratch\\addons"), [])
 
     def test_protected_paths(self) -> None:
         cases = {
             "addons": "addons/",
-            "D:\\prime-game\\addons\\gdUnit4\\plugin.cfg": "addons/",
+            "C:\\prime-game\\addons\\gdUnit4\\plugin.cfg": "addons/",
             "res://addons/gdUnit4/bin/GdUnitCmdTool.gd": "addons/",
             ".claude": ".claude/settings*.json",
             ".claude/settings.json": ".claude/settings*.json",
@@ -1303,10 +1303,10 @@ class TempRepo(guard.NoRepo):
         "rmtree-b": False,
         "rmtree-wt": True,
         "claude": False,
-        "claude/d--prime-game": False,
-        "claude/d--prime-game/s1": False,
-        "claude/d--prime-game/s1/scratchpad": False,
-        "claude/d--prime-game/s1/scratchpad/a464": False,
+        "claude/c--prime-game": False,
+        "claude/c--prime-game/s1": False,
+        "claude/c--prime-game/s1/scratchpad": False,
+        "claude/c--prime-game/s1/scratchpad/a464": False,
         "lab": True,  # holds the worktree lab/wt
         "lab/wt": True,
     }
@@ -1344,8 +1344,8 @@ TEMP_FILTERED_PASS = [
     (B, 'rm -rf "$TEMP"/rmtree-? /tmp/rmtree-b'),
     (B, 'rm -rf "${TMPDIR}"/rmtree-*a'),
     (B, 'rm -rf "$TEMP"/nothing-*'),
-    (B, 'rm -rf "$TEMP"/claude/d--prime-game/s1/scratchpad/a464*'),
-    (B, 'rm -rf "$TEMP"/claude/d--prime-game/s1/tasks*'),
+    (B, 'rm -rf "$TEMP"/claude/c--prime-game/s1/scratchpad/a464*'),
+    (B, 'rm -rf "$TEMP"/claude/c--prime-game/s1/tasks*'),
 ]
 
 # Filtered deletes that keep asking: a match is a scratchpad root or holds one, is or holds a worktree, reaches
@@ -1354,10 +1354,10 @@ TEMP_FILTERED_ASK = [
     (B, 'rm -rf "$TEMP"/cl*'),
     (B, 'rm -rf "$TEMP"/c*e'),
     (B, 'rm -rf "$TEMP"/[^x]laude'),
-    (B, "rm -rf /tmp/*/d--prime-game"),
+    (B, "rm -rf /tmp/*/c--prime-game"),
     (B, 'rm -rf "$TEMP"/claude/*/*'),
-    (B, 'rm -rf "$TEMP"/claude/d--prime-game/*/scratch*'),
-    (B, 'rm -rf "$TEMP"/claude/d--prime-game/*/scratchpad/a464*'),
+    (B, 'rm -rf "$TEMP"/claude/c--prime-game/*/scratch*'),
+    (B, 'rm -rf "$TEMP"/claude/c--prime-game/*/scratchpad/a464*'),
     (B, 'rm -rf "$TEMP"/claude/*/*/scratchpad/*'),
     (B, 'rm -rf "$TEMP"/claude/*/s1/scratchpad/x/y*'),
     (B, 'rm -rf "$TEMP"/rmtree-*'),
@@ -1426,7 +1426,7 @@ class TempFilteredDeleteTest(unittest.TestCase):
         self.assertIn("scratchpad", guard.reason(findings))
 
 
-OWN = "D:/prime-game/.claude/worktrees/312"
+OWN = "C:/prime-game/.claude/worktrees/312"
 
 
 class AcceptEditsAllowTest(unittest.TestCase):
@@ -1474,23 +1474,23 @@ class AcceptEditsAllowTest(unittest.TestCase):
         # The issue's criterion: deletes outside the agent's worktree stay as they are. A single-file delete is no
         # guard finding, so without this the allow would run it unasked in the main checkout or a sibling repository.
         for shell, command in (
-            (B, f"cd {OWN} && rm D:/prime-game/core/match/vote.gd"),
+            (B, f"cd {OWN} && rm C:/prime-game/core/match/vote.gd"),
             (B, f"cd {OWN} && rm ../313/core/x.gd"),
             (B, "rm core/match/vote.gd"),  # a session in the main checkout that entered no worktree
-            (B, f"cd {OWN} && cp x.md D:/prime-game-art/x.md"),
-            (B, f"cd {OWN} && echo x > D:/prime-game/docs/x.md"),
+            (B, f"cd {OWN} && cp x.md C:/prime-game-art/x.md"),
+            (B, f"cd {OWN} && echo x > C:/prime-game/docs/x.md"),
             (B, f"cd {OWN} && mv core/x.gd ~/x.gd"),
             (B, f'cd {OWN} && rm "$UNKNOWN/x"'),
             (B, f"cd {OWN} && rm $TEMP/../x"),
             (B, f"TEMP=$APPDATA; cd {OWN} && rm $TEMP/x"),
-            (B, f"cd {OWN} && bash -c 'rm D:/prime-game/core/x.gd'"),
-            (P, f"Set-Location {OWN}; Remove-Item D:\\prime-game\\core\\x.gd"),
+            (B, f"cd {OWN} && bash -c 'rm C:/prime-game/core/x.gd'"),
+            (P, f"Set-Location {OWN}; Remove-Item C:\\prime-game\\core\\x.gd"),
             (P, f"Set-Location {OWN}; Set-Content -Path C:\\Users\\me\\x.txt -Value a"),
             # The stray file of #340's night (`cat > ../../../../tmp_unused` from a worktree reached D:\).
             (B, f"cd {OWN} && cat > ../../../../tmp_unused 2>/dev/null; rm -f ../../../../tmp_unused"),
             (B, f"cd {OWN} && for f in a b; do rm $f; done"),  # an unknown variable may be an absolute path
-            (B, f"cd {OWN} && sed -i 's/a/b/' D:/prime-game/docs/x.md"),
-            (B, f"cd {OWN} && chmod +x D:/prime-game/tools/x.sh"),
+            (B, f"cd {OWN} && sed -i 's/a/b/' C:/prime-game/docs/x.md"),
+            (B, f"cd {OWN} && chmod +x C:/prime-game/tools/x.sh"),
         ):
             with self.subTest(command=command):
                 analysis = guard.judge(command, shell, ROOT, ROOT)
@@ -1502,7 +1502,7 @@ class AcceptEditsAllowTest(unittest.TestCase):
             (B, f"cd {OWN} && rm core/x.gd && mv a.txt b.txt && touch tests/x.gd 2>/dev/null"),
             (B, f"cd {OWN} && tools/run.sh verify > {SCRATCH}/a312/v.log 2>&1"),
             (B, "echo x > $TEMP/a.txt; rm /tmp/b.txt"),
-            (B, "rm D:/prime-game/tests/scratch/x.gd; echo x > D:/prime-game/tools/out/x.log"),
+            (B, "rm C:/prime-game/tests/scratch/x.gd; echo x > C:/prime-game/tools/out/x.log"),
             (P, f"Set-Location {OWN}; git status 2>$null; Remove-Item core\\x.gd"),
             (P, "Set-Content -Path $env:TEMP\\x.txt -Value a"),
             # A loop variable names a file in a known folder; a sed script or a chmod mode names no file.
@@ -1517,7 +1517,7 @@ class AcceptEditsAllowTest(unittest.TestCase):
     def test_a_guard_ask_is_never_allowed(self) -> None:
         for shell, command in (
             (B, "cp x .claude/settings.json"),
-            (B, "rm -rf D:/prime-game/core"),
+            (B, "rm -rf C:/prime-game/core"),
             (B, "gh issue create -R godotengine/godot --title x"),
             (P, "Remove-Item -Recurse core"),
         ):
@@ -1526,15 +1526,15 @@ class AcceptEditsAllowTest(unittest.TestCase):
 
     def test_which_paths_claude_code_protects(self) -> None:
         for path, part in (
-            ("d:/prime-game/.claude/worktrees/312/core/x.gd", None),
-            ("d:/prime-game/.claude/worktrees/312/.claude/skills/x.md", ".claude"),
-            ("d:/prime-game/.claude/agents/x.md", ".claude"),
-            ("d:/prime-game/.claude/worktrees", ".claude"),
-            ("d:/prime-game/.git/config", ".git"),
+            ("c:/prime-game/.claude/worktrees/312/core/x.gd", None),
+            ("c:/prime-game/.claude/worktrees/312/.claude/skills/x.md", ".claude"),
+            ("c:/prime-game/.claude/agents/x.md", ".claude"),
+            ("c:/prime-game/.claude/worktrees", ".claude"),
+            ("c:/prime-game/.git/config", ".git"),
             ("c:/users/me/.config/git/config", ".config"),
-            ("d:/prime-game/.github/workflows/ci.yml", None),
-            ("d:/prime-game/x/.mcp.json", ".mcp.json"),
-            ("c:/users/me/appdata/local/temp/claude/d--prime-game/s/scratchpad/x", None),
+            ("c:/prime-game/.github/workflows/ci.yml", None),
+            ("c:/prime-game/x/.mcp.json", ".mcp.json"),
+            ("c:/users/me/appdata/local/temp/claude/c--prime-game/s/scratchpad/x", None),
         ):
             with self.subTest(path=path):
                 self.assertEqual(guard.claude_protected(path), part)

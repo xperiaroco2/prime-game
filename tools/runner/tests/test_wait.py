@@ -316,7 +316,7 @@ class WaitTest(unittest.TestCase):
 
     def test_path_forms(self) -> None:
         self.assertEqual(wait.native_path("/c/Users/x/a b/v.log", windows=True), Path("C:/Users/x/a b/v.log"))
-        self.assertEqual(wait.native_path("/d/prime-game/t.log", windows=True), Path("D:/prime-game/t.log"))
+        self.assertEqual(wait.native_path("/c/prime-game/t.log", windows=True), Path("C:/prime-game/t.log"))
         self.assertEqual(wait.native_path("C:\\Users\\x\\a b\\v.log", windows=True), Path("C:\\Users\\x\\a b\\v.log"))
         self.assertEqual(wait.native_path("C:/Users/x/v.log", windows=True), Path("C:/Users/x/v.log"))
         self.assertEqual(wait.native_path("/c/x/v.log", windows=False), Path("/c/x/v.log"))
@@ -499,7 +499,7 @@ class NoPromptTest(unittest.TestCase):
         # The unattended-work ADR: a background verify and its polling must not ask, outside bypass too.
         # From this checkout, wherever it lives (CI: /home/runner/...): a `cd` out of it would prompt in acceptEdits.
         wt = f"{MAIN}/.claude/worktrees/7".replace("\\", "/")
-        log = "/c/Users/u/AppData/Local/Temp/claude/D--prime-game/x/scratchpad/a7/verify-1.log"
+        log = "/c/Users/u/AppData/Local/Temp/claude/C--prime-game/x/scratchpad/a7/verify-1.log"
         calls = [("Bash", f'cd {wt} && tools/run.sh {job} > {log} 2>&1; echo "exit=$?" >> {log}')
                  for job in ("verify", "publish", "publish --base release/m5", "mutants a.json")]  # fmt: skip
         calls += [
