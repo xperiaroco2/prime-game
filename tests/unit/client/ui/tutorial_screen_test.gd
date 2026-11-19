@@ -284,9 +284,9 @@ func test_a_howto_step_is_a_round_keycap_and_a_step_with_no_how_a_title_only() -
 	# A step with neither how nor keys (as the map lesson had, the engineer's answer on PR #722): the
 	# title only.
 	var bare := TutorialStep.new()
-	bare.title_key = &"tutorial.step.deliver.title"
+	bare.title_key = &"tutorial.step.map.title"
 	_show(screen, 5, 2, 4, _lessons_with_step_after_the_map(bare))
-	assert_str(screen.title_label.text).is_equal("tutorial.step.deliver.title")
+	assert_str(screen.title_label.text).is_equal("tutorial.step.map.title")
 	assert_bool(screen.how.visible).is_false()
 	assert_str(screen.how_text()).is_empty()
 	# Lesson 9's Esc is a wide keycap.

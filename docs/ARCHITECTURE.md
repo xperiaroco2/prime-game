@@ -3473,7 +3473,7 @@ against a fixture wall and the throw's sounds through `ItemWorld` run in `tests/
   §11.26: the pack's JSON and SVG in `client/ui/theme/pack/` under a `.gdignore`, `client/ui/theme/pack.lock.json`)
   → `tools\run.cmd run tools/theme/build_theme.gd --headless` → `client/ui/theme/game_theme.tres` (its uid
   `uid://c8behqt7jtcn8` kept with `ResourceSaver.set_uid`, a headless save writes none) and `game_theme_large.tres`.
-  Both are generated, never edited by hand. Pinned at `ui-2.5.4` (since #1559; `ui-0.8.0` since #1020, `ui-0.4.0` before).
+  Both are generated, never edited by hand. Pinned at `ui-2.5.5` (since #1627; `ui-2.5.4` since #1559, `ui-0.8.0` since #1020, `ui-0.4.0` before).
 - `tools/theme/mapping.json` is the engine knowledge, data: pack states to Godot StyleBox names
   (`hover-pressed` → `hover_pressed`), the 19 fields to `StyleBoxFlat` properties, per-state `font-color` to the
   `font_*_color` items, `items` (kebab-case to the Godot item), `label` to `font_size`, `press.*`, `size.*` and
@@ -3528,8 +3528,8 @@ names and the font's glyphs are #549 (§4.7.48).
 - **The copy deck.** The texts are the UI track's copy deck, `copy/strings.csv` of xperiaroco2/prime-game-ui, in
   Godot's CSV format (`keys,en,uk,?plural,?context`; its rules in that repo's `copy/README.md`). `tools\run.cmd
   ui-copy <tag>` (AGENT_WORKFLOW §11.27) copies it at a release tag into `client/i18n/strings.csv`, byte for byte,
-  with `client/i18n/strings.lock.json` (repo, tag, commit, sha256); now `ui-2.5.4`, 371 keys in 377 rows (since #1559;
-  `ui-0.8.0` from #1025, 270 keys in 274 rows; `ui-0.6.0` before, 265 keys in 269 rows). Never edit the deck
+  with `client/i18n/strings.lock.json` (repo, tag, commit, sha256); now `ui-2.5.5`, 369 keys in 375 rows (since #1627;
+  `ui-2.5.4` from #1559, 371 keys in 377 rows; `ui-0.8.0` from #1025, 270 keys in 274 rows; `ui-0.6.0` before, 265 keys in 269 rows). Never edit the deck
   here: a change goes to the UI repo, a new tag, then `ui-copy`.
 - **The translations.** Godot's import writes `strings.en.translation` and `strings.uk.translation` beside the deck
   (gitignored: every import rebuilds them); `project.godot`'s `[internationalization]` lists both, so every run loads
@@ -3805,7 +3805,9 @@ down) > `Won` (ToyTitleOnDark) and `Reason` (ToyTextMutedOnDark), and `Back` (To
 `end.reason.cops`) waits for a mode that ends on the anger (#1312): no reason id names it.
 - **The winner line.** `end.won_engineers` or `end.won_dissidents` by the winning side's id (`SIDE_KEYS`: the base
   mode's `crew` and `dissidents`; a side not there, or no winner, hides it), the same for every player since ui-2.0.0
-  (no plate for a win or a loss). The handoff's words are the aliens' and the humans' (`end.won_aliens`,
+  (no plate for a win or a loss). With no winner the reason may name a line in its place (`NO_SIDE_KEYS`:
+  `time_up_no_humans` shows `end.lost_aliens`, "The aliens lost", the handoff's s10 `time-no-humans` at ui-2.5.5,
+  #1627). The handoff's words are the aliens' and the humans' (`end.won_aliens`,
   `end.won_humans`): the game's sides keep their names until the content renames them. No role is shown.
 - **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by `MatchEnded`'s
   reason, the id of the win condition that ended the round (`REASON_KEYS`: `every_task_done`, `time_up`, #548;
@@ -3975,7 +3977,7 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   imports (§11.1), byte for byte under the lock's `imported` (`.gitattributes`: its SVGs `-text`, its PNGs through
   LFS, a pointer file counted by its oid). Each SVG's `.import` gets the pack's `svg_scale` (the s07 and s08
   handoffs' import scales: `item` 2, `mic` 1.17, `teammate-mark` and `lock` 0.84, `swatch-disc` 1.54, the rest 1; at `ui-2.5.4`, #1559: `item` 1,
-  `mic` and `mic-off` 1.75, `lock` and `teammate-mark` 1.25, `swatch-disc` 2.31, `check` 1.13);
+  `mic` and `mic-off` 1.75, `lock` and `teammate-mark` 1.25, `swatch-disc` 2.31, `check` 1.13; at `ui-2.5.5`, #1627: `swatch-disc` 1);
   `ui-sync` writes it into Godot's own file, so a re-sync keeps the uid. Credits: `docs/credits/prime_game_ui_pack.md`
   from the pack's `LICENCES.json` (own work).
 - **Theme icons.** `theme_builder.gd` sets each live variation's `textures` as icons (`grabber-highlight` →
@@ -4347,8 +4349,8 @@ engineer's standing decision for the UI work, prime-game-ui#44), and its how-to 
   §4.7.33); the Delivery PNGs keep #520's import without mipmaps (the canvas's default filter samples none); the
   rooms are what MapData reads today, and the greybox has none until #306 (the engineer chose to wait for its
   room records, PR #652), so in the game the board hides (since #306 the House's rooms carry their records, §4.7.33;
-  the greybox, a test bench, #767, stays roomless); the base mode has no Switches task type, so neither its
-  row nor `map.zone_hint.switches` shows; Delivery, with no own key, reads `map.zone_hint.task` (the deck's older
+  the greybox, a test bench, #767, stays roomless); the base mode has no Switches task type, so its row does not
+  show (the deck has no Switches hint since `ui-2.5.5`); Delivery, with no own key, reads `map.zone_hint.task` (the deck's older
   `map.zone_hint`, "Packages may be here", is no longer drawn); a done row is still struck through and a
   Generator's row still holds its charge bar (#801), neither drawn by the handoff; Delivery lights every room with a package marker (the storage-only zone
   is Delivery v2, #255, out of the slice, #521).

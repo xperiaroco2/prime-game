@@ -165,13 +165,20 @@ func test_the_reason_follows_the_models_match_ended() -> void:
 	model.fold(&"MatchEnded", {"side": &"dissidents", "reason": &"no_crew_present", "numbers": {}})
 	screen.refresh(model, _mode, 100)
 	assert_bool(screen.reason_label.visible).is_false()
-	# #1627: an aliens-only match that ran out of time: time's up, the tasks are not done, and no
-	# side is named (no winner line).
+	# #1627: an aliens-only match that ran out of time: time's up, the tasks are not done, no
+	# side is named, and the winner line's place says the aliens lost (ui-2.5.5's s10
+	# `time-no-humans`).
 	model.fold(&"MatchEnded", {"side": &"", "reason": &"time_up_no_humans", "numbers": {}})
 	screen.refresh(model, _mode, 100)
 	assert_str(screen.title_label.text).is_equal("end.title.time_up")
 	assert_str(screen.reason_label.text).is_equal("The tasks aren't done.")
-	assert_bool(screen.winner_shown().visible).is_false()
+	assert_object(screen.winner_shown()).is_same(screen.winner_label)
+	assert_str(screen.winner_shown().text).is_equal("end.lost_aliens")
+	assert_bool(screen.winner_shown().visible).is_true()
+	assert_str(screen.winner_label.atr(screen.winner_label.text)).is_equal("The aliens lost")
+	TranslationServer.set_locale("uk")
+	assert_str(screen.winner_label.atr(screen.winner_label.text)).is_equal("Прибульці програли")
+	TranslationServer.set_locale("en")
 	# Its time-up keeps the alert band a time-up (the dissidents' win) always had.
 	assert_str(screen.band.theme_type_variation).is_equal("ToyBandAlert")
 	assert_str(screen.title_label.theme_type_variation).is_equal("ToyTitleHeroAlert")

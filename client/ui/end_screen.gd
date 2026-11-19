@@ -1,7 +1,7 @@
 class_name EndScreen
 extends Control
 ## The post game screen (ARCHITECTURE §4.7.31, §3.2): the outro of about 3 s, built node for node
-## as the UI track drew it (prime-game-ui `docs/handoff/s10-post-game.md` at ui-2.5.4, #498, #1572).
+## as the UI track drew it (prime-game-ui `docs/handoff/s10-post-game.md` at ui-2.5.5, #498, #1572).
 ## `Night` (ToyBackdropFullScreen) fades in when End starts and holds the texts: `Band` across the
 ## whole width, 300 to 615 px down (ToyBand, ToyBandAlert when a side in ALERT_SIDES won) with
 ## `Title`, how the round ended at the hero size ("Great party!", "Time's up", or "End of the
@@ -27,18 +27,24 @@ const SIDE_KEYS: Dictionary[StringName, String] = {
 	&"crew": "end.won_engineers",
 	&"dissidents": "end.won_dissidents",
 }
+## The line in the winner line's place when no side won, by the host's reason id: an aliens-only
+## match that ran out of time (#1627) says the aliens lost (prime-game-ui s10 `time-no-humans`,
+## ui-2.5.5; the engineer's word, #1095 c7016251264); any other id hides the line.
+const NO_SIDE_KEYS: Dictionary[StringName, String] = {
+	&"time_up_no_humans": "end.lost_aliens",
+}
 ## Why the round ended, by the host's reason id: the id of the win condition that ended it
 ## (MatchEnded, #208 b, #548); any other id hides the line. `every_task_done` takes the round's
 ## time as {time} (m:ss). The deck has no key for `no_crew_present` (ui-0.4.0): hidden, a gap.
 ## `time_up_no_humans` (#1627: an aliens-only match ran out of time, the aliens lost, no side
-## won) says the tasks are not done, as `time_up`: the deck has no line for a loss with no winner.
+## won) says the tasks are not done, as `time_up`; NO_SIDE_KEYS names who lost.
 const REASON_KEYS: Dictionary[StringName, String] = {
 	&"every_task_done": "end.reason.all_tasks",
 	&"time_up": "end.reason.time_up",
 	&"time_up_no_humans": "end.reason.time_up",
 }
 ## How the round ended, by the host's reason id, drawn above the reason (prime-game-ui
-## s10-post-game.md at ui-2.5.4: the party's title for all tasks done, the time's for time up;
+## s10-post-game.md at ui-2.5.5: the party's title for all tasks done, the time's for time up;
 ## #1559): any other id keeps TITLE_KEY.
 const TITLE_KEYS: Dictionary[StringName, String] = {
 	&"every_task_done": "end.title.party",
@@ -209,10 +215,13 @@ func _play_outro() -> void:
 	UiSounds.outro(self)
 
 
-## The winning side's line, and the band's colour by it: the danger band (and title) when a side
-## in ALERT_SIDES won or the reason shown is in ALERT_REASONS, the accent one otherwise.
+## The winning side's line (with no side, the reason's NO_SIDE_KEYS line), and the band's colour by
+## it: the danger band (and title) when a side in ALERT_SIDES won or the reason shown is in
+## ALERT_REASONS, the accent one otherwise.
 func _show_winner(side: StringName) -> void:
 	var key: String = SIDE_KEYS.get(side, "")
+	if side.is_empty():
+		key = NO_SIDE_KEYS.get(reason, "")
 	winner_label.text = key
 	winner_label.visible = not key.is_empty()
 	var alert := ALERT_SIDES.has(side) or ALERT_REASONS.has(reason)
