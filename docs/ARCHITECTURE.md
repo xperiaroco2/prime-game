@@ -3805,7 +3805,9 @@ down) > `Won` (ToyTitleOnDark) and `Reason` (ToyTextMutedOnDark), and `Back` (To
 `end.reason.cops`) waits for a mode that ends on the anger (#1312): no reason id names it.
 - **The winner line.** `end.won_engineers` or `end.won_dissidents` by the winning side's id (`SIDE_KEYS`: the base
   mode's `crew` and `dissidents`; a side not there, or no winner, hides it), the same for every player since ui-2.0.0
-  (no plate for a win or a loss). The handoff's words are the aliens' and the humans' (`end.won_aliens`,
+  (no plate for a win or a loss). With no winner the reason may name a line in its place (`NO_SIDE_KEYS`:
+  `time_up_no_humans` shows `end.lost_aliens`, "The aliens lost", the handoff's s10 `time-no-humans` at ui-2.5.5,
+  #1627). The handoff's words are the aliens' and the humans' (`end.won_aliens`,
   `end.won_humans`): the game's sides keep their names until the content renames them. No role is shown.
 - **The reason.** `end.reason.all_tasks` (the round's time as m:ss) or `end.reason.time_up`, by `MatchEnded`'s
   reason, the id of the win condition that ended the round (`REASON_KEYS`: `every_task_done`, `time_up`, #548;
