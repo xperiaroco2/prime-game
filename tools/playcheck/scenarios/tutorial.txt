@@ -44,7 +44,10 @@ wait text tutorial.how has Press
 press put_down
 wait shown hud.hand off
 wait text tutorial.step is Step 3 of 9
-# Lesson 3: the knife (the package goes on no belt), then the swap key moves it to the belt.
+# Lesson 3: the knife (the package goes on no belt), then its two steps, each done by a Swapped
+# (#1629): "Draw from the belt", here the swap key moving the knife to the belt, then "Back to
+# the last place", the swap key again, which brings it back to the hand. A third swap stows it on
+# the belt again, so lesson 4 starts with an empty hand.
 aim item knife
 hold move_forward
 wait text hud.aim is Knife timeout=30
@@ -54,7 +57,11 @@ press interact
 wait text hud.hand is Knife
 press swap
 wait text hud.belt is Knife
+wait text tutorial.how has X timeout=10
+press swap
 wait text tutorial.step is Step 4 of 9
+press swap
+wait text hud.belt is Knife
 # Lesson 4 (#901): the hand is empty after the swap and a belt item is never thrown, so the package
 # is taken in the hand again and thrown.
 aim item package
