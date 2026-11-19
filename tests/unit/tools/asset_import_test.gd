@@ -100,6 +100,29 @@ func test_a_loop_that_plays_once_is_named() -> void:
 	assert_str(problems[0]).starts_with(FIXTURE + ": the clip Idle plays once, the contract says")
 
 
+func test_a_body_glb_has_its_rows_clips_and_nodes() -> void:
+	# #1587: the hands' package (assets/body/fp_hands/) keeps the clips the game plays, each looping
+	# as listed, and its CrystalSocket; a later package that renames one is named.
+	var path := "res://assets/body/fp_hands/fp_hands.glb"
+	var row := Check.body_row(path, _contract)
+	assert_dict(Check.body_row("res://assets/environment/x/x.glb", _contract)).is_empty()
+	assert_array(_list_of(row, "nodes")).contains(["CrystalSocket"])
+	assert_array(Check.check_body(path, _body(row), row)).is_empty()
+	var problems := Check.check_body(path, _body(row, "Punch", "CrystalSocket", "Run"), row)
+	var loops := "the contract says it loops (a _Loop suffix in the art export)"
+	(
+		assert_array(problems)
+		. contains(
+			[
+				path + ": lacks the node CrystalSocket its contract names",
+				path + ": the clip Run plays once, " + loops,
+			]
+		)
+	)
+	var last := problems[problems.size() - 1]
+	assert_str(last).starts_with(path + ": lacks 1 contract clips: Punch")
+
+
 func test_a_character_without_a_skeleton_or_player_is_named() -> void:
 	var empty: Node3D = auto_free(Node3D.new())
 	(
@@ -246,6 +269,37 @@ func _character(drop_bone: String = "", drop_clip: String = "", once: String = "
 	player.add_animation_library("", library)
 	root.add_child(player)
 	return root
+
+
+## A body package as its contract row asks for it, less `drop_clip` and `drop_node`, with `once`
+## (a loop of the row) playing once.
+func _body(row: Dictionary, drop_clip := "", drop_node := "", once := "") -> Node3D:
+	var root: Node3D = auto_free(Node3D.new())
+	for node: Variant in _list_of(row, "nodes"):
+		if str(node) != drop_node:
+			var marker := Node3D.new()
+			marker.name = str(node)
+			root.add_child(marker)
+	var library := AnimationLibrary.new()
+	for clip: Variant in _list_of(row, "clips"):
+		var spec: Dictionary = clip
+		var clip_name := str(spec["name"])
+		if clip_name == drop_clip:
+			continue
+		var animation := Animation.new()
+		animation.length = 0.5
+		var loops: bool = spec["loop"] == true and clip_name != once
+		animation.loop_mode = Animation.LOOP_LINEAR if loops else Animation.LOOP_NONE
+		library.add_animation(clip_name, animation)
+	var player := AnimationPlayer.new()
+	player.add_animation_library("", library)
+	root.add_child(player)
+	return root
+
+
+func _list_of(row: Dictionary, key: String) -> Array:
+	var value: Variant = row.get(key, [])
+	return value as Array if value is Array else []
 
 
 func _character_params() -> Dictionary:

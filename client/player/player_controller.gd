@@ -160,6 +160,7 @@ var _exit_to := Vector3.ZERO
 var _overlaps := PhysicsShapeQueryParameters3D.new()
 ## The own hand item in the first-person view (M4-8), under the camera.
 var _hand_view := FirstPersonHand.new()
+var _fp_hands := FpHands.new()  # The first-person hands (#1587; fp_hands()).
 ## The drunk feel (#1391, DrunkFeel): the strength 0..1, eased once per physics step toward the
 ## drunk value's; the drift's clock (physics seconds since the onset, so the claims follow the
 ## physics steps) and the sway's (render seconds, so the camera moves smoothly between them).
@@ -182,11 +183,13 @@ func _ready() -> void:
 	_floor_y = global_position.y
 	_camera.cull_mask = PhotoLayers.LIVE_VIEW
 	_camera.add_child(_hand_view)
+	_fp_hands.attach(self, _camera, _hand_view)
 	# The sway's _process runs only while drunk (_follow_drunk): a sober player costs nothing.
 	set_process(false)
 
 
 func _physics_process(delta: float) -> void:
+	_fp_hands.update(Vector2(velocity.x, velocity.z).length(), is_living())
 	# The dead have no body: nothing moves and nothing is claimed until a respawn.
 	if rules == null or not (is_living() or is_downed()):
 		return
@@ -349,6 +352,7 @@ func face(facing: Vector3) -> void:
 ## step 7), out of it the standing one.
 func set_life(value: ClientModel.Life) -> void:
 	life = value
+	_fp_hands.visible = life == ClientModel.Life.ALIVE
 	collision_mask = PhysicsLayers.WORLD
 	match life:
 		ClientModel.Life.ALIVE:
@@ -413,6 +417,11 @@ func get_camera() -> Camera3D:
 ## The own hand item in the first-person view (M4-8): ItemViews tells it what to show.
 func hand_view() -> FirstPersonHand:
 	return _hand_view
+
+
+## The first-person hands (#1587): ItemViews feeds them the held kind and colour, Game the hit.
+func fp_hands() -> FpHands:
+	return _fp_hands
 
 
 func _apply_rules() -> void:

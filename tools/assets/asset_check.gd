@@ -1,7 +1,8 @@
 extends RefCounted
 ## The import check of the art handoff (#519, docs/ARCHITECTURE.md §11): every committed GLB loads
 ## headless and keeps the import options the art repo's docs/godot.md asks for; a character GLB
-## under assets/characters/ has the skeleton and the clips of tools/assets/asset_contract.json;
+## under assets/characters/ has the skeleton and the clips of tools/assets/asset_contract.json,
+## and one under assets/body/<id>/ the clips and nodes its contract row names (#1587);
 ## an image under assets/ keeps its folder's compression. Static, so the test
 ## (tests/unit/tools/asset_import_test.gd) runs it on the committed files and on broken fixtures
 ## built in memory. Each problem is one line that starts with the asset's path and says what is
@@ -76,6 +77,15 @@ static func is_character(path: String, contract: Dictionary) -> bool:
 	return not folder.is_empty() and path.begins_with(folder)
 
 
+## A body GLB's contract row (assets/body/<id>/, keyed by <id>), or {} for any other path.
+static func body_row(path: String, contract: Dictionary) -> Dictionary:
+	var folder := str(_dict(contract, "folders").get("body", ""))
+	if folder.is_empty() or not path.begins_with(folder):
+		return {}
+	var id := path.trim_prefix(folder).get_slice("/", 0)
+	return _dict(_dict(contract, "body"), id)
+
+
 ## The [params] of an asset's committed .import file, or null when it has none.
 static func import_params(path: String) -> Variant:
 	var config := ConfigFile.new()
@@ -116,6 +126,9 @@ static func check_glb(path: String, contract: Dictionary) -> PackedStringArray:
 		return problems
 	if character:
 		problems.append_array(check_character(path, root, contract))
+	var body := body_row(path, contract)
+	if not body.is_empty():
+		problems.append_array(check_body(path, root, body))
 	root.free()
 	return problems
 
@@ -195,9 +208,30 @@ static func check_character(path: String, root: Node, contract: Dictionary) -> P
 	if players.size() != 1:
 		problems.append("%s: has %d AnimationPlayer nodes, want 1" % [path, players.size()])
 		return problems
-	var player := players[0] as AnimationPlayer
+	problems.append_array(check_clips(path, players[0] as AnimationPlayer, _list(role, "clips")))
+	return problems
+
+
+## A body GLB (#1587): one AnimationPlayer with its row's clips, each looping as listed, and each
+## node its row names (the hands' CrystalSocket), so a later package that renames one fails here.
+static func check_body(path: String, root: Node, row: Dictionary) -> PackedStringArray:
+	var problems := PackedStringArray()
+	for node: Variant in _list(row, "nodes"):
+		if root.find_child(str(node), true, false) == null:
+			problems.append("%s: lacks the node %s its contract names" % [path, str(node)])
+	var players := root.find_children("*", "AnimationPlayer", true, false)
+	if players.size() != 1:
+		problems.append("%s: has %d AnimationPlayer nodes, want 1" % [path, players.size()])
+		return problems
+	problems.append_array(check_clips(path, players[0] as AnimationPlayer, _list(row, "clips")))
+	return problems
+
+
+## Every clip of `clips` ({name, loop}) on `player`, looping exactly as listed.
+static func check_clips(path: String, player: AnimationPlayer, clips: Array) -> PackedStringArray:
+	var problems := PackedStringArray()
 	var missing_clips := PackedStringArray()
-	for clip: Variant in _list(role, "clips"):
+	for clip: Variant in clips:
 		var spec: Dictionary = clip as Dictionary if clip is Dictionary else {}
 		var clip_name := str(spec.get("name", ""))
 		if not player.has_animation(clip_name):

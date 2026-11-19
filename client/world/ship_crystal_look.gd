@@ -109,6 +109,15 @@ func seat(anchor: Node3D, softened: bool) -> void:
 	set_charge(c)
 
 
+## Scales the crystal's own light to `share` of a charged crystal's (the first-person crystal's
+## 40 %, #1587: the others still see theirs at full).
+func set_light_share(share: float) -> void:
+	_omni_energy = OMNI_ENERGY * share
+	var c := _charge
+	_charge = -1.0
+	set_charge(c)
+
+
 ## The crystal's state: 1 charged, 0 spent, values between fade.
 func set_charge(to: float) -> void:
 	var c := clampf(to, 0.0, 1.0)

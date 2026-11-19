@@ -787,9 +787,17 @@ func _sync_hall() -> void:
 ## Every event, in the session's physics step: the level of a new phase, the own life, and the
 ## player's flags for the screen the model is on now (a phase, the winner and the own death all
 ## change them, #241).
-func _on_event(event_name: StringName, _fields: Dictionary) -> void:
+func _on_event(event_name: StringName, fields: Dictionary) -> void:
 	if event_name == &"PhaseChanged":
 		_sync_level()
+	# The own swing the host accepted (Swung is public, its peer the swinger's): the hands hit
+	# (#1587). It shows the swing only, never whether it touched anyone.
+	if (
+		event_name == &"Swung"
+		and _player != null
+		and fields.get("peer", 0) == _client.model.own_peer
+	):
+		_player.fp_hands().play_hit()
 	GamePlayer.sync_life(self)
 	GamePlayer.apply_flags(self, screen())
 

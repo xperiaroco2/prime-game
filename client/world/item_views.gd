@@ -262,6 +262,8 @@ func _show_own_hand() -> void:
 		return
 	var hand_id := model.hand_item(model.own_peer)
 	var hand: ClientModel.Item = model.items.get(hand_id)
+	# The first-person hands (#1587): the own body colour, and a crystal in the hand on their socket.
+	player.fp_hands().set_tint(BodyColours.of(model.colour_of(model.own_peer)))
 	# Only the living look through the first-person camera; a downed or limp player's items lie at
 	# its body.
 	# A thrown item left the hand at the press, though the host has not answered yet.
@@ -271,7 +273,9 @@ func _show_own_hand() -> void:
 		or flights.hides_hand(hand_id)
 	):
 		player.hand_view().show_item(&"", Color.WHITE)
+		player.fp_hands().set_held(&"")
 	else:
+		player.fp_hands().set_held(hand.kind)
 		player.hand_view().show_item(
 			hand.kind, hand.colour, _two_handed(hand.kind), hand_id, hand.parts
 		)

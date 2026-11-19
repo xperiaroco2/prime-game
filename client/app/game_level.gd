@@ -38,6 +38,7 @@ func swap(level: Node, level_kind: PhaseSpec.Level) -> void:
 	node.name = "Level"
 	_world.add_child(node)
 	_world.move_child(node, 0)
+	FpView.light_level(node)
 	kind = level_kind
 	_items.set_level(node)
 
