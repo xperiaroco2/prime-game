@@ -9,8 +9,9 @@ extends RefCounted
 ## (#254), Settings. No Lobby page since #1604: the match settings are on the ship's match
 ## console (s04, MatchConsole), Ready is its key and the code's Copy the head's; LOBBY keeps its
 ## number and LobbyPanel its code, as ROLE does. No Role page: the HUD shows the role (s05 at
-## ui-2.3.0). The tutorial shows Guide and Settings. Character waits for
-## the mirror (#1394, the engineer 2026-10-28). Opening shows the page chosen last on this kind of
+## ui-2.3.0). The tutorial shows Guide and Settings. No Character page: the character changes only
+## at the mirror (#1394; the engineer dropped s05's tab on 2026-11-19, #1643), and the game reads
+## none of its keys. Opening shows the page chosen last on this kind of
 ## screen (the lobby screen or any other), else none.
 ## A player's Leave and Quit act at once, and so do the tutorial's; the host's ask first, since
 ## they end the session for every player: confirm() answers the question, cancel() drops it.

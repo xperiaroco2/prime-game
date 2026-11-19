@@ -40,8 +40,8 @@ const BASE: Dictionary[String, bool] = {
 ## The Hidden list every state in a round shares: no code head, no Lobby entry (s05 `round`).
 const IN_ROUND: Array[String] = ["Menu/Side/V/Head", "Menu/Side/V/Entries/Lobby"]
 ## The states the menu builds: its context (screen, hosting, tutorial), the entry pressed and the
-## Settings section, the host's question; then what differs from BASE. Character waits for the
-## mirror (#1394, the engineer 2026-10-28) and the ship's states (no session) for #1285.
+## Settings section, the host's question; then what differs from BASE. No Character entry: the
+## character changes only at the mirror (#1643); the ship's states (no session) for #1285.
 var states: Dictionary[String, Dictionary] = {
 	"lobby": {},
 	# The code service gone: no dead code in the head (the ship's console says so, #1604).
@@ -114,7 +114,7 @@ func test_every_state_shows_and_hides_what_the_handoff_lists() -> void:
 		# Leave reads the tutorial's words there.
 		var leave := "esc.game.leave_tutorial" if spec.get("tutorial", false) else "esc.game.leave"
 		assert_str(menu.leave_button.text).override_failure_message(id).is_equal(leave)
-		# Character waits for the mirror (#1394), the Role page is the HUD's (s05).
+		# No Character entry (the mirror alone changes it, #1643); the Role page is the HUD's (s05).
 		assert_object(menu.get_node_or_null(^"Menu/Side/V/Entries/Character")).is_null()
 		assert_object(menu.get_node_or_null(^"Menu/Side/V/Entries/Role")).is_null()
 		menu.free()
