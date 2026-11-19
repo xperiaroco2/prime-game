@@ -3,6 +3,7 @@
   "folders": {
     "characters": "res://assets/characters/",
     "environment": "res://assets/environment/",
+    "body": "res://assets/body/",
     "audio": "res://assets/audio/",
     "ui": "res://assets/ui/"
   },
@@ -16,6 +17,7 @@
     "_about": "compress/mode of a texture's .import per folder: 2 VRAM Compressed (3D), 0 Lossless (UI).",
     "res://assets/characters/": 2,
     "res://assets/environment/": 2,
+    "res://assets/body/": 2,
     "res://assets/ui/": 0
   },
   "character": {
