@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://xnvg88irr1wc"
-path.s3tc="res://.godot/imported/fp_hands_axolotl_body_normal.png-519343fae6f634e3383a6c8e1634e352.s3tc.ctex"
+uid="uid://dbvvdhlk5bp58"
+path.s3tc="res://.godot/imported/fp_hands_fp_hand_basecolor.png-8257bef2f69d0d642328f194569226cb.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "fb1ad96830e27af53d23d52e8f96122e"
+"md5": "ce173cb88989d3534638c8de8c5a60cb"
 }
 
 [deps]
 
-source_file="res://assets/body/fp_hands/fp_hands_axolotl_body_normal.png"
-dest_files=["res://.godot/imported/fp_hands_axolotl_body_normal.png-519343fae6f634e3383a6c8e1634e352.s3tc.ctex"]
+source_file="res://assets/body/fp_hands/fp_hands_fp_hand_basecolor.png"
+dest_files=["res://.godot/imported/fp_hands_fp_hand_basecolor.png-8257bef2f69d0d642328f194569226cb.s3tc.ctex"]
 
 [params]
 

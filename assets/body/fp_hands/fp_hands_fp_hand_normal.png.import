@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://blswepxguup70"
-path.s3tc="res://.godot/imported/fp_hands_top_normal.png-ec63ccfe5453ab99e383eaf499e51a7e.s3tc.ctex"
+uid="uid://15ynvxo1vl84"
+path.s3tc="res://.godot/imported/fp_hands_fp_hand_normal.png-e6f0cdbae60490a00e7fedbd5d0593d6.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "6604e0816cbc25b264ca8eddb30582db"
+"md5": "8812d463fa04a40ddee1e77f0a8df39b"
 }
 
 [deps]
 
-source_file="res://assets/body/fp_hands/fp_hands_top_normal.png"
-dest_files=["res://.godot/imported/fp_hands_top_normal.png-ec63ccfe5453ab99e383eaf499e51a7e.s3tc.ctex"]
+source_file="res://assets/body/fp_hands/fp_hands_fp_hand_normal.png"
+dest_files=["res://.godot/imported/fp_hands_fp_hand_normal.png-e6f0cdbae60490a00e7fedbd5d0593d6.s3tc.ctex"]
 
 [params]
 
