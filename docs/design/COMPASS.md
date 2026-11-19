@@ -90,11 +90,11 @@ added at any time (small moments, easter eggs) waits.
    step 1, where it turns ideas cautious.
 5. **Record:** his words on the issue in English, marked as translated, idea or decided; a decision into the GDD or
    `docs/design/` on his word; ideas into `ideas/` and research into `research/` of the private design repo
-   prime-game-design (`D:\prime-game-design`; #1124).
+   prime-game-design (`..\prime-game-design`, beside this checkout; #1124).
 
 ## 6. Where things are
 - Decided: [GDD](../GDD.md), [m8-match.md](m8-match.md); the M8 issues #1031 (story and roles), #1032 (respawn),
   #1033 (tasks), #1035 (the map), #1040 (points and weapons).
-- Ideas, research and references: the design repo prime-game-design (`D:\prime-game-design`); the rounds of
+- Ideas, research and references: the design repo prime-game-design (`..\prime-game-design`, beside this checkout); the rounds of
   2026-10-15 stay here as the archive, [ideas/](ideas/README.md) and [research/](research/README.md).
 - The track's plan and handovers: #1095.
