@@ -94,7 +94,7 @@ func test_with_no_usable_key_a_session_makes_its_own() -> void:
 		assert_int(_harness.sent_named(&"Hello").size()).is_equal(1)
 
 
-## A name assigned after the session exists (the Character tab, #491) is cleaned too.
+## A name assigned after the session exists (#491) is cleaned too.
 func test_a_name_assigned_later_is_cleaned() -> void:
 	_harness.session.player_name = BELL + "Д".repeat(40)
 	assert_str(_harness.session.player_name).is_equal("Д".repeat(16))

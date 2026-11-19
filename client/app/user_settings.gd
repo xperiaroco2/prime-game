@@ -66,7 +66,7 @@ var language := "":
 ## "" before the player chose one (the host then names them Player<n>). Kept as PlayerNames.clean
 ## leaves it (at most 16 characters, no controls, no blank edges), so Hello always encodes; a value
 ## that cleans to nothing keeps the name there was: a chosen name is never empty. The main menu's
-## name row (#493) and the Esc menu's Character tab (#491) set it.
+## name row (#493) sets it (the Esc menu has no Character tab, #1643).
 var player_name := "":
 	set(value):
 		var cleaned := PlayerNames.clean(value)
