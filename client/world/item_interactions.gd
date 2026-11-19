@@ -14,8 +14,9 @@ extends Node3D
 ##   (#1526), with an item in the hand or none (a photo too: it hits by the mode's fallback,
 ##   #1437, #1444); the click that captures the mouse is not a use;
 ## - the right mouse button (`use_secondary`) sends UseSecondary(facing), the item's own action
-##   (the mug's drink, #1438), the same way; with a photo in the hand it holds the photo up close or
-##   back and sends nothing (#787, #1444); the dead's right button cycles the spectate target;
+##   (the mug's drink, #1438), with an item in the hand, in a phase that takes it (#1617); with
+##   a photo in the hand it holds the photo up close or back and sends nothing (#787, #1444); the
+##   dead's right button cycles the spectate target;
 ## - X (`swap`) sends Swap() while the own hand or belt holds an item;
 ## - G (`throw`, the throwing ADR's TD7 (a); the key provisional) sends Throw(facing) while the own
 ##   hand holds an item that the client's own copy of the mode has a Throw rule for, in a phase
@@ -357,10 +358,11 @@ func use() -> int:
 
 
 ## The right mouse button: UseSecondary(facing), the held item's own action (the mug's drink,
-## #1438), while the own hand holds an item; the host answers nothing_to_do where the item has
-## none. A photo or a booth's strip in the hand holds it up close or back instead and sends nothing
-## (neither has a UseSecondary rule, #787, #1444, #1397). Only the living send it (`_acts`): the
-## dead's right button cycles the spectate target.
+## #1438), while the own hand holds an item, only in a phase that takes UseSecondary from the
+## living (#1617, as use() since #1526); the host answers nothing_to_do where the item has none. A
+## photo or a booth's strip in the hand holds it up close or back instead and sends nothing
+## (neither has a UseSecondary rule, #787, #1444, #1397), in any phase. Only the living send it
+## (`_acts`): the dead's right button cycles the spectate target.
 func use_secondary() -> int:
 	if not _acts() or model.hand_item(model.own_peer) < 0:
 		return -1
@@ -368,6 +370,9 @@ func use_secondary() -> int:
 	var kind := model.items[hand_id].kind
 	if PhotoUse.is_photo(mode, kind) or BoothUse.is_strip(mode, kind):
 		_set_close(hand_id if _close_item != hand_id else -1)
+		return -1
+	# A phase that takes no UseSecondary from the living would only answer Rejected(not_accepted).
+	if not _phase_takes(Intents.USE_SECONDARY):
 		return -1
 	return session.send_intent(Intents.USE_SECONDARY, {"facing": player.look_vector()})
 

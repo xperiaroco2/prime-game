@@ -84,6 +84,21 @@ func test_the_secondary_button_holds_a_photo_up_close_and_back_sending_nothing()
 	assert_array(_harness.sent_named(Intents.USE_SECONDARY)).is_empty()
 
 
+## #1617: the close-up is the client's own, so it works in a phase that takes no UseSecondary.
+func test_the_close_up_works_in_a_phase_that_takes_no_use_secondary() -> void:
+	var without := _phase_without(_mode, Intents.USE_SECONDARY)
+	assert_str(String(without)).is_not_empty()
+	_model.phase = without
+	_hold(PHOTO_A, 7)
+	await _frames(2)
+	assert_int(_keys.use_secondary()).is_equal(-1)
+	assert_bool(_keys.close_up()).is_true()
+	assert_int(_keys.use_secondary()).is_equal(-1)
+	assert_bool(_keys.close_up()).is_false()
+	_harness.pump()
+	assert_array(_harness.sent_named(Intents.USE_SECONDARY)).is_empty()
+
+
 func test_the_primary_button_hits_with_a_photo_and_no_close_up() -> void:
 	_hold(PHOTO_A, 7)
 	await _frames(2)
@@ -191,3 +206,11 @@ func _texture(colour: Color) -> Texture2D:
 func _frames(count: int) -> void:
 	for i in count:
 		await get_tree().physics_frame
+
+
+## The first phase of `mode` that takes `intent` from no player, living or dead; &"" if none.
+func _phase_without(mode: GameMode, intent: StringName) -> StringName:
+	for phase: PhaseSpec in mode.phases:
+		if phase.senders_of(intent) == 0:
+			return phase.id
+	return &""
