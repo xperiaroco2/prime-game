@@ -12,7 +12,8 @@
 # console and starts the engine with E; nobody mends the first problem, so the engine blasts and
 # window 1, aboard, goes down (KnockedDown); it holds Give up until it is dead (Died), shows the
 # dead's room with its respawn time (shot), and returns (Respawned, shot). Both windows then wait
-# for the timer: the End screen with its winner's line (shot), then the lobby again.
+# for the timer: the End screen (shot) says "The aliens lost" in the winner's place (an aliens-only
+# match that runs out of time has no winner, #1627), then the lobby again.
 # Its shots:
 #   mirror_menu          window 2: the mirror's colour menu in the lobby
 #   pregame_host         window 1: the role reveal
@@ -83,7 +84,7 @@ wait event Respawned peer=1 timeout=90
 seconds 2
 shot returned
 wait screen end timeout=300
-wait text end.winner has won timeout=10
+wait text end.winner is The aliens lost timeout=10
 seconds 1
 shot end_host
 wait screen lobby timeout=60
@@ -149,7 +150,7 @@ hold move_back
 seconds 1
 release move_back
 wait screen end timeout=400
-wait text end.winner has won timeout=10
+wait text end.winner is The aliens lost timeout=10
 seconds 1
 shot end_guest
 wait screen lobby timeout=60
