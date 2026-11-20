@@ -157,9 +157,12 @@ func test_item_world_gives_life_view_the_close_up_lens_while_seated() -> void:
 	_model.pinball.player = OWN
 	close_up.step(PinballCloseUp.EASE_S / 2.0)
 	assert_object(world.live_camera()).is_same(close_up.camera)
+	# The HUD's flag (#1400, answer 7: the lobby HUD shows only the mic over the close-up).
+	assert_bool(world.hud_local().close_up).is_true()
 	_model.pinball.player = -1
 	close_up.step(PinballCloseUp.EASE_S * 2.0)
 	assert_object(world.live_camera()).is_null()
+	assert_bool(world.hud_local().close_up).is_false()
 
 
 func test_in_the_hall_the_table_fills_the_close_up_s_view() -> void:
@@ -193,6 +196,12 @@ func test_in_the_hall_the_table_fills_the_close_up_s_view() -> void:
 	# The display's best line shows at the top of the seated view.
 	assert_bool(views.display.visible).is_true()
 	assert_bool(lens.is_position_in_frustum(views.display.best.global_position)).is_true()
+	# Its top edge too (half the text's height above its centred anchor): the line is not cut
+	# (#1400, answer 6).
+	var best := views.display.best
+	var top := best.global_position + Vector3.UP * (best.font_size * best.pixel_size / 2.0)
+	assert_bool(lens.is_position_in_frustum(top)).is_true()
+	assert_float(lens.unproject_position(top).y).is_greater_equal(0.0)
 	# Most of the screen's height: the table, not the room.
 	assert_float(box.size.y / screen.y).is_greater(0.6)
 	assert_bool(Rect2(Vector2.ZERO, screen).encloses(box)).is_true()

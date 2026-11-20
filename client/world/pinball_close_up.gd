@@ -7,8 +7,9 @@ extends Node3D
 ## window: everyone else's keeps its camera and sees the machine from where they stand.
 ##
 ## - While seated the player's movement keys and look are held (PlayerController.held, as the
-##   photo viewfinder holds them) and its first-person hand is hidden; the crosshair stays on the
-##   machine, so E there still gives the seat up. The held flag is let go when the ease out starts
+##   photo viewfinder holds them) and its first-person hand is hidden; the interaction ray stays on
+##   the machine, so E there still gives the seat up (the lobby HUD hides all but the mic over the
+##   close-up: LobbyHud.set_close_up). The held flag is let go when the ease out starts
 ##   (the player may walk at once), and only if the close-up set it.
 ## - It never touches the controller's head, pitch or yaw: a separate camera, so the view after a
 ##   respawn or a new match (§4.7.13) is the controller's own.
@@ -20,8 +21,8 @@ extends Node3D
 ##   it is up; the Esc menu opens over it and changes nothing here (PinballKeys lets the flippers
 ##   go).
 ##
-## The marker's pose, the field of view and the ease time are provisional, not a decision: the
-## engineer frames the shot in the editor (the marker) and on the pictures.
+## The marker's pose is the engineer's (approved on the M8 review, #1095 c7021998428, answer 8); the
+## field of view and the ease time are provisional, not a decision.
 
 ## The lens's vertical field of view, degrees, and near plane (provisional).
 const FOV_DEG := 50.0

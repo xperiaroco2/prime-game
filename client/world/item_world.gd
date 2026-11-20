@@ -284,6 +284,7 @@ func hud_local(tick: float = -1.0, raise: float = -1.0) -> HudText.Local:
 	local.aim = interactions.target()
 	local.aim_station = interactions.station_target()
 	local.viewing = viewfinder.active()
+	local.close_up = pinball.close_up.active()
 	local.zap_notice = zap.notice_showing()
 	local.raising = maxf(raise, fit_shown(tick))
 	return local

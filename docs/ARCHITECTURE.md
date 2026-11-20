@@ -4788,6 +4788,10 @@ the Esc menu's Lobby page holds the settings (§4.7.42).
   §4.7.42) and its Lobby page the service's absence. **The mic**: `VoiceSender.live()` (`GameTalk.refresh`).
 - **No other key prompt in a session** (the boot's `Hint` names the Esc key with no session, #1285): Ready is the
   bound `ready` key (#211) and the Esc Lobby page's button; the hand-over's cue (#1411) is the `Aim` chip below.
+- **The pinball's close-up** (#1400; the engineer's M8 review, #1095 c7021998428 answer 7): while
+  `PinballCloseUp.active()` (`HudText.Local.close_up`, from `ItemWorld.hud_local`, fed by `GameUi.refresh_round`)
+  `LobbyHud.set_close_up(true)` hides all but the mic: the crosshair, `Aim`, `Status`, `Players`, `Ready` and the voice
+  hint come back when the view is at the eye again.
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
   bottom row, its bottom 16 px over the row's top (plain English, as before). The round HUD's `Aim` (#1408): a
   ToyChipPlate > `Text` ToyChipPlateText at the round HUD's place under the crosshair, second child after `Cross`, hidden when empty, naming what E would use there
@@ -5613,7 +5617,11 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
 - **The places.** Marker3Ds found by group in the level (`TABLE_GROUP` `pinball_table`: the table scene's origin and
   axes, its -Z up the table; `CLOSE_UP_GROUP` `pinball_closeup`: the close-up camera's pose; `DISPLAY_GROUP`
   `pinball_display`: the display, its text facing +Z). The lobby has them as placeholders under its `Pinball` node
-  (`TableMount`, `CloseUp`, `Display`; provisional, the engineer moves them in the editor). A level without a marker
+  (`TableMount`, `CloseUp`, `Display`; approved on the engineer's M8 review, #1095 c7021998428 answers 6 and 8, after
+  `Display` moved up (1.55 to 1.72 m over the floor) and 0.1 m back, so the score line clears
+  the table's back rail from a standing eye, and `CloseUp` 0.38 m back and pitched 42 degrees down (was 55), so the display's
+  top line is in the close-up's frame, about 1.8 m from the table's mount; the editor may still move them). Over the
+  close-up the lobby HUD shows only the mic (§4.7.47, "The pinball's close-up"). A level without a marker
   draws no table, shows no close-up, or no display; `ItemWorld.set_level` hands the level over.
 - **The table.** `PinballTableView` reads the table scene by its own `levels/` path (`SCENE`; never
   `PinballTable.SCENE`, client/ names no server/ path) once and draws one plain mesh per collision shape, with no
@@ -5648,8 +5656,8 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
   keys (`pinball.best`, `pinball.score`, `pinball.balls`; raw until the deck has them, asked on #150) with the number
   after them.
 - **Provisional, not a decision** (taste, the engineer's: taken under his standing word, #507): the keys Z and Slash,
-  the close-up (1.6 m from the table, 55 degrees down, fov 50, ease 0.6 s), the markers' poses (the 1.3 m table
-  overhangs the machine's 1 m box), the gap and reconcile times, the table's and the display's Toy-style looks.
+  the close-up's fov 50 and ease 0.6 s, the table's mount (the 1.3 m table overhangs the machine's 1 m box), the gap
+  and reconcile times, the table's and the display's Toy-style looks.
 - **Tests.** `tests/unit/client/world/pinball_ball_track_test.gd` (between samples, held past the newest, hidden only
   from its tick, the snap, a stale or repeated tick), `pinball_keys_test.gd` (seated only, a change, the gap, a tap,
   the Esc menu and the focus release, reconcile), `pinball_table_view_test.gd` (meshes and no body, the flippers' turn,
