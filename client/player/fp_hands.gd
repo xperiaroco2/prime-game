@@ -15,6 +15,9 @@ extends Node3D
 ##   before (the greybox carried item at the holder).
 ## - The colour (set_tint): the own body colour (BodyColours) times each material's own albedo, as
 ##   CharacterRig tints a remote body.
+## - Both arms are the package's (its FPArms skin on one rig): where each hand is in a clip, the
+##   left too, is the clip's own. The code picks clips and tints and layers every mesh it finds, so
+##   a package with both hands in view, or with the arms split into meshes, needs no change here.
 ## It reads nothing itself: the controller (update) and ItemViews (set_held, set_tint) feed it, and
 ## Game plays the hit on the host's own Swung. Without the package's nodes (CI's Git LFS stand-in)
 ## it shows nothing and every call is harmless.

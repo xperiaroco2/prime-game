@@ -9,9 +9,11 @@ const CLIPS: Array[StringName] = [
 	&"Idle", &"Run", &"Punch", &"Crystal_Idle", &"Crystal_Run", &"Crystal_Hit"
 ]
 const SKIN := Color(0.8, 0.6, 0.5)
+## A second arm's own albedo (a package may split the two arms into meshes or surfaces).
+const SKIN_2 := Color(0.6, 0.5, 0.4)
 
 
-func _fixture(with_player := true, looping_hit := false) -> PackedScene:
+func _fixture(with_player := true, looping_hit := false, second_arm := false) -> PackedScene:
 	var root := Node3D.new()
 	root.name = "Fixture"
 	if with_player:
@@ -41,6 +43,22 @@ func _fixture(with_player := true, looping_hit := false) -> PackedScene:
 	arms.mesh = box
 	root.add_child(arms)
 	arms.owner = root
+	if second_arm:
+		# A mesh of its own under a bone attachment, with its own material: a test name, not the
+		# package's (HANDOFF: both arms are FPArms' one skin today).
+		var attachment := Node3D.new()
+		attachment.name = "Attachment"
+		root.add_child(attachment)
+		attachment.owner = root
+		var other := MeshInstance3D.new()
+		other.name = "SecondArm"
+		var other_box := BoxMesh.new()
+		var other_skin := StandardMaterial3D.new()
+		other_skin.albedo_color = SKIN_2
+		other_box.material = other_skin
+		other.mesh = other_box
+		attachment.add_child(other)
+		other.owner = root
 	var scene := PackedScene.new()
 	scene.pack(root)
 	root.free()
@@ -154,6 +172,9 @@ func test_the_hands_are_on_their_own_layer_with_no_shadow() -> void:
 	# Neither the live view nor a picture draws the hands; only their own camera does.
 	assert_int(PhotoLayers.LIVE_VIEW & PhotoLayers.HANDS).is_zero()
 	assert_int(PhotoLayers.PHOTO_VIEW & PhotoLayers.HANDS).is_zero()
+	# Nor the lobby mirror's lens (#1395), whose layer is the next one up.
+	assert_int(PhotoLayers.MIRROR_VIEW & PhotoLayers.HANDS).is_zero()
+	assert_int(PhotoLayers.MIRROR_SELF & PhotoLayers.HANDS).is_zero()
 	var view: FpView = auto_free(FpView.new())
 	assert_int(view.camera.cull_mask).is_equal(PhotoLayers.HANDS)
 	assert_int(view.fill.layers).is_equal(PhotoLayers.HANDS)
@@ -172,6 +193,25 @@ func test_the_hands_take_the_own_body_colour() -> void:
 	# Its own copy: the package's material keeps its albedo.
 	assert_object((arms.mesh as BoxMesh).material).is_not_same(material)
 	assert_that(((arms.mesh as BoxMesh).material as BaseMaterial3D).albedo_color).is_equal(SKIN)
+
+
+func test_every_arm_takes_the_colour_and_the_layer() -> void:
+	# The two hands in view (art#136, 2026-11-20) are one skin today; a package that splits the
+	# arms into meshes still gets both in the own colour, on HANDS alone, with no shadow.
+	var hands: FpHands = auto_free(FpHands.new(_fixture(true, false, true)))
+	add_child(hands)
+	var colour := BodyColours.of(5)
+	hands.set_tint(colour)
+	var skins: Array[Color] = [SKIN, SKIN_2]
+	var names: Array[String] = ["FPArms", "SecondArm"]
+	for i: int in names.size():
+		var arm := hands.model.find_child(names[i], true, false) as MeshInstance3D
+		assert_object(arm).is_not_null()
+		assert_that((arm.get_active_material(0) as BaseMaterial3D).albedo_color).is_equal(
+			skins[i] * colour
+		)
+		assert_int(arm.layers).is_equal(PhotoLayers.HANDS)
+		assert_int(arm.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
 
 
 func test_a_held_crystal_sits_on_the_socket_at_forty_percent_light() -> void:
