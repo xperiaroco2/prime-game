@@ -3,7 +3,9 @@
 Read by the director ([SKILL.md](SKILL.md)) on "погнали", on a lane note and at the end of the day.
 
 ## Starting the lanes ("погнали", in that same turn)
-`start_session` for each lane the plan needs, at most three, never two of one kind (Reborn rule 3):
+`start_session` for each lane the plan needs, never two of one kind: two on the laptop (Reborn rule 9: each `verify`
+loads it for minutes), a third (UI) only when it has cards and the plan he said "погнали" to names it (rule 3's
+ceiling):
 - `initiation` "user_asked", `context` "fresh", `permission_mode` "auto", `effort` "high", `use_worktree` false;
 - the folder (absolute paths: the sibling repos sit beside `<main>`, AGENT_WORKFLOW §2): the code lane in `<main>`
   (no `cwd`), the art lane `cwd` `C:\prime-game-art`, a UI lane `cwd` `C:\prime-game-ui` only when it has cards

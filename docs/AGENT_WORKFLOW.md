@@ -35,7 +35,7 @@ This file states **what we do**, not why. Markers: **[applied]** is in effect no
 | Personal settings | Each human's `~/.claude/settings.json` holds `"language"` and `"permissions": {"defaultMode": "acceptEdits"}`. Personal rules go in `~/.claude/CLAUDE.md`. Nothing personal in shared files | [applied] engineer |
 | `.claude/settings.local.json` | Personal permission approvals, plus in the main checkout on Windows the `claudeMdExcludes` patterns that the full `doctor` adds (§3 "Which copy loads", #385, #406); gitignored and untracked | [applied] |
 | Godot import scope | `docs/.gdignore` keeps the editor from importing anything under `docs/` | [applied] |
-| Auto mode | Not yet. Revisit after the M0 guard tests pass (§14) | — |
+| Auto mode | The director's lanes start in it (§7.2, the engineer's word of 2026-11-20, #1663); other sessions not yet (§14) | [applied] |
 
 ### 2.1 Cloud sessions
 A Claude Code cloud session (claude.ai/code, a Linux container with a fresh clone) runs `tools/run.sh verify` as CI
@@ -524,10 +524,13 @@ top-level session of the engineer's in `<main>` (`C:\prime-game` on his laptop),
 - **Only to him:** taste, go/no-go, money, destructive steps and the gate's exceptions. A technical choice takes the
   lane's recommendation, listed in its next message. Taste never blocks: the lane writes "For you:" and goes on; the
   director keeps the list. A merge only on his word: `tools\run.cmd merge <pr> --base main --dry-run`, then without
-  it (the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s gate).
+  it (the [trust ADR](decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)'s gate); a visible PR
+  after he saw its shots (Reborn rule 5), nothing at night. Two lanes on the laptop (rule 9), a UI third only
+  when the plan names it (rule 3's ceiling), never two of one kind.
 - **End of day:** the lanes reach a safe point, the director posts its "Handover to a fresh director" on #507 (lanes,
   next cards, what waits for him, the choices taken by recommendation), archives the lanes and clears itself
-  (`clear_session` with `self`). Next morning he writes "привіт, директор…" again.
+  (`clear_session` with `self`). Next morning he writes "привіт, директор…" again. At 60% of its context it posts
+  the handover and clears itself early, and the lanes go on.
 - **No Remote Control** on the director session: it blocks the clear.
 - **It never** launches a workflow, edits a tracked file, commits, publishes, answers a permission card or decides a
   taste question; nothing new and visible is built without his yes

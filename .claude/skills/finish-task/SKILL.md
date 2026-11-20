@@ -80,7 +80,8 @@ messages, PR bodies, comments) go in a scratchpad file: `git commit -F`, `--body
 8. **Tell the human** the PR link and that CI runs on it. A stage's task PR is merged by its manager
    session through the gate ([ADR](../../../docs/decisions/2026-10-04-trust-based-autonomy-gated-merge-into-main.md)). A workflow agent (`issue-task`,
    `pr-rebase`) stops after telling: its manager merges. A PR into `main` from an interactive solo session: a session
-   the director started tells the director, which merges a technical one (a taste one waits for his word). In the
+   the director started (a lane) never merges; it names the PR in its note, and the director merges only on the
+   engineer's word (AGENT_WORKFLOW §7.2). In the
    engineer's own session, a technical PR (no gate exception, no open taste item) needs no question (the trust ADR's amendment of 2026-10-29); otherwise ask once,
    "merge it yourself, or shall I merge it through the gate?", and only on the engineer's word for this PR (or this
    session). Then run, once CI is green, `cd <main>; tools\run.cmd merge <pr> --base main --dry-run` (`<main>`:
