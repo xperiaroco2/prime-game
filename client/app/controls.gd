@@ -1,6 +1,6 @@
 class_name Controls
 extends RefCounted
-## The controls the player rebinds (#211; #488's rule 5 and 6): the 23 actions of Settings ›
+## The controls the player rebinds (#211; #488's rule 5 and 6): the 25 actions of Settings ›
 ## Controls, one key or mouse button each, saved per player in a ConfigFile under user://
 ## (controls.cfg, its own file: the UserSettings file is the voice's and the language's), read at
 ## the start and applied to the InputMap, so every `Input.is_action_*` and every KeyLabel follows.
@@ -14,12 +14,11 @@ extends RefCounted
 ##   (#488's rule 2): it cancels a capture and is never bound; nor are F3 and Enter (FIXED).
 ## - "Same key" is per phase (#488's rule 6): two actions on one key clash only when both act in
 ##   one phase of PHASES. give_up (downed) and ready (lobby) share F by default and never clash.
-## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: the
-##   pinball's flippers, #1400; `throw`, `crouch`, `sneak`, the three places and the item's own
-##   action `use_secondary` left it for a row, #851, #951, #1009, #1218, #1446) keeps its key for
-##   the phases it acts in: a
-##   binding that would put an action of such a phase on it is refused, as a fixed key is, so one
-##   press never does both.
+## - An action that acts on its project.godot key but is no Settings row yet (UNLISTED: none now;
+##   `throw`, `crouch`, `sneak`, the three places, the item's own action `use_secondary` and the
+##   pinball's flippers left it for a row, #851, #951, #1009, #1218, #1446, #1661) keeps its key
+##   for the phases it acts in: a binding that would put an action of such a phase on it is
+##   refused, as a fixed key is, so one press never does both.
 ## - An action left on its default keeps project.godot's event as it is, a located key too (the
 ##   sneak's left Alt only, #990, the engineer's answer 2A on PR #1007): apply() puts that event
 ##   in the InputMap, not the bare physical key. A rebind is the bare physical key, either side.
@@ -39,17 +38,14 @@ const ALL_DEVICES := -1
 ## (F3) and fullscreen (Alt+Enter, so Enter).
 const FIXED: Array[StringName] = [&"debug_overlay", &"toggle_fullscreen"]
 ## The actions that act on their project.godot key in some phases but are not rebindable yet, with
-## those phases: the pinball's flippers `flipper_left` (Z) and `flipper_right` (Slash), read in the
-## lobby while the own player holds the seat (PinballKeys, #1400), while the copy deck has no
-## `control.flipper_*` rows (asked on #150; a row without its key would show the raw key).
-## `throw`, G, became a Settings row in #851, `crouch` in #951, the sneak
+## those phases: none now. `throw`, G, became a Settings row in #851, `crouch` in #951, the sneak
 ## (Alt) in #1009, the places' 1, 2 and 3 (#1218, GDD §6; they draw in the lobby too, #1408: the
-## Lobby takes Draw) in #1421 with the copy deck's `control.place_*`, and the item's own action
-## `use_secondary` (the right button, the mug's drink, #1438) in #1446 with `control.use_secondary`.
-const UNLISTED: Dictionary[StringName, int] = {
-	&"flipper_left": ControlContext.LOBBY,
-	&"flipper_right": ControlContext.LOBBY,
-}
+## Lobby takes Draw) in #1421 with the copy deck's `control.place_*`, the item's own action
+## `use_secondary` (the right button, the mug's drink, #1438) in #1446 with `control.use_secondary`,
+## and the pinball's flippers `flipper_left` (Z) and `flipper_right` (Slash), read in the lobby
+## while the own player holds the seat (PinballKeys, #1400), in #1661 with `control.flipper_*`.
+## While it is empty, bind()'s refusal through unlisted_on() never runs (kept for the next one).
+const UNLISTED: Dictionary[StringName, int] = {}
 ## The mouse "buttons" that never bind: none, and the wheel's four.
 const NOT_BINDABLE_BUTTONS: Array[MouseButton] = [
 	MOUSE_BUTTON_NONE,
@@ -81,6 +77,8 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 	&"map": &"control.map",
 	&"give_up": &"control.give_up",
 	&"ready": &"control.ready",
+	&"flipper_left": &"control.flipper_left",
+	&"flipper_right": &"control.flipper_right",
 	&"voice_talk": &"control.talk",
 	&"spectate_next": &"control.spectate_next",
 	&"spectate_previous": &"control.spectate_previous",
@@ -92,7 +90,8 @@ const ACTIONS: Dictionary[StringName, StringName] = {
 ## (ItemInteractions, LifeView), the look alone while downed (it holds still: PlayerController),
 ## the give-up while downed and the spectate buttons while dead (LifeView), and the map on any
 ## life (Game, #253). Talk sends while the own life is living, in the lobby too, whose VoiceRule
-## hears (VoiceSender.may_speak).
+## hears (VoiceSender.may_speak). The pinball's flippers act in the lobby and in the dead's hall
+## during the Round (GamePlayer.flippers_count, #1400, #1489).
 const PHASES: Dictionary[StringName, int] = {
 	&"move_forward": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
 	&"move_back": ControlContext.LOBBY | ControlContext.ALIVE | ControlContext.DOWNED,
@@ -114,6 +113,8 @@ const PHASES: Dictionary[StringName, int] = {
 	&"map": ControlContext.ALIVE | ControlContext.DOWNED | ControlContext.DEAD,
 	&"give_up": ControlContext.DOWNED,
 	&"ready": ControlContext.LOBBY,
+	&"flipper_left": ControlContext.LOBBY | ControlContext.DEAD,
+	&"flipper_right": ControlContext.LOBBY | ControlContext.DEAD,
 	&"voice_talk": ControlContext.LOBBY | ControlContext.ALIVE,
 	&"spectate_next": ControlContext.DEAD,
 	&"spectate_previous": ControlContext.DEAD,

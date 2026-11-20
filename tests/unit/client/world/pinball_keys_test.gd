@@ -137,19 +137,36 @@ func test_a_new_seat_starts_from_the_host_s_state() -> void:
 	assert_array(_sent).is_empty()
 
 
-func test_the_physics_step_reads_the_lobby_actions_controls_keeps_free() -> void:
-	# No Settings row until the deck has `control.flipper_*` (#150): Controls.UNLISTED keeps Z and
-	# Slash for them in the lobby, so no lobby action is bound onto a flipper.
-	assert_bool(InputMap.has_action(PinballKeys.LEFT)).is_true()
-	assert_bool(InputMap.has_action(PinballKeys.RIGHT)).is_true()
-	(
-		assert_bool(Controls.UNLISTED.get(PinballKeys.LEFT, 0) == Controls.ControlContext.LOBBY)
-		. is_true()
-	)
-	(
-		assert_bool(Controls.UNLISTED.get(PinballKeys.RIGHT, 0) == Controls.ControlContext.LOBBY)
-		. is_true()
-	)
+func test_the_physics_step_reads_the_flipper_rows_of_controls() -> void:
+	# Settings rows since #1661 (the deck's `control.flipper_*`): Controls rebinds them in the
+	# lobby and the dead's hall, where a clash with another action of those phases warns.
+	var contexts := Controls.ControlContext.LOBBY | Controls.ControlContext.DEAD
+	for action: StringName in [PinballKeys.LEFT, PinballKeys.RIGHT]:
+		assert_bool(InputMap.has_action(action)).override_failure_message(action).is_true()
+		assert_bool(Controls.ACTIONS.has(action)).override_failure_message(action).is_true()
+		assert_int(Controls.PHASES[action]).is_equal(contexts)
+		assert_bool(Controls.UNLISTED.has(action)).override_failure_message(action).is_false()
+
+
+func test_a_flipper_rebound_in_controls_is_the_key_the_physics_step_reads() -> void:
+	# #1400's "a rebind works": Controls.apply() writes the flipper's binding into the InputMap.
+	var controls := Controls.new()
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_K
+	assert_bool(controls.bind(PinballKeys.LEFT, key)).is_true()
+	controls.apply()
+	var press := InputEventKey.new()
+	press.physical_keycode = KEY_K
+	press.pressed = true
+	Input.parse_input_event(press)
+	Input.flush_buffered_events()
+	_keys._physics_process(0.0)
+	var release := press.duplicate() as InputEventKey
+	release.pressed = false
+	Input.parse_input_event(release)
+	Input.flush_buffered_events()
+	Controls.new().apply()
+	assert_array(_sent).is_equal([{"left": true, "right": false}])
 
 
 func test_a_rebound_key_is_the_one_the_physics_step_reads() -> void:
