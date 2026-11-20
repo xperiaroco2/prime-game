@@ -21,7 +21,7 @@
    exist only when it is true (invariant 8). The debug zip must carry the same notices.
 5. The content hash in an export (M6 ADR §2.5): tools/export/export_probe.gd runs against the release pack. Every
    level and every file it reaches is found, and both UI translations load (#1131); a second tree of the same commit
-   exported again gives the same hash; one byte changed in each level gives another. The game's levels reach no other file yet, so the walk is proven on
+   exported again gives the same hash; one byte changed in each level gives another. The walk is also proven on
    the test fixtures of ContentFingerprint's suite, exported from that tree with tests/fixtures/ kept: a map reaching
    two scenes, a resource and an imported texture (the binary scenes' dependencies and the export's `.import`), every
    one found, and one byte of the resource or of the texture's source changing the hash.
@@ -95,7 +95,7 @@ TRANSLATIONS = ("client/i18n/strings.en.translation", "client/i18n/strings.uk.tr
 IMPORT_TIMEOUT = 900
 PACK_WITHOUT_LINUX = ("twovoip", "webrtc_native")
 PROBE = ROOT / "tools" / "export" / "export_probe.gd"
-# ContentFingerprint's text line for the empty lobby_level of a mode without a lobby (the tutorial, #1664): no file.
+# ContentFingerprint's first level line for a mode with an empty lobby_level (the tutorial, #1664): no file.
 NO_LOBBY = "level  missing"
 EXPORT_TIMEOUT = 600
 PROBE_TIMEOUT = 120
@@ -259,18 +259,25 @@ class Probe:
         return found
 
     def levels_of(self, mode: str) -> list[str]:
-        """The level files `mode` names. A mode without a lobby (the tutorial, #1664) has the text line `level  missing`
-        for its empty lobby_level: no level."""
-        levels = [line.split(" ")[1] for line in self.texts.get(mode, []) if line.startswith("level ")]
-        return [level for level in levels if level]
+        """The level files `mode` names, its lobby first. A mode with an empty lobby_level (the tutorial, #1664) has
+        `NO_LOBBY` as its first level line: no level. An empty map stays, and fails as missing."""
+        lines = self._level_lines(mode)
+        return [line.split(" ")[1] for n, line in enumerate(lines) if n > 0 or line != NO_LOBBY]
 
     def missing_digests(self) -> list[str]:
-        return [
-            line
-            for lines in self.texts.values()
-            for line in lines
-            if line.endswith(" missing") and line != NO_LOBBY
-        ]
+        """The text lines whose digest is `missing`, but for an empty lobby (`levels_of`)."""
+        found: list[str] = []
+        for lines in self.texts.values():
+            first_level = next((n for n, line in enumerate(lines) if line.startswith("level ")), -1)
+            found += [
+                line
+                for n, line in enumerate(lines)
+                if line.endswith(" missing") and not (n == first_level and line == NO_LOBBY)
+            ]
+        return found
+
+    def _level_lines(self, mode: str) -> list[str]:
+        return [line for line in self.texts.get(mode, []) if line.startswith("level ")]
 
 
 def parse_probe(lines: list[str]) -> Probe:

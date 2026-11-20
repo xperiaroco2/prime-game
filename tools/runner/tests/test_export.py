@@ -63,6 +63,44 @@ class ProbeTest(unittest.TestCase):
         self.assertEqual(probe.levels_of(tutorial), ["res://levels/tutorial/tutorial.tscn"])
         self.assertEqual(probe.missing_digests(), ["file res://levels/rooms/room.tscn missing"])
 
+    def test_only_the_lobby_may_be_empty(self) -> None:
+        # An empty map slot is a broken mode, not a mode without a lobby: it stays missing.
+        empty_map = export.parse_probe(
+            [
+                f"EXPORT mode {MODE} 1",
+                f"EXPORT text {MODE} mode 7",
+                f"EXPORT text {MODE} level res://levels/lobby/lobby.tscn d1a4",
+                f"EXPORT text {MODE} level  missing",
+                "EXPORT done 1",
+            ]
+        )
+        self.assertEqual(empty_map.missing_digests(), ["level  missing"])
+        self.assertEqual(empty_map.levels_of(MODE), ["res://levels/lobby/lobby.tscn", ""])
+
+    def test_a_mode_without_a_lobby_passes_the_proofs_first_check(self) -> None:
+        tutorial = "res://content/modes/tutorial_mode.tres"
+        release = export.parse_probe(
+            [
+                *[line for line in PROBE_OUT[:-1] if "missing" not in line],
+                f"EXPORT mode {tutorial} 512",
+                f"EXPORT text {tutorial} mode 7",
+                f"EXPORT text {tutorial} level  missing",
+                f"EXPORT text {tutorial} level res://levels/tutorial/tutorial.tscn 9e3c",
+                "EXPORT done 2",
+            ]
+        )
+        with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
+            export,
+            EXPORT=Path(out),
+            clean_tree=mock.Mock(return_value=Path("again")),
+            import_tree=mock.DEFAULT,
+            export=mock.Mock(side_effect=Failure("stop")),
+            ok=mock.DEFAULT,
+        ):
+            with self.assertRaises(Failure) as caught:
+                export.prove_hash("HEAD", Path("data"), release)
+        self.assertEqual(str(caught.exception), "stop")
+
     def test_a_probe_that_never_finished_or_found_no_mode_fails(self) -> None:
         with self.assertRaises(Failure):
             export.parse_probe(PROBE_OUT[:-1])
