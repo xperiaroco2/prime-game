@@ -310,6 +310,38 @@ func test_the_pinball_s_view_markers_sit_on_the_machine_once_each() -> void:
 	)
 
 
+## #1395: the mirror's glass (MirrorReflection's marker, a placeholder the engineer moves): one
+## marker under the Mirror node, in no spawn group, on the room side of the Mirror box less than
+## 2 cm off its face, its whole size on that face, reflecting (+Z) toward every mirror place.
+func test_the_mirror_s_glass_marker_lies_on_the_box_s_room_face() -> void:
+	var found := _markers(MirrorReflection.GLASS_GROUP)
+	assert_int(found.size()).is_equal(1)
+	var marker := found[0]
+	var mirror := _root.get_node("Mirror")
+	assert_object(marker.get_parent()).is_same(mirror)
+	for each: StringName in marker.get_groups():
+		assert_bool(String(each).begins_with("spawn_")).is_false()
+	var plane := LevelWorld.transform_in_scene(marker, _root).orthonormalized()
+	var box := _bounds(_shape_of(mirror))
+	var corners: Array[Vector3] = []
+	for index: int in 8:
+		corners.append(box.get_endpoint(index))
+	var nearest := INF
+	for corner: Vector3 in corners:
+		var depth := MirrorReflection.distance_of(plane, corner)
+		assert_float(depth).is_less_equal(EPS)
+		nearest = minf(nearest, -depth)
+	assert_float(nearest).is_less(0.02)
+	assert_bool(marker.has_meta(MirrorReflection.SIZE_META)).is_true()
+	var size := MirrorReflection.size_of(marker)
+	for corner: Vector3 in MirrorReflection.corners_of(plane, size):
+		assert_bool(box.grow(0.02 + EPS).has_point(corner)).is_true()
+	var places := _markers(&"spawn_mirror")
+	assert_int(places.size()).is_greater(0)
+	for place: Node3D in places:
+		assert_float(MirrorReflection.distance_of(plane, place.position)).is_greater(0.3)
+
+
 ## The photo booth's volume (#1396) is the booth station's own cylinder on the Booth marker: the
 ## whole cylinder stands clear of every collider (the PhotoBooth box stays solid until the engineer
 ## opens it), and right in front of the PhotoBooth box, less than a capsule's width away.

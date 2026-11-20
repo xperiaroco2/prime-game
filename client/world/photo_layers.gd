@@ -12,10 +12,14 @@ extends RefCounted
 ## STATION (#1556) is no photo layer: both views draw it. It holds the ship's crystal sockets' and
 ## chargers' meshes, so a seated crystal's own light can skip them and still light the hull round
 ## it (ShipCrystalLook.seat); ShipStationLooks adds it to every level light that reaches GROUND.
+## MIRROR_SELF (#1395) is no photo layer either: the lobby mirror's stand-in of the own body, which
+## only the mirror's reflection camera draws (MIRROR_VIEW); the live view and a picture do not.
 ## Every live Camera3D (the first-person camera, the knocked-down and spectate cameras, the
 ## viewfinder's lens) sets `cull_mask = LIVE_VIEW`; the picture's camera sets PHOTO_VIEW.
 
 const GROUND := 1
+## Visual layer 17.
+const MIRROR_SELF := 1 << 16
 ## Visual layer 18 (the lobby uses layer 11, the ship's hull skin layer 2).
 const STATION := 1 << 17
 ## Visual layer 19.
@@ -24,10 +28,13 @@ const LIVE_AVATAR := 1 << 18
 const PHOTO := 1 << 19
 ## Every one of the 20 visual layers (Camera3D's default cull mask).
 const ALL := (1 << 20) - 1
-## What every live camera draws: everything but the puppets.
-const LIVE_VIEW := ALL & ~PHOTO
-## What the picture's camera draws: everything but the live avatars and carried items.
-const PHOTO_VIEW := ALL & ~LIVE_AVATAR
+## What every live camera draws: everything but the puppets and the mirror's own stand-in.
+const LIVE_VIEW := ALL & ~PHOTO & ~MIRROR_SELF
+## What the picture's camera draws: everything but the live avatars and carried items (and the
+## mirror's stand-in).
+const PHOTO_VIEW := ALL & ~LIVE_AVATAR & ~MIRROR_SELF
+## What the mirror's reflection camera draws (#1395): the live view and the own stand-in.
+const MIRROR_VIEW := LIVE_VIEW | MIRROR_SELF
 
 
 ## Puts every VisualInstance3D under `root` (root included) on `layer` alone; `casts_shadow` false

@@ -16,6 +16,17 @@ func test_the_photo_view_drops_the_live_avatars_and_keeps_the_rest() -> void:
 	assert_int(PhotoLayers.PHOTO_VIEW & PhotoLayers.GROUND).is_equal(PhotoLayers.GROUND)
 
 
+## #1395: the mirror's own stand-in has a layer of its own, which only the mirror's lens draws.
+func test_only_the_mirror_view_draws_the_mirror_s_stand_in() -> void:
+	for other: int in [
+		PhotoLayers.GROUND, PhotoLayers.STATION, PhotoLayers.LIVE_AVATAR, PhotoLayers.PHOTO
+	]:
+		assert_int(PhotoLayers.MIRROR_SELF & other).is_equal(0)
+	assert_int(PhotoLayers.LIVE_VIEW & PhotoLayers.MIRROR_SELF).is_equal(0)
+	assert_int(PhotoLayers.PHOTO_VIEW & PhotoLayers.MIRROR_SELF).is_equal(0)
+	assert_int(PhotoLayers.MIRROR_VIEW).is_equal(PhotoLayers.LIVE_VIEW | PhotoLayers.MIRROR_SELF)
+
+
 func test_all_is_the_default_camera_mask() -> void:
 	var camera := auto_free(Camera3D.new()) as Camera3D
 	assert_int(PhotoLayers.ALL).is_equal(camera.cull_mask)
