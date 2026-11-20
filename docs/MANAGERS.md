@@ -25,9 +25,10 @@ This repo's root `CLAUDE.md` only points to it; the UI and art repos' own files 
 skill reads it at its start.
 
 ## 1. The session: mode and effort
-- A manager session starts when the engineer pastes a kickoff (§2) into a new session in the track's checkout, or
-  when his director starts it on his word (AGENT_WORKFLOW §7.2), with the mode and effort he picks: **bypass
-  permissions, effort high**. High, not xhigh: the effort ADR's amendment of
+- A manager session starts when the engineer pastes a kickoff (§2) into a new session in the track's checkout
+  (the tracks' managers are paused by Reborn rule 3; the director starts lanes, AGENT_WORKFLOW §7.2), with the
+  mode and effort he picks: **bypass permissions, effort high**.
+  High, not xhigh: the effort ADR's amendment of
   2026-10-04 ([#308](https://github.com/xperiaroco2/prime-game/issues/308)). `effortLevel` never goes into shared
   settings.
 - Your first message says your permission mode and effort. Not bypass or not high: say so in your first "For you:"
@@ -61,7 +62,7 @@ skill reads it at its start.
   recommendation ([intervention](interventions/2026-11-02-engineer-nothing-new-visible-without-yes.md), his word
   [#507](https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6573070345); it replaces "Taken for you").
 - The label `For you:` (or `Для вас:`) on a line of its own, then numbered items at the line's start; the same block
-  goes, in English, into the plan-issue comment's notes, where the director's `inbox` reads it (AGENT_WORKFLOW §7.2).
+  goes, in English, into the plan-issue comment's notes, where `inbox` reads it (AGENT_WORKFLOW §11.23).
 - Each item gives a direct link to what he must open (the PR, the issue, the comment) or the ready command itself: one
   fenced PowerShell block per command, starting with `cd` to its absolute folder, run or previewed by you first.
   Housekeeping (a pull of the main checkout, a worktree a live session holds) is batched there once per wave.
@@ -117,10 +118,9 @@ skill reads it at its start.
 - **While he is away** (he said so, or his last message is over 2 hours old): no successor starts before he pastes
   its kickoff, so hand over only when a threshold forces it, never by judgment or at a stop; and with runs in flight
   do not stop them: launch nothing new, let them end, then post the handover.
-- **At the director's shift change** (AGENT_WORKFLOW §7.2, #1364): a session the director started gets its
-  handover request twice a day (a safe point, WIP pushed, the handover of §6, the kickoff sent back to it with
-  `send_message`); do it at once, whatever your thresholds say, stopping your runs as at a threshold. The director then clears your session
-  (`clear_session`, the same id) and sends you that kickoff, so your handover comment is all your next turn knows.
+- **At the director's end of day** (AGENT_WORKFLOW §7.2, #1663): a session the director started is asked for a
+  safe point (WIP pushed) and a short handover comment with its next card; do it at once, whatever your thresholds
+  say. The director then archives it; the next day starts fresh lanes.
 - How you measure: game and meta, the last line of `wave` at each turn end (the `orchestrate-stage` skill's §7); UI,
   `node tools/manager/context.js` and the session's start; art and design, the app's context usage and the session's start.
 
