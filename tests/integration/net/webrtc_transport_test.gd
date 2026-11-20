@@ -17,6 +17,9 @@ const WARM_UP_MS := 30000
 ## other client keeps JOIN_TIMEOUT_MS unless its test names its own: under load a join took up
 ## to 1.7 s (#472).
 const SHORT_JOIN_MS := 1500
+## The join timeout a stall test runs past (#950): above the 1.7 s a join took under load, so
+## the join that must succeed after the stall has its time.
+const STALL_JOIN_MS := SHORT_JOIN_MS * 2
 const TALK := 1
 const STATE := 2
 ## The close test's rounds, and the sends of each kind per poll in them: before #950 a round hit
@@ -252,6 +255,42 @@ func test_a_half_made_connection_counts_against_the_maximum() -> void:
 	assert_bool(await _until(_has.bind("client failed host_unreachable"))).is_true()
 	assert_int(late.connection_count()).is_equal(0)
 	assert_array(host.peers()).is_empty()
+
+
+## A stall of the joiner's own process is no time the host had to answer (#950): the bots run's
+## instance 1 hosts, serves the signalling and joins the lurker in one process, so a stall there
+## (a level loading, a loaded PC) ended a live join as host_unreachable, never retried. Here the
+## whole process stalls past the client's join timeout (the stall is the test's point, not a
+## wait), the host's above it, and the join still completes once polling resumes.
+func test_a_stall_of_the_own_process_does_not_count_against_the_join() -> void:
+	var host := _host(4)
+	host.join_timeout_ms = WebRtcTransport.JOIN_TIMEOUT_MS
+	assert_bool(await _until(func() -> bool: return host.room_code() != "")).is_true()
+	var client := _client()
+	client.join_timeout_ms = STALL_JOIN_MS
+	assert_int(client.join(host.room_code(), 0)).is_equal(OK)
+	_poll_once()
+	OS.delay_msec(STALL_JOIN_MS + 500)
+	assert_bool(await _until(_any_begins_with.bind("client connected"))).is_true()
+	assert_bool(_any_begins_with("client failed")).is_false()
+	assert_bool(await _until(_any_begins_with.bind("host joined"))).is_true()
+
+
+## The host's half: a stall of its process while a joiner's connection is half-made is no time
+## the joiner had either (#950): the host keeps the connection, and the join completes.
+func test_a_stall_of_the_hosts_process_keeps_a_half_made_connection() -> void:
+	var host := _host(4)
+	host.join_timeout_ms = STALL_JOIN_MS
+	assert_bool(await _until(func() -> bool: return host.room_code() != "")).is_true()
+	var client := _client()
+	assert_int(client.join(host.room_code(), 0)).is_equal(OK)
+	assert_bool(await _until(func() -> bool: return host.connection_count() == 1)).is_true()
+	# Half-made: the host has the connection and has not admitted it yet.
+	assert_bool(_any_begins_with("host joined")).is_false()
+	OS.delay_msec(STALL_JOIN_MS + 500)
+	assert_bool(await _until(_any_begins_with.bind("host joined"))).is_true()
+	assert_bool(await _until(_any_begins_with.bind("client connected"))).is_true()
+	assert_bool(_any_begins_with("client failed")).is_false()
 
 
 ## The host never applies a second answer: libdatachannel would refuse it too (with an engine error
@@ -787,6 +826,15 @@ func _has(line: String) -> bool:
 static func _ended(fake: FakePeer) -> bool:
 	var state := fake.pc.get_connection_state()
 	return state == WebRTCPeerConnection.STATE_CLOSED or state == WebRTCPeerConnection.STATE_FAILED
+
+
+## One round of polls of everything, with no frame between.
+func _poll_once() -> void:
+	_server.poll()
+	for transport: WebRtcTransport in _transports:
+		transport.poll()
+	for fake: FakePeer in _fakes:
+		fake.poll()
 
 
 func _until(condition: Callable, max_wait_ms := MAX_WAIT_MS) -> bool:
