@@ -6262,719 +6262,710 @@ layers = 1024
 [node name="walls" parent="Ship/Pieces/vault_shell_475" parent_id_path=PackedInt32Array(1039466180, 580180035) index="11" unique_id=1824065713]
 layers = 1024
 
-[node name="cup" parent="Ship/Pieces/cup_c_476" parent_id_path=PackedInt32Array(1039466180, 1117808396) index="0" unique_id=977392907]
+[node name="cup" parent="Ship/Pieces/cup_b_476" parent_id_path=PackedInt32Array(1039466180, 1913077015) index="0" unique_id=1899830431]
 layers = 1024
 
-[node name="lip" parent="Ship/Pieces/cup_c_476" parent_id_path=PackedInt32Array(1039466180, 1117808396) index="1" unique_id=2016493960]
+[node name="lip" parent="Ship/Pieces/cup_b_476" parent_id_path=PackedInt32Array(1039466180, 1913077015) index="1" unique_id=1075702415]
 layers = 1024
 
-[node name="spill" parent="Ship/Pieces/spill_c_477" parent_id_path=PackedInt32Array(1039466180, 9229931) index="0" unique_id=1961094623]
+[node name="cable" parent="Ship/Pieces/cable_coil_477" parent_id_path=PackedInt32Array(1039466180, 1614749708) index="0" unique_id=1973606087]
 layers = 1024
 
-[node name="cup" parent="Ship/Pieces/cup_b_478" parent_id_path=PackedInt32Array(1039466180, 1913077015) index="0" unique_id=1899830431]
+[node name="plug" parent="Ship/Pieces/cable_coil_477" parent_id_path=PackedInt32Array(1039466180, 1614749708) index="1" unique_id=965927962]
 layers = 1024
 
-[node name="lip" parent="Ship/Pieces/cup_b_478" parent_id_path=PackedInt32Array(1039466180, 1913077015) index="1" unique_id=1075702415]
+[node name="bolts" parent="Ship/Pieces/floor_patch_a_478" parent_id_path=PackedInt32Array(1039466180, 1226166747) index="0" unique_id=882335153]
 layers = 1024
 
-[node name="cable" parent="Ship/Pieces/cable_coil_479" parent_id_path=PackedInt32Array(1039466180, 1614749708) index="0" unique_id=1973606087]
+[node name="plate" parent="Ship/Pieces/floor_patch_a_478" parent_id_path=PackedInt32Array(1039466180, 1226166747) index="1" unique_id=1377049292]
 layers = 1024
 
-[node name="plug" parent="Ship/Pieces/cable_coil_479" parent_id_path=PackedInt32Array(1039466180, 1614749708) index="1" unique_id=965927962]
+[node name="bolts" parent="Ship/Pieces/floor_patch_b_479" parent_id_path=PackedInt32Array(1039466180, 628051055) index="0" unique_id=918506300]
 layers = 1024
 
-[node name="bolts" parent="Ship/Pieces/floor_patch_a_480" parent_id_path=PackedInt32Array(1039466180, 1226166747) index="0" unique_id=882335153]
+[node name="plate" parent="Ship/Pieces/floor_patch_b_479" parent_id_path=PackedInt32Array(1039466180, 628051055) index="1" unique_id=387187535]
 layers = 1024
 
-[node name="plate" parent="Ship/Pieces/floor_patch_a_480" parent_id_path=PackedInt32Array(1039466180, 1226166747) index="1" unique_id=1377049292]
+[node name="skin_top_ext_silver_b" parent="Ship/Pieces/skin_top_480" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="0" unique_id=5899061]
 layers = 1024
 
-[node name="bolts" parent="Ship/Pieces/floor_patch_b_481" parent_id_path=PackedInt32Array(1039466180, 628051055) index="0" unique_id=918506300]
+[node name="skin_top_ext_silver_b_lens" parent="Ship/Pieces/skin_top_480" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="1" unique_id=1823808762]
 layers = 1024
 
-[node name="plate" parent="Ship/Pieces/floor_patch_b_481" parent_id_path=PackedInt32Array(1039466180, 628051055) index="1" unique_id=387187535]
+[node name="skin_top_ext_silver_c" parent="Ship/Pieces/skin_top_480" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="2" unique_id=243451397]
 layers = 1024
 
-[node name="skin_top_ext_silver_b" parent="Ship/Pieces/skin_top_482" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="0" unique_id=5899061]
+[node name="skin_top_ext_silver_c_lens" parent="Ship/Pieces/skin_top_480" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="3" unique_id=1994359316]
 layers = 1024
 
-[node name="skin_top_ext_silver_b_lens" parent="Ship/Pieces/skin_top_482" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="1" unique_id=1823808762]
+[node name="skin_top_hull_silver" parent="Ship/Pieces/skin_top_480" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="4" unique_id=1989668498]
 layers = 1024
 
-[node name="skin_top_ext_silver_c" parent="Ship/Pieces/skin_top_482" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="2" unique_id=243451397]
+[node name="skin_top_hull_silver_lens" parent="Ship/Pieces/skin_top_480" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="5" unique_id=1331129602]
 layers = 1024
 
-[node name="skin_top_ext_silver_c_lens" parent="Ship/Pieces/skin_top_482" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="3" unique_id=1994359316]
+[node name="skin_top_seam" parent="Ship/Pieces/skin_top_480" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="6" unique_id=741312206]
 layers = 1024
 
-[node name="skin_top_hull_silver" parent="Ship/Pieces/skin_top_482" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="4" unique_id=1989668498]
+[node name="skin_belly_ext_silver_b" parent="Ship/Pieces/skin_belly_481" parent_id_path=PackedInt32Array(1039466180, 645899335) index="0" unique_id=1731995597]
 layers = 1024
 
-[node name="skin_top_hull_silver_lens" parent="Ship/Pieces/skin_top_482" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="5" unique_id=1331129602]
+[node name="skin_belly_ext_silver_b_lens" parent="Ship/Pieces/skin_belly_481" parent_id_path=PackedInt32Array(1039466180, 645899335) index="1" unique_id=1901772438]
 layers = 1024
 
-[node name="skin_top_seam" parent="Ship/Pieces/skin_top_482" parent_id_path=PackedInt32Array(1039466180, 2034066053) index="6" unique_id=741312206]
+[node name="skin_belly_ext_silver_c" parent="Ship/Pieces/skin_belly_481" parent_id_path=PackedInt32Array(1039466180, 645899335) index="2" unique_id=1744470370]
 layers = 1024
 
-[node name="skin_belly_ext_silver_b" parent="Ship/Pieces/skin_belly_483" parent_id_path=PackedInt32Array(1039466180, 645899335) index="0" unique_id=1731995597]
+[node name="skin_belly_ext_silver_c_lens" parent="Ship/Pieces/skin_belly_481" parent_id_path=PackedInt32Array(1039466180, 645899335) index="3" unique_id=1870190260]
 layers = 1024
 
-[node name="skin_belly_ext_silver_b_lens" parent="Ship/Pieces/skin_belly_483" parent_id_path=PackedInt32Array(1039466180, 645899335) index="1" unique_id=1901772438]
+[node name="skin_belly_hull_silver" parent="Ship/Pieces/skin_belly_481" parent_id_path=PackedInt32Array(1039466180, 645899335) index="4" unique_id=1972815335]
 layers = 1024
 
-[node name="skin_belly_ext_silver_c" parent="Ship/Pieces/skin_belly_483" parent_id_path=PackedInt32Array(1039466180, 645899335) index="2" unique_id=1744470370]
+[node name="skin_belly_hull_silver_lens" parent="Ship/Pieces/skin_belly_481" parent_id_path=PackedInt32Array(1039466180, 645899335) index="5" unique_id=41179370]
 layers = 1024
 
-[node name="skin_belly_ext_silver_c_lens" parent="Ship/Pieces/skin_belly_483" parent_id_path=PackedInt32Array(1039466180, 645899335) index="3" unique_id=1870190260]
+[node name="skin_belly_seam" parent="Ship/Pieces/skin_belly_481" parent_id_path=PackedInt32Array(1039466180, 645899335) index="6" unique_id=1640419760]
 layers = 1024
 
-[node name="skin_belly_hull_silver" parent="Ship/Pieces/skin_belly_483" parent_id_path=PackedInt32Array(1039466180, 645899335) index="4" unique_id=1972815335]
+[node name="skin_mouth_hull_dark" parent="Ship/Pieces/skin_mouth_482" parent_id_path=PackedInt32Array(1039466180, 1990965185) index="0" unique_id=975332633]
 layers = 1024
 
-[node name="skin_belly_hull_silver_lens" parent="Ship/Pieces/skin_belly_483" parent_id_path=PackedInt32Array(1039466180, 645899335) index="5" unique_id=41179370]
+[node name="skin_mouth_seam" parent="Ship/Pieces/skin_mouth_482" parent_id_path=PackedInt32Array(1039466180, 1990965185) index="1" unique_id=1508031255]
 layers = 1024
 
-[node name="skin_belly_seam" parent="Ship/Pieces/skin_belly_483" parent_id_path=PackedInt32Array(1039466180, 645899335) index="6" unique_id=1640419760]
+[node name="cheeks_ext_silver_b" parent="Ship/Pieces/skin_cheeks_483" parent_id_path=PackedInt32Array(1039466180, 950853589) index="0" unique_id=1400886915]
 layers = 1024
 
-[node name="skin_mouth_hull_dark" parent="Ship/Pieces/skin_mouth_484" parent_id_path=PackedInt32Array(1039466180, 1990965185) index="0" unique_id=975332633]
+[node name="cheeks_hull_dark" parent="Ship/Pieces/skin_cheeks_483" parent_id_path=PackedInt32Array(1039466180, 950853589) index="1" unique_id=660798037]
 layers = 1024
 
-[node name="skin_mouth_seam" parent="Ship/Pieces/skin_mouth_484" parent_id_path=PackedInt32Array(1039466180, 1990965185) index="1" unique_id=1508031255]
+[node name="cheeks_hull_silver" parent="Ship/Pieces/skin_cheeks_483" parent_id_path=PackedInt32Array(1039466180, 950853589) index="2" unique_id=1126479653]
 layers = 1024
 
-[node name="cheeks_ext_silver_b" parent="Ship/Pieces/skin_cheeks_485" parent_id_path=PackedInt32Array(1039466180, 950853589) index="0" unique_id=1400886915]
+[node name="jamb_cap" parent="Ship/Pieces/skin_cheeks_483" parent_id_path=PackedInt32Array(1039466180, 950853589) index="3" unique_id=277634251]
 layers = 1024
 
-[node name="cheeks_hull_dark" parent="Ship/Pieces/skin_cheeks_485" parent_id_path=PackedInt32Array(1039466180, 950853589) index="1" unique_id=660798037]
+[node name="jamb_edge" parent="Ship/Pieces/skin_cheeks_483" parent_id_path=PackedInt32Array(1039466180, 950853589) index="4" unique_id=1262076064]
 layers = 1024
 
-[node name="cheeks_hull_silver" parent="Ship/Pieces/skin_cheeks_485" parent_id_path=PackedInt32Array(1039466180, 950853589) index="2" unique_id=1126479653]
+[node name="tunnel_bezels" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="0" unique_id=303800892]
 layers = 1024
 
-[node name="jamb_cap" parent="Ship/Pieces/skin_cheeks_485" parent_id_path=PackedInt32Array(1039466180, 950853589) index="3" unique_id=277634251]
+[node name="tunnel_ext_silver_b" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="1" unique_id=1826280]
 layers = 1024
 
-[node name="jamb_edge" parent="Ship/Pieces/skin_cheeks_485" parent_id_path=PackedInt32Array(1039466180, 950853589) index="4" unique_id=1262076064]
+[node name="tunnel_ext_silver_c" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="2" unique_id=1404600831]
 layers = 1024
 
-[node name="tunnel_bezels" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="0" unique_id=303800892]
+[node name="tunnel_grate" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="3" unique_id=1178037045]
 layers = 1024
 
-[node name="tunnel_ext_silver_b" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="1" unique_id=1826280]
-layers = 1024
-
-[node name="tunnel_ext_silver_c" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="2" unique_id=1404600831]
-layers = 1024
-
-[node name="tunnel_grate" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="3" unique_id=1178037045]
-layers = 1024
-
-[node name="tunnel_halos" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="4" unique_id=1488062826]
+[node name="tunnel_halos" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="4" unique_id=1488062826]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_83hv0")
 
-[node name="tunnel_int_cyan__gill_plinth" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="5" unique_id=237535446]
+[node name="tunnel_int_cyan__gill_plinth" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="5" unique_id=237535446]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_wf2kq")
 
-[node name="tunnel_int_dark" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="6" unique_id=1758899995]
+[node name="tunnel_int_dark" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="6" unique_id=1758899995]
 layers = 1024
 
-[node name="tunnel_int_silver_b" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="7" unique_id=385648889]
+[node name="tunnel_int_silver_b" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="7" unique_id=385648889]
 layers = 1024
 
-[node name="tunnel_lamps" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="8" unique_id=679190602]
+[node name="tunnel_lamps" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="8" unique_id=679190602]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_61p1q")
 
-[node name="tunnel_ribs" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="9" unique_id=1543925394]
+[node name="tunnel_ribs" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="9" unique_id=1543925394]
 layers = 1024
 
-[node name="tunnel_slab" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="10" unique_id=1110493075]
+[node name="tunnel_slab" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="10" unique_id=1110493075]
 layers = 1024
 
-[node name="tunnel_strips" parent="Ship/Pieces/mouth_tunnel_in_489" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="11" unique_id=2079642909]
+[node name="tunnel_strips" parent="Ship/Pieces/mouth_tunnel_in_487" parent_id_path=PackedInt32Array(1039466180, 1202036619) index="11" unique_id=2079642909]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_2x8jh")
 
-[node name="canopy_fairing" parent="Ship/Pieces/canopy_fairing_e_490" parent_id_path=PackedInt32Array(1039466180, 1480055413) index="0" unique_id=1988910292]
+[node name="canopy_fairing" parent="Ship/Pieces/canopy_fairing_e_488" parent_id_path=PackedInt32Array(1039466180, 1480055413) index="0" unique_id=1988910292]
 layers = 1024
 
-[node name="canopy_lip" parent="Ship/Pieces/canopy_fairing_e_490" parent_id_path=PackedInt32Array(1039466180, 1480055413) index="1" unique_id=1246437262]
+[node name="canopy_lip" parent="Ship/Pieces/canopy_fairing_e_488" parent_id_path=PackedInt32Array(1039466180, 1480055413) index="1" unique_id=1246437262]
 layers = 1024
 
-[node name="canopy_glass" parent="Ship/Pieces/canopy_glass_e_491" parent_id_path=PackedInt32Array(1039466180, 1215974663) index="0" unique_id=1854556024]
+[node name="canopy_glass" parent="Ship/Pieces/canopy_glass_e_489" parent_id_path=PackedInt32Array(1039466180, 1215974663) index="0" unique_id=1854556024]
 layers = 1024
 
-[node name="canopy_ribs" parent="Ship/Pieces/canopy_glass_e_491" parent_id_path=PackedInt32Array(1039466180, 1215974663) index="1" unique_id=573527436]
+[node name="canopy_ribs" parent="Ship/Pieces/canopy_glass_e_489" parent_id_path=PackedInt32Array(1039466180, 1215974663) index="1" unique_id=573527436]
 layers = 1024
 
-[node name="canopy_floor" parent="Ship/Pieces/canopy_glow_e_492" parent_id_path=PackedInt32Array(1039466180, 51772765) index="0" unique_id=508879061]
-layers = 1024
-surface_material_override/0 = SubResource("StandardMaterial3D_gom5p")
-
-[node name="canopy_glow" parent="Ship/Pieces/canopy_glow_e_492" parent_id_path=PackedInt32Array(1039466180, 51772765) index="1" unique_id=324675801]
+[node name="canopy_floor" parent="Ship/Pieces/canopy_glow_e_490" parent_id_path=PackedInt32Array(1039466180, 51772765) index="0" unique_id=508879061]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_gom5p")
 
-[node name="canopy_pads" parent="Ship/Pieces/canopy_glow_e_492" parent_id_path=PackedInt32Array(1039466180, 51772765) index="2" unique_id=1699389002]
+[node name="canopy_glow" parent="Ship/Pieces/canopy_glow_e_490" parent_id_path=PackedInt32Array(1039466180, 51772765) index="1" unique_id=324675801]
+layers = 1024
+surface_material_override/0 = SubResource("StandardMaterial3D_gom5p")
+
+[node name="canopy_pads" parent="Ship/Pieces/canopy_glow_e_490" parent_id_path=PackedInt32Array(1039466180, 51772765) index="2" unique_id=1699389002]
 layers = 1024
 
-[node name="canopy_screen" parent="Ship/Pieces/canopy_glow_e_492" parent_id_path=PackedInt32Array(1039466180, 51772765) index="3" unique_id=1489950551]
+[node name="canopy_screen" parent="Ship/Pieces/canopy_glow_e_490" parent_id_path=PackedInt32Array(1039466180, 51772765) index="3" unique_id=1489950551]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_0otm0")
 
-[node name="canopy_seat" parent="Ship/Pieces/canopy_glow_e_492" parent_id_path=PackedInt32Array(1039466180, 51772765) index="4" unique_id=544000862]
+[node name="canopy_seat" parent="Ship/Pieces/canopy_glow_e_490" parent_id_path=PackedInt32Array(1039466180, 51772765) index="4" unique_id=544000862]
 layers = 1024
 
-[node name="canopy_fairing" parent="Ship/Pieces/canopy_fairing_w_493" parent_id_path=PackedInt32Array(1039466180, 168233225) index="0" unique_id=734470494]
+[node name="canopy_fairing" parent="Ship/Pieces/canopy_fairing_w_491" parent_id_path=PackedInt32Array(1039466180, 168233225) index="0" unique_id=734470494]
 layers = 1024
 
-[node name="canopy_lip" parent="Ship/Pieces/canopy_fairing_w_493" parent_id_path=PackedInt32Array(1039466180, 168233225) index="1" unique_id=1663033488]
+[node name="canopy_lip" parent="Ship/Pieces/canopy_fairing_w_491" parent_id_path=PackedInt32Array(1039466180, 168233225) index="1" unique_id=1663033488]
 layers = 1024
 
-[node name="canopy_glass" parent="Ship/Pieces/canopy_glass_w_494" parent_id_path=PackedInt32Array(1039466180, 198816838) index="0" unique_id=884898689]
+[node name="canopy_glass" parent="Ship/Pieces/canopy_glass_w_492" parent_id_path=PackedInt32Array(1039466180, 198816838) index="0" unique_id=884898689]
 layers = 1024
 
-[node name="canopy_ribs" parent="Ship/Pieces/canopy_glass_w_494" parent_id_path=PackedInt32Array(1039466180, 198816838) index="1" unique_id=1500165784]
+[node name="canopy_ribs" parent="Ship/Pieces/canopy_glass_w_492" parent_id_path=PackedInt32Array(1039466180, 198816838) index="1" unique_id=1500165784]
 layers = 1024
 
-[node name="canopy_floor" parent="Ship/Pieces/canopy_glow_w_495" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="0" unique_id=1819421029]
-layers = 1024
-surface_material_override/0 = SubResource("StandardMaterial3D_g6vdx")
-
-[node name="canopy_glow" parent="Ship/Pieces/canopy_glow_w_495" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="1" unique_id=927216481]
+[node name="canopy_floor" parent="Ship/Pieces/canopy_glow_w_493" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="0" unique_id=1819421029]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_g6vdx")
 
-[node name="canopy_pads" parent="Ship/Pieces/canopy_glow_w_495" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="2" unique_id=982154789]
+[node name="canopy_glow" parent="Ship/Pieces/canopy_glow_w_493" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="1" unique_id=927216481]
+layers = 1024
+surface_material_override/0 = SubResource("StandardMaterial3D_g6vdx")
+
+[node name="canopy_pads" parent="Ship/Pieces/canopy_glow_w_493" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="2" unique_id=982154789]
 layers = 1024
 
-[node name="canopy_screen" parent="Ship/Pieces/canopy_glow_w_495" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="3" unique_id=567643678]
+[node name="canopy_screen" parent="Ship/Pieces/canopy_glow_w_493" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="3" unique_id=567643678]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_hcrcp")
 
-[node name="canopy_seat" parent="Ship/Pieces/canopy_glow_w_495" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="4" unique_id=640373026]
+[node name="canopy_seat" parent="Ship/Pieces/canopy_glow_w_493" parent_id_path=PackedInt32Array(1039466180, 1751045725) index="4" unique_id=640373026]
 layers = 1024
 
-[node name="pod_bell" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 461552977) index="0" unique_id=765259808]
+[node name="pod_bell" parent="Ship/Pieces/nozzle_pod_outer_494" parent_id_path=PackedInt32Array(1039466180, 461552977) index="0" unique_id=765259808]
 layers = 1024
 
-[node name="pod_collar" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 461552977) index="1" unique_id=573490893]
+[node name="pod_collar" parent="Ship/Pieces/nozzle_pod_outer_494" parent_id_path=PackedInt32Array(1039466180, 461552977) index="1" unique_id=573490893]
 layers = 1024
 
-[node name="pod_housing" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 461552977) index="2" unique_id=1810834926]
+[node name="pod_housing" parent="Ship/Pieces/nozzle_pod_outer_494" parent_id_path=PackedInt32Array(1039466180, 461552977) index="2" unique_id=1810834926]
 layers = 1024
 
-[node name="pod_mount" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 461552977) index="3" unique_id=1886743466]
+[node name="pod_mount" parent="Ship/Pieces/nozzle_pod_outer_494" parent_id_path=PackedInt32Array(1039466180, 461552977) index="3" unique_id=1886743466]
 layers = 1024
 
-[node name="pod_ribs" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 461552977) index="4" unique_id=1526069096]
+[node name="pod_ribs" parent="Ship/Pieces/nozzle_pod_outer_494" parent_id_path=PackedInt32Array(1039466180, 461552977) index="4" unique_id=1526069096]
 layers = 1024
 
-[node name="pod_shell" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 461552977) index="5" unique_id=1448043334]
+[node name="pod_shell" parent="Ship/Pieces/nozzle_pod_outer_494" parent_id_path=PackedInt32Array(1039466180, 461552977) index="5" unique_id=1448043334]
 layers = 1024
 
-[node name="pod_throat" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 461552977) index="6" unique_id=849508333]
+[node name="pod_throat" parent="Ship/Pieces/nozzle_pod_outer_494" parent_id_path=PackedInt32Array(1039466180, 461552977) index="6" unique_id=849508333]
 layers = 1024
 
-[node name="pod_band" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 837455795) index="0" unique_id=492198661]
+[node name="pod_band" parent="Ship/Pieces/pod_ring_outer_495" parent_id_path=PackedInt32Array(1039466180, 837455795) index="0" unique_id=492198661]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_53ak5")
 
-[node name="pod_dot" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 837455795) index="1" unique_id=1969391019]
+[node name="pod_dot" parent="Ship/Pieces/pod_ring_outer_495" parent_id_path=PackedInt32Array(1039466180, 837455795) index="1" unique_id=1969391019]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_4ckop")
 
-[node name="pod_inner_ring" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 837455795) index="2" unique_id=229689381]
+[node name="pod_inner_ring" parent="Ship/Pieces/pod_ring_outer_495" parent_id_path=PackedInt32Array(1039466180, 837455795) index="2" unique_id=229689381]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_53ak5")
 
-[node name="pod_rim" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 837455795) index="3" unique_id=859274346]
+[node name="pod_rim" parent="Ship/Pieces/pod_ring_outer_495" parent_id_path=PackedInt32Array(1039466180, 837455795) index="3" unique_id=859274346]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_53ak5")
 
-[node name="pod_segments" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 837455795) index="4" unique_id=1645009583]
+[node name="pod_segments" parent="Ship/Pieces/pod_ring_outer_495" parent_id_path=PackedInt32Array(1039466180, 837455795) index="4" unique_id=1645009583]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_53ak5")
 
-[node name="pod_trim" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 837455795) index="5" unique_id=1823449195]
+[node name="pod_trim" parent="Ship/Pieces/pod_ring_outer_495" parent_id_path=PackedInt32Array(1039466180, 837455795) index="5" unique_id=1823449195]
 layers = 1024
 
-[node name="pod_bell" parent="Ship/Pieces/nozzle_pod_outer_498" parent_id_path=PackedInt32Array(1039466180, 323940468) index="0" unique_id=765259808]
+[node name="pod_bell" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 323940468) index="0" unique_id=765259808]
 layers = 1024
 
-[node name="pod_collar" parent="Ship/Pieces/nozzle_pod_outer_498" parent_id_path=PackedInt32Array(1039466180, 323940468) index="1" unique_id=573490893]
+[node name="pod_collar" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 323940468) index="1" unique_id=573490893]
 layers = 1024
 
-[node name="pod_housing" parent="Ship/Pieces/nozzle_pod_outer_498" parent_id_path=PackedInt32Array(1039466180, 323940468) index="2" unique_id=1810834926]
+[node name="pod_housing" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 323940468) index="2" unique_id=1810834926]
 layers = 1024
 
-[node name="pod_mount" parent="Ship/Pieces/nozzle_pod_outer_498" parent_id_path=PackedInt32Array(1039466180, 323940468) index="3" unique_id=1886743466]
+[node name="pod_mount" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 323940468) index="3" unique_id=1886743466]
 layers = 1024
 
-[node name="pod_ribs" parent="Ship/Pieces/nozzle_pod_outer_498" parent_id_path=PackedInt32Array(1039466180, 323940468) index="4" unique_id=1526069096]
+[node name="pod_ribs" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 323940468) index="4" unique_id=1526069096]
 layers = 1024
 
-[node name="pod_shell" parent="Ship/Pieces/nozzle_pod_outer_498" parent_id_path=PackedInt32Array(1039466180, 323940468) index="5" unique_id=1448043334]
+[node name="pod_shell" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 323940468) index="5" unique_id=1448043334]
 layers = 1024
 
-[node name="pod_throat" parent="Ship/Pieces/nozzle_pod_outer_498" parent_id_path=PackedInt32Array(1039466180, 323940468) index="6" unique_id=849508333]
+[node name="pod_throat" parent="Ship/Pieces/nozzle_pod_outer_496" parent_id_path=PackedInt32Array(1039466180, 323940468) index="6" unique_id=849508333]
 layers = 1024
 
-[node name="pod_band" parent="Ship/Pieces/pod_ring_outer_499" parent_id_path=PackedInt32Array(1039466180, 480856256) index="0" unique_id=492198661]
+[node name="pod_band" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 480856256) index="0" unique_id=492198661]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_53ak5")
 
-[node name="pod_dot" parent="Ship/Pieces/pod_ring_outer_499" parent_id_path=PackedInt32Array(1039466180, 480856256) index="1" unique_id=1969391019]
+[node name="pod_dot" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 480856256) index="1" unique_id=1969391019]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_4ckop")
 
-[node name="pod_inner_ring" parent="Ship/Pieces/pod_ring_outer_499" parent_id_path=PackedInt32Array(1039466180, 480856256) index="2" unique_id=229689381]
+[node name="pod_inner_ring" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 480856256) index="2" unique_id=229689381]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_53ak5")
 
-[node name="pod_rim" parent="Ship/Pieces/pod_ring_outer_499" parent_id_path=PackedInt32Array(1039466180, 480856256) index="3" unique_id=859274346]
+[node name="pod_rim" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 480856256) index="3" unique_id=859274346]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_53ak5")
 
-[node name="pod_segments" parent="Ship/Pieces/pod_ring_outer_499" parent_id_path=PackedInt32Array(1039466180, 480856256) index="4" unique_id=1645009583]
+[node name="pod_segments" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 480856256) index="4" unique_id=1645009583]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_53ak5")
 
-[node name="pod_trim" parent="Ship/Pieces/pod_ring_outer_499" parent_id_path=PackedInt32Array(1039466180, 480856256) index="5" unique_id=1823449195]
+[node name="pod_trim" parent="Ship/Pieces/pod_ring_outer_497" parent_id_path=PackedInt32Array(1039466180, 480856256) index="5" unique_id=1823449195]
 layers = 1024
 
-[node name="pod_bell" parent="Ship/Pieces/nozzle_pod_mid_500" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="0" unique_id=1877215846]
+[node name="pod_bell" parent="Ship/Pieces/nozzle_pod_mid_498" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="0" unique_id=1877215846]
 layers = 1024
 
-[node name="pod_bolts" parent="Ship/Pieces/nozzle_pod_mid_500" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="1" unique_id=64103475]
+[node name="pod_bolts" parent="Ship/Pieces/nozzle_pod_mid_498" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="1" unique_id=64103475]
 layers = 1024
 
-[node name="pod_bridge" parent="Ship/Pieces/nozzle_pod_mid_500" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="2" unique_id=610453023]
+[node name="pod_bridge" parent="Ship/Pieces/nozzle_pod_mid_498" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="2" unique_id=610453023]
 layers = 1024
 
-[node name="pod_collar" parent="Ship/Pieces/nozzle_pod_mid_500" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="3" unique_id=2019741827]
+[node name="pod_collar" parent="Ship/Pieces/nozzle_pod_mid_498" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="3" unique_id=2019741827]
 layers = 1024
 
-[node name="pod_housing" parent="Ship/Pieces/nozzle_pod_mid_500" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="4" unique_id=1962820218]
+[node name="pod_housing" parent="Ship/Pieces/nozzle_pod_mid_498" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="4" unique_id=1962820218]
 layers = 1024
 
-[node name="pod_mount" parent="Ship/Pieces/nozzle_pod_mid_500" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="5" unique_id=1277512738]
+[node name="pod_mount" parent="Ship/Pieces/nozzle_pod_mid_498" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="5" unique_id=1277512738]
 layers = 1024
 
-[node name="pod_ribs" parent="Ship/Pieces/nozzle_pod_mid_500" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="6" unique_id=1247879078]
+[node name="pod_ribs" parent="Ship/Pieces/nozzle_pod_mid_498" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="6" unique_id=1247879078]
 layers = 1024
 
-[node name="pod_shell" parent="Ship/Pieces/nozzle_pod_mid_500" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="7" unique_id=1507891628]
+[node name="pod_shell" parent="Ship/Pieces/nozzle_pod_mid_498" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="7" unique_id=1507891628]
 layers = 1024
 
-[node name="pod_throat" parent="Ship/Pieces/nozzle_pod_mid_500" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="8" unique_id=759795747]
+[node name="pod_throat" parent="Ship/Pieces/nozzle_pod_mid_498" parent_id_path=PackedInt32Array(1039466180, 1028538338) index="8" unique_id=759795747]
 layers = 1024
 
-[node name="pod_band" parent="Ship/Pieces/pod_ring_mid_501" parent_id_path=PackedInt32Array(1039466180, 519360203) index="0" unique_id=977072375]
+[node name="pod_band" parent="Ship/Pieces/pod_ring_mid_499" parent_id_path=PackedInt32Array(1039466180, 519360203) index="0" unique_id=977072375]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_w5tmq")
 
-[node name="pod_dot" parent="Ship/Pieces/pod_ring_mid_501" parent_id_path=PackedInt32Array(1039466180, 519360203) index="1" unique_id=1414420266]
+[node name="pod_dot" parent="Ship/Pieces/pod_ring_mid_499" parent_id_path=PackedInt32Array(1039466180, 519360203) index="1" unique_id=1414420266]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_056ho")
 
-[node name="pod_inner_ring" parent="Ship/Pieces/pod_ring_mid_501" parent_id_path=PackedInt32Array(1039466180, 519360203) index="2" unique_id=47665535]
+[node name="pod_inner_ring" parent="Ship/Pieces/pod_ring_mid_499" parent_id_path=PackedInt32Array(1039466180, 519360203) index="2" unique_id=47665535]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_w5tmq")
 
-[node name="pod_rim" parent="Ship/Pieces/pod_ring_mid_501" parent_id_path=PackedInt32Array(1039466180, 519360203) index="3" unique_id=465912682]
+[node name="pod_rim" parent="Ship/Pieces/pod_ring_mid_499" parent_id_path=PackedInt32Array(1039466180, 519360203) index="3" unique_id=465912682]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_w5tmq")
 
-[node name="pod_segments" parent="Ship/Pieces/pod_ring_mid_501" parent_id_path=PackedInt32Array(1039466180, 519360203) index="4" unique_id=1037507998]
+[node name="pod_segments" parent="Ship/Pieces/pod_ring_mid_499" parent_id_path=PackedInt32Array(1039466180, 519360203) index="4" unique_id=1037507998]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_w5tmq")
 
-[node name="pod_trim" parent="Ship/Pieces/pod_ring_mid_501" parent_id_path=PackedInt32Array(1039466180, 519360203) index="5" unique_id=880621364]
+[node name="pod_trim" parent="Ship/Pieces/pod_ring_mid_499" parent_id_path=PackedInt32Array(1039466180, 519360203) index="5" unique_id=880621364]
 layers = 1024
 
-[node name="edge_channel" parent="Ship/Pieces/edge_light_502" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="0" unique_id=1768678598]
+[node name="edge_channel" parent="Ship/Pieces/edge_light_500" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="0" unique_id=1768678598]
 layers = 1024
 
-[node name="edge_glow_00" parent="Ship/Pieces/edge_light_502" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="1" unique_id=869337113]
-layers = 1024
-surface_material_override/0 = SubResource("StandardMaterial3D_t6ri2")
-
-[node name="edge_glow_01" parent="Ship/Pieces/edge_light_502" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="2" unique_id=198436848]
+[node name="edge_glow_00" parent="Ship/Pieces/edge_light_500" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="1" unique_id=869337113]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_t6ri2")
 
-[node name="edge_glow_02" parent="Ship/Pieces/edge_light_502" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="3" unique_id=1455016383]
+[node name="edge_glow_01" parent="Ship/Pieces/edge_light_500" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="2" unique_id=198436848]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_t6ri2")
 
-[node name="edge_glow_03" parent="Ship/Pieces/edge_light_502" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="4" unique_id=1671090653]
+[node name="edge_glow_02" parent="Ship/Pieces/edge_light_500" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="3" unique_id=1455016383]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_t6ri2")
 
-[node name="edge_glow_04" parent="Ship/Pieces/edge_light_502" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="5" unique_id=149317448]
+[node name="edge_glow_03" parent="Ship/Pieces/edge_light_500" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="4" unique_id=1671090653]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_t6ri2")
 
-[node name="edge_glow_05" parent="Ship/Pieces/edge_light_502" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="6" unique_id=997464069]
+[node name="edge_glow_04" parent="Ship/Pieces/edge_light_500" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="5" unique_id=149317448]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_t6ri2")
 
-[node name="band_frame" parent="Ship/Pieces/lens_frames_503" parent_id_path=PackedInt32Array(1039466180, 1641681362) index="0" unique_id=2125461853]
+[node name="edge_glow_05" parent="Ship/Pieces/edge_light_500" parent_id_path=PackedInt32Array(1039466180, 1550889906) index="6" unique_id=997464069]
+layers = 1024
+surface_material_override/0 = SubResource("StandardMaterial3D_t6ri2")
+
+[node name="band_frame" parent="Ship/Pieces/lens_frames_501" parent_id_path=PackedInt32Array(1039466180, 1641681362) index="0" unique_id=2125461853]
 layers = 1024
 
-[node name="band_glow" parent="Ship/Pieces/lens_frames_503" parent_id_path=PackedInt32Array(1039466180, 1641681362) index="1" unique_id=646463603]
+[node name="band_glow" parent="Ship/Pieces/lens_frames_501" parent_id_path=PackedInt32Array(1039466180, 1641681362) index="1" unique_id=646463603]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_qn5sl")
 
-[node name="oculus_frame" parent="Ship/Pieces/lens_frames_503" parent_id_path=PackedInt32Array(1039466180, 1641681362) index="2" unique_id=2117765540]
+[node name="oculus_frame" parent="Ship/Pieces/lens_frames_501" parent_id_path=PackedInt32Array(1039466180, 1641681362) index="2" unique_id=2117765540]
 layers = 1024
 
-[node name="porthole_bezel" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="0" unique_id=9900381]
+[node name="porthole_bezel" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="0" unique_id=9900381]
 layers = 1024
 
-[node name="porthole_flange" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="1" unique_id=1528848714]
+[node name="porthole_flange" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="1" unique_id=1528848714]
 layers = 1024
 
-[node name="porthole_glass" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="2" unique_id=620289378]
+[node name="porthole_glass" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="2" unique_id=620289378]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_qpncm")
 
-[node name="porthole_glass_00" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="3" unique_id=993065311]
+[node name="porthole_glass_00" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="3" unique_id=993065311]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_1i8p5")
 
-[node name="porthole_glass_01" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="4" unique_id=1053371572]
+[node name="porthole_glass_01" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="4" unique_id=1053371572]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_1dh84")
 
-[node name="porthole_glass_02" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="5" unique_id=105168571]
+[node name="porthole_glass_02" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="5" unique_id=105168571]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_5syr6")
 
-[node name="porthole_glass_03" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="6" unique_id=264103949]
+[node name="porthole_glass_03" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="6" unique_id=264103949]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_788ko")
 
-[node name="porthole_glass_04" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="7" unique_id=1805686233]
+[node name="porthole_glass_04" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="7" unique_id=1805686233]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_k4fnv")
 
-[node name="porthole_glass_05" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="8" unique_id=353261101]
+[node name="porthole_glass_05" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="8" unique_id=353261101]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_eyp7r")
 
-[node name="porthole_glass_06" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="9" unique_id=701549995]
+[node name="porthole_glass_06" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="9" unique_id=701549995]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_2eecb")
 
-[node name="porthole_glass_07" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="10" unique_id=1856552925]
+[node name="porthole_glass_07" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="10" unique_id=1856552925]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_84tx0")
 
-[node name="porthole_glass_08" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="11" unique_id=1837053110]
+[node name="porthole_glass_08" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="11" unique_id=1837053110]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_706r0")
 
-[node name="porthole_glass_09" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="12" unique_id=1206890059]
+[node name="porthole_glass_09" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="12" unique_id=1206890059]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_2x55d")
 
-[node name="porthole_glass_10" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="13" unique_id=1192594122]
+[node name="porthole_glass_10" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="13" unique_id=1192594122]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_jh5vo")
 
-[node name="porthole_glass_11" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="14" unique_id=608579901]
+[node name="porthole_glass_11" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="14" unique_id=608579901]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_f6de2")
 
-[node name="porthole_glass_12" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="15" unique_id=333521377]
+[node name="porthole_glass_12" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="15" unique_id=333521377]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_1p6wp")
 
-[node name="porthole_glass_13" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="16" unique_id=1075430758]
+[node name="porthole_glass_13" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="16" unique_id=1075430758]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_ukxj2")
 
-[node name="porthole_glass_14" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="17" unique_id=1482170983]
+[node name="porthole_glass_14" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="17" unique_id=1482170983]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_wmwkc")
 
-[node name="porthole_glass_15" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="18" unique_id=1757364120]
+[node name="porthole_glass_15" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="18" unique_id=1757364120]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_u6t4h")
 
-[node name="porthole_ring" parent="Ship/Pieces/portholes_504" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="19" unique_id=655487512]
+[node name="porthole_ring" parent="Ship/Pieces/portholes_502" parent_id_path=PackedInt32Array(1039466180, 1051604872) index="19" unique_id=655487512]
 layers = 1024
 
-[node name="vent_frame" parent="Ship/Pieces/tail_vents_505" parent_id_path=PackedInt32Array(1039466180, 425490811) index="0" unique_id=1303854769]
+[node name="vent_frame" parent="Ship/Pieces/tail_vents_503" parent_id_path=PackedInt32Array(1039466180, 425490811) index="0" unique_id=1303854769]
 layers = 1024
 
-[node name="vent_slats" parent="Ship/Pieces/tail_vents_505" parent_id_path=PackedInt32Array(1039466180, 425490811) index="1" unique_id=17220323]
+[node name="vent_slats" parent="Ship/Pieces/tail_vents_503" parent_id_path=PackedInt32Array(1039466180, 425490811) index="1" unique_id=17220323]
 layers = 1024
 
-[node name="vent_well" parent="Ship/Pieces/tail_vents_505" parent_id_path=PackedInt32Array(1039466180, 425490811) index="2" unique_id=874716131]
+[node name="vent_well" parent="Ship/Pieces/tail_vents_503" parent_id_path=PackedInt32Array(1039466180, 425490811) index="2" unique_id=874716131]
 layers = 1024
 
-[node name="dome" parent="Ship/Pieces/hump_sensors_506" parent_id_path=PackedInt32Array(1039466180, 301583629) index="0" unique_id=928429836]
+[node name="dome" parent="Ship/Pieces/hump_sensors_504" parent_id_path=PackedInt32Array(1039466180, 301583629) index="0" unique_id=928429836]
 layers = 1024
 
-[node name="dome_collar" parent="Ship/Pieces/hump_sensors_506" parent_id_path=PackedInt32Array(1039466180, 301583629) index="1" unique_id=171070638]
+[node name="dome_collar" parent="Ship/Pieces/hump_sensors_504" parent_id_path=PackedInt32Array(1039466180, 301583629) index="1" unique_id=171070638]
 layers = 1024
 
-[node name="mast_base" parent="Ship/Pieces/hump_sensors_506" parent_id_path=PackedInt32Array(1039466180, 301583629) index="2" unique_id=180245338]
+[node name="mast_base" parent="Ship/Pieces/hump_sensors_504" parent_id_path=PackedInt32Array(1039466180, 301583629) index="2" unique_id=180245338]
 layers = 1024
 
-[node name="mast_cap" parent="Ship/Pieces/hump_sensors_506" parent_id_path=PackedInt32Array(1039466180, 301583629) index="3" unique_id=377718025]
+[node name="mast_cap" parent="Ship/Pieces/hump_sensors_504" parent_id_path=PackedInt32Array(1039466180, 301583629) index="3" unique_id=377718025]
 layers = 1024
 
-[node name="mast_rod" parent="Ship/Pieces/hump_sensors_506" parent_id_path=PackedInt32Array(1039466180, 301583629) index="4" unique_id=985070840]
+[node name="mast_rod" parent="Ship/Pieces/hump_sensors_504" parent_id_path=PackedInt32Array(1039466180, 301583629) index="4" unique_id=985070840]
 layers = 1024
 
-[node name="hatch_bolts" parent="Ship/Pieces/service_hatches_507" parent_id_path=PackedInt32Array(1039466180, 1240099420) index="0" unique_id=1615060965]
+[node name="hatch_bolts" parent="Ship/Pieces/service_hatches_505" parent_id_path=PackedInt32Array(1039466180, 1240099420) index="0" unique_id=1615060965]
 layers = 1024
 
-[node name="hatch_grip" parent="Ship/Pieces/service_hatches_507" parent_id_path=PackedInt32Array(1039466180, 1240099420) index="1" unique_id=1071119065]
+[node name="hatch_grip" parent="Ship/Pieces/service_hatches_505" parent_id_path=PackedInt32Array(1039466180, 1240099420) index="1" unique_id=1071119065]
 layers = 1024
 
-[node name="hatch_groove" parent="Ship/Pieces/service_hatches_507" parent_id_path=PackedInt32Array(1039466180, 1240099420) index="2" unique_id=542615158]
+[node name="hatch_groove" parent="Ship/Pieces/service_hatches_505" parent_id_path=PackedInt32Array(1039466180, 1240099420) index="2" unique_id=542615158]
 layers = 1024
 
-[node name="belly_channel" parent="Ship/Pieces/belly_lights_508" parent_id_path=PackedInt32Array(1039466180, 1700262220) index="0" unique_id=1244169775]
+[node name="belly_channel" parent="Ship/Pieces/belly_lights_506" parent_id_path=PackedInt32Array(1039466180, 1700262220) index="0" unique_id=1244169775]
 layers = 1024
 
-[node name="belly_glow" parent="Ship/Pieces/belly_lights_508" parent_id_path=PackedInt32Array(1039466180, 1700262220) index="1" unique_id=1445591475]
-layers = 1024
-surface_material_override/0 = SubResource("StandardMaterial3D_w21bk")
-
-[node name="chine_channel" parent="Ship/Pieces/belly_lights_508" parent_id_path=PackedInt32Array(1039466180, 1700262220) index="2" unique_id=321465581]
-layers = 1024
-
-[node name="chine_glow" parent="Ship/Pieces/belly_lights_508" parent_id_path=PackedInt32Array(1039466180, 1700262220) index="3" unique_id=1773446626]
+[node name="belly_glow" parent="Ship/Pieces/belly_lights_506" parent_id_path=PackedInt32Array(1039466180, 1700262220) index="1" unique_id=1445591475]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_w21bk")
 
-[node name="nav_bezel" parent="Ship/Pieces/nav_white_509" parent_id_path=PackedInt32Array(1039466180, 1239766037) index="0" unique_id=330173538]
+[node name="chine_channel" parent="Ship/Pieces/belly_lights_506" parent_id_path=PackedInt32Array(1039466180, 1700262220) index="2" unique_id=321465581]
 layers = 1024
 
-[node name="nav_housing" parent="Ship/Pieces/nav_white_509" parent_id_path=PackedInt32Array(1039466180, 1239766037) index="1" unique_id=1890802967]
+[node name="chine_glow" parent="Ship/Pieces/belly_lights_506" parent_id_path=PackedInt32Array(1039466180, 1700262220) index="3" unique_id=1773446626]
+layers = 1024
+surface_material_override/0 = SubResource("StandardMaterial3D_w21bk")
+
+[node name="nav_bezel" parent="Ship/Pieces/nav_white_507" parent_id_path=PackedInt32Array(1039466180, 1239766037) index="0" unique_id=330173538]
 layers = 1024
 
-[node name="nav_lens" parent="Ship/Pieces/nav_white_509" parent_id_path=PackedInt32Array(1039466180, 1239766037) index="2" unique_id=635856117]
+[node name="nav_housing" parent="Ship/Pieces/nav_white_507" parent_id_path=PackedInt32Array(1039466180, 1239766037) index="1" unique_id=1890802967]
+layers = 1024
+
+[node name="nav_lens" parent="Ship/Pieces/nav_white_507" parent_id_path=PackedInt32Array(1039466180, 1239766037) index="2" unique_id=635856117]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_55afm")
 
-[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_510" parent_id_path=PackedInt32Array(1039466180, 164878260) index="0" unique_id=824246045]
+[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_508" parent_id_path=PackedInt32Array(1039466180, 164878260) index="0" unique_id=824246045]
 layers = 1024
 
-[node name="landing_housing" parent="Ship/Pieces/landing_lamp_510" parent_id_path=PackedInt32Array(1039466180, 164878260) index="1" unique_id=1316317656]
+[node name="landing_housing" parent="Ship/Pieces/landing_lamp_508" parent_id_path=PackedInt32Array(1039466180, 164878260) index="1" unique_id=1316317656]
 layers = 1024
 
-[node name="landing_lens" parent="Ship/Pieces/landing_lamp_510" parent_id_path=PackedInt32Array(1039466180, 164878260) index="2" unique_id=1822004538]
-layers = 1024
-surface_material_override/0 = SubResource("StandardMaterial3D_ngv4x")
-
-[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_511" parent_id_path=PackedInt32Array(1039466180, 404843900) index="0" unique_id=824246045]
-layers = 1024
-
-[node name="landing_housing" parent="Ship/Pieces/landing_lamp_511" parent_id_path=PackedInt32Array(1039466180, 404843900) index="1" unique_id=1316317656]
-layers = 1024
-
-[node name="landing_lens" parent="Ship/Pieces/landing_lamp_511" parent_id_path=PackedInt32Array(1039466180, 404843900) index="2" unique_id=1822004538]
+[node name="landing_lens" parent="Ship/Pieces/landing_lamp_508" parent_id_path=PackedInt32Array(1039466180, 164878260) index="2" unique_id=1822004538]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_ngv4x")
 
-[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_512" parent_id_path=PackedInt32Array(1039466180, 1515964745) index="0" unique_id=824246045]
+[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_509" parent_id_path=PackedInt32Array(1039466180, 404843900) index="0" unique_id=824246045]
 layers = 1024
 
-[node name="landing_housing" parent="Ship/Pieces/landing_lamp_512" parent_id_path=PackedInt32Array(1039466180, 1515964745) index="1" unique_id=1316317656]
+[node name="landing_housing" parent="Ship/Pieces/landing_lamp_509" parent_id_path=PackedInt32Array(1039466180, 404843900) index="1" unique_id=1316317656]
 layers = 1024
 
-[node name="landing_lens" parent="Ship/Pieces/landing_lamp_512" parent_id_path=PackedInt32Array(1039466180, 1515964745) index="2" unique_id=1822004538]
-layers = 1024
-surface_material_override/0 = SubResource("StandardMaterial3D_ngv4x")
-
-[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_513" parent_id_path=PackedInt32Array(1039466180, 604072516) index="0" unique_id=824246045]
-layers = 1024
-
-[node name="landing_housing" parent="Ship/Pieces/landing_lamp_513" parent_id_path=PackedInt32Array(1039466180, 604072516) index="1" unique_id=1316317656]
-layers = 1024
-
-[node name="landing_lens" parent="Ship/Pieces/landing_lamp_513" parent_id_path=PackedInt32Array(1039466180, 604072516) index="2" unique_id=1822004538]
+[node name="landing_lens" parent="Ship/Pieces/landing_lamp_509" parent_id_path=PackedInt32Array(1039466180, 404843900) index="2" unique_id=1822004538]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_ngv4x")
 
-[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_514" parent_id_path=PackedInt32Array(1039466180, 815691657) index="0" unique_id=824246045]
+[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_510" parent_id_path=PackedInt32Array(1039466180, 1515964745) index="0" unique_id=824246045]
 layers = 1024
 
-[node name="landing_housing" parent="Ship/Pieces/landing_lamp_514" parent_id_path=PackedInt32Array(1039466180, 815691657) index="1" unique_id=1316317656]
+[node name="landing_housing" parent="Ship/Pieces/landing_lamp_510" parent_id_path=PackedInt32Array(1039466180, 1515964745) index="1" unique_id=1316317656]
 layers = 1024
 
-[node name="landing_lens" parent="Ship/Pieces/landing_lamp_514" parent_id_path=PackedInt32Array(1039466180, 815691657) index="2" unique_id=1822004538]
-layers = 1024
-surface_material_override/0 = SubResource("StandardMaterial3D_ngv4x")
-
-[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_515" parent_id_path=PackedInt32Array(1039466180, 1431092684) index="0" unique_id=824246045]
-layers = 1024
-
-[node name="landing_housing" parent="Ship/Pieces/landing_lamp_515" parent_id_path=PackedInt32Array(1039466180, 1431092684) index="1" unique_id=1316317656]
-layers = 1024
-
-[node name="landing_lens" parent="Ship/Pieces/landing_lamp_515" parent_id_path=PackedInt32Array(1039466180, 1431092684) index="2" unique_id=1822004538]
+[node name="landing_lens" parent="Ship/Pieces/landing_lamp_510" parent_id_path=PackedInt32Array(1039466180, 1515964745) index="2" unique_id=1822004538]
 layers = 1024
 surface_material_override/0 = SubResource("StandardMaterial3D_ngv4x")
 
-[node name="leg_fairing" parent="Ship/Pieces/leg_front_526" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="0" unique_id=1413546791]
+[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_511" parent_id_path=PackedInt32Array(1039466180, 604072516) index="0" unique_id=824246045]
 layers = 1024
 
-[node name="leg_joint" parent="Ship/Pieces/leg_front_526" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="1" unique_id=1339971814]
+[node name="landing_housing" parent="Ship/Pieces/landing_lamp_511" parent_id_path=PackedInt32Array(1039466180, 604072516) index="1" unique_id=1316317656]
 layers = 1024
 
-[node name="leg_lip" parent="Ship/Pieces/leg_front_526" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="2" unique_id=718430354]
+[node name="landing_lens" parent="Ship/Pieces/landing_lamp_511" parent_id_path=PackedInt32Array(1039466180, 604072516) index="2" unique_id=1822004538]
+layers = 1024
+surface_material_override/0 = SubResource("StandardMaterial3D_ngv4x")
+
+[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_512" parent_id_path=PackedInt32Array(1039466180, 815691657) index="0" unique_id=824246045]
 layers = 1024
 
-[node name="leg_mount" parent="Ship/Pieces/leg_front_526" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="3" unique_id=1757320604]
+[node name="landing_housing" parent="Ship/Pieces/landing_lamp_512" parent_id_path=PackedInt32Array(1039466180, 815691657) index="1" unique_id=1316317656]
 layers = 1024
 
-[node name="leg_pad" parent="Ship/Pieces/leg_front_526" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="4" unique_id=553564801]
+[node name="landing_lens" parent="Ship/Pieces/landing_lamp_512" parent_id_path=PackedInt32Array(1039466180, 815691657) index="2" unique_id=1822004538]
+layers = 1024
+surface_material_override/0 = SubResource("StandardMaterial3D_ngv4x")
+
+[node name="landing_bezel" parent="Ship/Pieces/landing_lamp_513" parent_id_path=PackedInt32Array(1039466180, 1431092684) index="0" unique_id=824246045]
 layers = 1024
 
-[node name="leg_piston" parent="Ship/Pieces/leg_front_526" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="5" unique_id=2092113521]
+[node name="landing_housing" parent="Ship/Pieces/landing_lamp_513" parent_id_path=PackedInt32Array(1039466180, 1431092684) index="1" unique_id=1316317656]
 layers = 1024
 
-[node name="leg_sole" parent="Ship/Pieces/leg_front_526" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="6" unique_id=864193946]
+[node name="landing_lens" parent="Ship/Pieces/landing_lamp_513" parent_id_path=PackedInt32Array(1039466180, 1431092684) index="2" unique_id=1822004538]
+layers = 1024
+surface_material_override/0 = SubResource("StandardMaterial3D_ngv4x")
+
+[node name="leg_fairing" parent="Ship/Pieces/leg_front_524" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="0" unique_id=1413546791]
 layers = 1024
 
-[node name="leg_strut" parent="Ship/Pieces/leg_front_526" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="7" unique_id=1268029542]
+[node name="leg_joint" parent="Ship/Pieces/leg_front_524" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="1" unique_id=1339971814]
 layers = 1024
 
-[node name="leg_fairing" parent="Ship/Pieces/leg_front_527" parent_id_path=PackedInt32Array(1039466180, 686562986) index="0" unique_id=1413546791]
+[node name="leg_lip" parent="Ship/Pieces/leg_front_524" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="2" unique_id=718430354]
 layers = 1024
 
-[node name="leg_joint" parent="Ship/Pieces/leg_front_527" parent_id_path=PackedInt32Array(1039466180, 686562986) index="1" unique_id=1339971814]
+[node name="leg_mount" parent="Ship/Pieces/leg_front_524" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="3" unique_id=1757320604]
 layers = 1024
 
-[node name="leg_lip" parent="Ship/Pieces/leg_front_527" parent_id_path=PackedInt32Array(1039466180, 686562986) index="2" unique_id=718430354]
+[node name="leg_pad" parent="Ship/Pieces/leg_front_524" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="4" unique_id=553564801]
 layers = 1024
 
-[node name="leg_mount" parent="Ship/Pieces/leg_front_527" parent_id_path=PackedInt32Array(1039466180, 686562986) index="3" unique_id=1757320604]
+[node name="leg_piston" parent="Ship/Pieces/leg_front_524" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="5" unique_id=2092113521]
 layers = 1024
 
-[node name="leg_pad" parent="Ship/Pieces/leg_front_527" parent_id_path=PackedInt32Array(1039466180, 686562986) index="4" unique_id=553564801]
+[node name="leg_sole" parent="Ship/Pieces/leg_front_524" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="6" unique_id=864193946]
 layers = 1024
 
-[node name="leg_piston" parent="Ship/Pieces/leg_front_527" parent_id_path=PackedInt32Array(1039466180, 686562986) index="5" unique_id=2092113521]
+[node name="leg_strut" parent="Ship/Pieces/leg_front_524" parent_id_path=PackedInt32Array(1039466180, 1864092633) index="7" unique_id=1268029542]
 layers = 1024
 
-[node name="leg_sole" parent="Ship/Pieces/leg_front_527" parent_id_path=PackedInt32Array(1039466180, 686562986) index="6" unique_id=864193946]
+[node name="leg_fairing" parent="Ship/Pieces/leg_front_525" parent_id_path=PackedInt32Array(1039466180, 686562986) index="0" unique_id=1413546791]
 layers = 1024
 
-[node name="leg_strut" parent="Ship/Pieces/leg_front_527" parent_id_path=PackedInt32Array(1039466180, 686562986) index="7" unique_id=1268029542]
+[node name="leg_joint" parent="Ship/Pieces/leg_front_525" parent_id_path=PackedInt32Array(1039466180, 686562986) index="1" unique_id=1339971814]
 layers = 1024
 
-[node name="leg_fairing" parent="Ship/Pieces/leg_rear_528" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="0" unique_id=1284363905]
+[node name="leg_lip" parent="Ship/Pieces/leg_front_525" parent_id_path=PackedInt32Array(1039466180, 686562986) index="2" unique_id=718430354]
 layers = 1024
 
-[node name="leg_joint" parent="Ship/Pieces/leg_rear_528" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="1" unique_id=1957821324]
+[node name="leg_mount" parent="Ship/Pieces/leg_front_525" parent_id_path=PackedInt32Array(1039466180, 686562986) index="3" unique_id=1757320604]
 layers = 1024
 
-[node name="leg_lip" parent="Ship/Pieces/leg_rear_528" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="2" unique_id=600585696]
+[node name="leg_pad" parent="Ship/Pieces/leg_front_525" parent_id_path=PackedInt32Array(1039466180, 686562986) index="4" unique_id=553564801]
 layers = 1024
 
-[node name="leg_mount" parent="Ship/Pieces/leg_rear_528" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="3" unique_id=1735951703]
+[node name="leg_piston" parent="Ship/Pieces/leg_front_525" parent_id_path=PackedInt32Array(1039466180, 686562986) index="5" unique_id=2092113521]
 layers = 1024
 
-[node name="leg_pad" parent="Ship/Pieces/leg_rear_528" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="4" unique_id=594891852]
+[node name="leg_sole" parent="Ship/Pieces/leg_front_525" parent_id_path=PackedInt32Array(1039466180, 686562986) index="6" unique_id=864193946]
 layers = 1024
 
-[node name="leg_piston" parent="Ship/Pieces/leg_rear_528" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="5" unique_id=338604433]
+[node name="leg_strut" parent="Ship/Pieces/leg_front_525" parent_id_path=PackedInt32Array(1039466180, 686562986) index="7" unique_id=1268029542]
 layers = 1024
 
-[node name="leg_sole" parent="Ship/Pieces/leg_rear_528" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="6" unique_id=640852545]
+[node name="leg_fairing" parent="Ship/Pieces/leg_rear_526" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="0" unique_id=1284363905]
 layers = 1024
 
-[node name="leg_strut" parent="Ship/Pieces/leg_rear_528" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="7" unique_id=1069338010]
+[node name="leg_joint" parent="Ship/Pieces/leg_rear_526" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="1" unique_id=1957821324]
 layers = 1024
 
-[node name="leg_fairing" parent="Ship/Pieces/leg_rear_529" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="0" unique_id=1284363905]
+[node name="leg_lip" parent="Ship/Pieces/leg_rear_526" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="2" unique_id=600585696]
 layers = 1024
 
-[node name="leg_joint" parent="Ship/Pieces/leg_rear_529" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="1" unique_id=1957821324]
+[node name="leg_mount" parent="Ship/Pieces/leg_rear_526" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="3" unique_id=1735951703]
 layers = 1024
 
-[node name="leg_lip" parent="Ship/Pieces/leg_rear_529" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="2" unique_id=600585696]
+[node name="leg_pad" parent="Ship/Pieces/leg_rear_526" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="4" unique_id=594891852]
 layers = 1024
 
-[node name="leg_mount" parent="Ship/Pieces/leg_rear_529" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="3" unique_id=1735951703]
+[node name="leg_piston" parent="Ship/Pieces/leg_rear_526" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="5" unique_id=338604433]
 layers = 1024
 
-[node name="leg_pad" parent="Ship/Pieces/leg_rear_529" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="4" unique_id=594891852]
+[node name="leg_sole" parent="Ship/Pieces/leg_rear_526" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="6" unique_id=640852545]
 layers = 1024
 
-[node name="leg_piston" parent="Ship/Pieces/leg_rear_529" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="5" unique_id=338604433]
+[node name="leg_strut" parent="Ship/Pieces/leg_rear_526" parent_id_path=PackedInt32Array(1039466180, 2071263191) index="7" unique_id=1069338010]
 layers = 1024
 
-[node name="leg_sole" parent="Ship/Pieces/leg_rear_529" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="6" unique_id=640852545]
+[node name="leg_fairing" parent="Ship/Pieces/leg_rear_527" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="0" unique_id=1284363905]
 layers = 1024
 
-[node name="leg_strut" parent="Ship/Pieces/leg_rear_529" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="7" unique_id=1069338010]
+[node name="leg_joint" parent="Ship/Pieces/leg_rear_527" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="1" unique_id=1957821324]
 layers = 1024
 
-[node name="leg_fairing" parent="Ship/Pieces/leg_stern_530" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="0" unique_id=225087541]
+[node name="leg_lip" parent="Ship/Pieces/leg_rear_527" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="2" unique_id=600585696]
 layers = 1024
 
-[node name="leg_hose" parent="Ship/Pieces/leg_stern_530" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="1" unique_id=1801213925]
+[node name="leg_mount" parent="Ship/Pieces/leg_rear_527" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="3" unique_id=1735951703]
 layers = 1024
 
-[node name="leg_joint" parent="Ship/Pieces/leg_stern_530" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="2" unique_id=1161602312]
+[node name="leg_pad" parent="Ship/Pieces/leg_rear_527" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="4" unique_id=594891852]
 layers = 1024
 
-[node name="leg_lip" parent="Ship/Pieces/leg_stern_530" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="3" unique_id=278492137]
+[node name="leg_piston" parent="Ship/Pieces/leg_rear_527" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="5" unique_id=338604433]
 layers = 1024
 
-[node name="leg_mount" parent="Ship/Pieces/leg_stern_530" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="4" unique_id=789219983]
+[node name="leg_sole" parent="Ship/Pieces/leg_rear_527" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="6" unique_id=640852545]
 layers = 1024
 
-[node name="leg_pad" parent="Ship/Pieces/leg_stern_530" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="5" unique_id=1346618587]
+[node name="leg_strut" parent="Ship/Pieces/leg_rear_527" parent_id_path=PackedInt32Array(1039466180, 1327779323) index="7" unique_id=1069338010]
 layers = 1024
 
-[node name="leg_piston" parent="Ship/Pieces/leg_stern_530" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="6" unique_id=1136264106]
+[node name="leg_fairing" parent="Ship/Pieces/leg_stern_528" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="0" unique_id=225087541]
 layers = 1024
 
-[node name="leg_sole" parent="Ship/Pieces/leg_stern_530" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="7" unique_id=388633780]
+[node name="leg_hose" parent="Ship/Pieces/leg_stern_528" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="1" unique_id=1801213925]
 layers = 1024
 
-[node name="leg_strut" parent="Ship/Pieces/leg_stern_530" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="8" unique_id=803457841]
+[node name="leg_joint" parent="Ship/Pieces/leg_stern_528" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="2" unique_id=1161602312]
 layers = 1024
 
-[node name="leg_fairing" parent="Ship/Pieces/leg_stern_531" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="0" unique_id=225087541]
+[node name="leg_lip" parent="Ship/Pieces/leg_stern_528" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="3" unique_id=278492137]
 layers = 1024
 
-[node name="leg_hose" parent="Ship/Pieces/leg_stern_531" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="1" unique_id=1801213925]
+[node name="leg_mount" parent="Ship/Pieces/leg_stern_528" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="4" unique_id=789219983]
 layers = 1024
 
-[node name="leg_joint" parent="Ship/Pieces/leg_stern_531" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="2" unique_id=1161602312]
+[node name="leg_pad" parent="Ship/Pieces/leg_stern_528" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="5" unique_id=1346618587]
 layers = 1024
 
-[node name="leg_lip" parent="Ship/Pieces/leg_stern_531" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="3" unique_id=278492137]
+[node name="leg_piston" parent="Ship/Pieces/leg_stern_528" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="6" unique_id=1136264106]
 layers = 1024
 
-[node name="leg_mount" parent="Ship/Pieces/leg_stern_531" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="4" unique_id=789219983]
+[node name="leg_sole" parent="Ship/Pieces/leg_stern_528" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="7" unique_id=388633780]
 layers = 1024
 
-[node name="leg_pad" parent="Ship/Pieces/leg_stern_531" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="5" unique_id=1346618587]
+[node name="leg_strut" parent="Ship/Pieces/leg_stern_528" parent_id_path=PackedInt32Array(1039466180, 1485092369) index="8" unique_id=803457841]
 layers = 1024
 
-[node name="leg_piston" parent="Ship/Pieces/leg_stern_531" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="6" unique_id=1136264106]
+[node name="leg_fairing" parent="Ship/Pieces/leg_stern_529" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="0" unique_id=225087541]
 layers = 1024
 
-[node name="leg_sole" parent="Ship/Pieces/leg_stern_531" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="7" unique_id=388633780]
+[node name="leg_hose" parent="Ship/Pieces/leg_stern_529" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="1" unique_id=1801213925]
 layers = 1024
 
-[node name="leg_strut" parent="Ship/Pieces/leg_stern_531" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="8" unique_id=803457841]
+[node name="leg_joint" parent="Ship/Pieces/leg_stern_529" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="2" unique_id=1161602312]
+layers = 1024
+
+[node name="leg_lip" parent="Ship/Pieces/leg_stern_529" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="3" unique_id=278492137]
+layers = 1024
+
+[node name="leg_mount" parent="Ship/Pieces/leg_stern_529" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="4" unique_id=789219983]
+layers = 1024
+
+[node name="leg_pad" parent="Ship/Pieces/leg_stern_529" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="5" unique_id=1346618587]
+layers = 1024
+
+[node name="leg_piston" parent="Ship/Pieces/leg_stern_529" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="6" unique_id=1136264106]
+layers = 1024
+
+[node name="leg_sole" parent="Ship/Pieces/leg_stern_529" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="7" unique_id=388633780]
+layers = 1024
+
+[node name="leg_strut" parent="Ship/Pieces/leg_stern_529" parent_id_path=PackedInt32Array(1039466180, 1355981187) index="8" unique_id=803457841]
 layers = 1024
 
 [node name="Clearing" parent="Ship" index="4" unique_id=1815922664]
@@ -8484,49 +8475,49 @@ metadata/index = 9
 [editable path="Ship/Pieces/ws_sleeper_b_473"]
 [editable path="Ship/Pieces/ws_lamp_474"]
 [editable path="Ship/Pieces/vault_shell_475"]
-[editable path="Ship/Pieces/cup_c_476"]
-[editable path="Ship/Pieces/spill_c_477"]
-[editable path="Ship/Pieces/cup_b_478"]
-[editable path="Ship/Pieces/cable_coil_479"]
-[editable path="Ship/Pieces/floor_patch_a_480"]
-[editable path="Ship/Pieces/floor_patch_b_481"]
-[editable path="Ship/Pieces/skin_top_482"]
-[editable path="Ship/Pieces/skin_belly_483"]
-[editable path="Ship/Pieces/skin_mouth_484"]
-[editable path="Ship/Pieces/skin_cheeks_485"]
-[editable path="Ship/Pieces/mouth_tunnel_in_489"]
-[editable path="Ship/Pieces/canopy_fairing_e_490"]
-[editable path="Ship/Pieces/canopy_glass_e_491"]
-[editable path="Ship/Pieces/canopy_glow_e_492"]
-[editable path="Ship/Pieces/canopy_fairing_w_493"]
-[editable path="Ship/Pieces/canopy_glass_w_494"]
-[editable path="Ship/Pieces/canopy_glow_w_495"]
+[editable path="Ship/Pieces/cup_b_476"]
+[editable path="Ship/Pieces/cable_coil_477"]
+[editable path="Ship/Pieces/floor_patch_a_478"]
+[editable path="Ship/Pieces/floor_patch_b_479"]
+[editable path="Ship/Pieces/skin_top_480"]
+[editable path="Ship/Pieces/skin_belly_481"]
+[editable path="Ship/Pieces/skin_mouth_482"]
+[editable path="Ship/Pieces/skin_cheeks_483"]
+[editable path="Ship/Pieces/mouth_tunnel_in_487"]
+[editable path="Ship/Pieces/canopy_fairing_e_488"]
+[editable path="Ship/Pieces/canopy_glass_e_489"]
+[editable path="Ship/Pieces/canopy_glow_e_490"]
+[editable path="Ship/Pieces/canopy_fairing_w_491"]
+[editable path="Ship/Pieces/canopy_glass_w_492"]
+[editable path="Ship/Pieces/canopy_glow_w_493"]
+[editable path="Ship/Pieces/nozzle_pod_outer_494"]
+[editable path="Ship/Pieces/pod_ring_outer_495"]
 [editable path="Ship/Pieces/nozzle_pod_outer_496"]
 [editable path="Ship/Pieces/pod_ring_outer_497"]
-[editable path="Ship/Pieces/nozzle_pod_outer_498"]
-[editable path="Ship/Pieces/pod_ring_outer_499"]
-[editable path="Ship/Pieces/nozzle_pod_mid_500"]
-[editable path="Ship/Pieces/pod_ring_mid_501"]
-[editable path="Ship/Pieces/edge_light_502"]
-[editable path="Ship/Pieces/lens_frames_503"]
-[editable path="Ship/Pieces/portholes_504"]
-[editable path="Ship/Pieces/tail_vents_505"]
-[editable path="Ship/Pieces/hump_sensors_506"]
-[editable path="Ship/Pieces/service_hatches_507"]
-[editable path="Ship/Pieces/belly_lights_508"]
-[editable path="Ship/Pieces/nav_white_509"]
+[editable path="Ship/Pieces/nozzle_pod_mid_498"]
+[editable path="Ship/Pieces/pod_ring_mid_499"]
+[editable path="Ship/Pieces/edge_light_500"]
+[editable path="Ship/Pieces/lens_frames_501"]
+[editable path="Ship/Pieces/portholes_502"]
+[editable path="Ship/Pieces/tail_vents_503"]
+[editable path="Ship/Pieces/hump_sensors_504"]
+[editable path="Ship/Pieces/service_hatches_505"]
+[editable path="Ship/Pieces/belly_lights_506"]
+[editable path="Ship/Pieces/nav_white_507"]
+[editable path="Ship/Pieces/landing_lamp_508"]
+[editable path="Ship/Pieces/landing_lamp_509"]
 [editable path="Ship/Pieces/landing_lamp_510"]
 [editable path="Ship/Pieces/landing_lamp_511"]
 [editable path="Ship/Pieces/landing_lamp_512"]
 [editable path="Ship/Pieces/landing_lamp_513"]
-[editable path="Ship/Pieces/landing_lamp_514"]
-[editable path="Ship/Pieces/landing_lamp_515"]
-[editable path="Ship/Pieces/leg_front_526"]
-[editable path="Ship/Pieces/leg_front_527"]
-[editable path="Ship/Pieces/leg_rear_528"]
-[editable path="Ship/Pieces/leg_rear_529"]
-[editable path="Ship/Pieces/leg_stern_530"]
-[editable path="Ship/Pieces/leg_stern_531"]
+[editable path="Ship/Pieces/leg_front_524"]
+[editable path="Ship/Pieces/leg_front_525"]
+[editable path="Ship/Pieces/leg_rear_526"]
+[editable path="Ship/Pieces/leg_rear_527"]
+[editable path="Ship/Pieces/leg_stern_528"]
+[editable path="Ship/Pieces/leg_stern_529"]
+[editable path="Ship/Clearing/Pieces/ground_lamp_514"]
+[editable path="Ship/Clearing/Pieces/ground_lamp_515"]
 [editable path="Ship/Clearing/Pieces/ground_lamp_516"]
 [editable path="Ship/Clearing/Pieces/ground_lamp_517"]
 [editable path="Ship/Clearing/Pieces/ground_lamp_518"]
@@ -8535,107 +8526,107 @@ metadata/index = 9
 [editable path="Ship/Clearing/Pieces/ground_lamp_521"]
 [editable path="Ship/Clearing/Pieces/ground_lamp_522"]
 [editable path="Ship/Clearing/Pieces/ground_lamp_523"]
-[editable path="Ship/Clearing/Pieces/ground_lamp_524"]
-[editable path="Ship/Clearing/Pieces/ground_lamp_525"]
-[editable path="Ship/Clearing/Pieces/ground_532"]
-[editable path="Ship/Clearing/Pieces/pine_c_533"]
-[editable path="Ship/Clearing/Pieces/pine_c_534"]
-[editable path="Ship/Clearing/Pieces/pine_b_535"]
-[editable path="Ship/Clearing/Pieces/pine_a_536"]
-[editable path="Ship/Clearing/Pieces/pine_c_537"]
-[editable path="Ship/Clearing/Pieces/pine_c_538"]
-[editable path="Ship/Clearing/Pieces/pine_a_539"]
-[editable path="Ship/Clearing/Pieces/pine_a_540"]
-[editable path="Ship/Clearing/Pieces/pine_c_541"]
-[editable path="Ship/Clearing/Pieces/pine_c_542"]
-[editable path="Ship/Clearing/Pieces/pine_a_543"]
-[editable path="Ship/Clearing/Pieces/pine_b_544"]
-[editable path="Ship/Clearing/Pieces/pine_c_545"]
+[editable path="Ship/Clearing/Pieces/ground_530"]
+[editable path="Ship/Clearing/Pieces/pine_c_531"]
+[editable path="Ship/Clearing/Pieces/pine_c_532"]
+[editable path="Ship/Clearing/Pieces/pine_b_533"]
+[editable path="Ship/Clearing/Pieces/pine_a_534"]
+[editable path="Ship/Clearing/Pieces/pine_c_535"]
+[editable path="Ship/Clearing/Pieces/pine_c_536"]
+[editable path="Ship/Clearing/Pieces/pine_a_537"]
+[editable path="Ship/Clearing/Pieces/pine_a_538"]
+[editable path="Ship/Clearing/Pieces/pine_c_539"]
+[editable path="Ship/Clearing/Pieces/pine_c_540"]
+[editable path="Ship/Clearing/Pieces/pine_a_541"]
+[editable path="Ship/Clearing/Pieces/pine_b_542"]
+[editable path="Ship/Clearing/Pieces/pine_c_543"]
+[editable path="Ship/Clearing/Pieces/pine_a_544"]
+[editable path="Ship/Clearing/Pieces/pine_a_545"]
 [editable path="Ship/Clearing/Pieces/pine_a_546"]
-[editable path="Ship/Clearing/Pieces/pine_a_547"]
-[editable path="Ship/Clearing/Pieces/pine_a_548"]
-[editable path="Ship/Clearing/Pieces/pine_b_549"]
-[editable path="Ship/Clearing/Pieces/pine_c_550"]
+[editable path="Ship/Clearing/Pieces/pine_b_547"]
+[editable path="Ship/Clearing/Pieces/pine_c_548"]
+[editable path="Ship/Clearing/Pieces/pine_c_549"]
+[editable path="Ship/Clearing/Pieces/pine_a_550"]
 [editable path="Ship/Clearing/Pieces/pine_c_551"]
-[editable path="Ship/Clearing/Pieces/pine_a_552"]
-[editable path="Ship/Clearing/Pieces/pine_c_553"]
-[editable path="Ship/Clearing/Pieces/pine_b_554"]
-[editable path="Ship/Clearing/Pieces/pine_a_555"]
-[editable path="Ship/Clearing/Pieces/pine_a_556"]
+[editable path="Ship/Clearing/Pieces/pine_b_552"]
+[editable path="Ship/Clearing/Pieces/pine_a_553"]
+[editable path="Ship/Clearing/Pieces/pine_a_554"]
+[editable path="Ship/Clearing/Pieces/pine_c_555"]
+[editable path="Ship/Clearing/Pieces/pine_b_556"]
 [editable path="Ship/Clearing/Pieces/pine_c_557"]
-[editable path="Ship/Clearing/Pieces/pine_b_558"]
-[editable path="Ship/Clearing/Pieces/pine_c_559"]
+[editable path="Ship/Clearing/Pieces/pine_a_558"]
+[editable path="Ship/Clearing/Pieces/pine_a_559"]
 [editable path="Ship/Clearing/Pieces/pine_a_560"]
-[editable path="Ship/Clearing/Pieces/pine_a_561"]
+[editable path="Ship/Clearing/Pieces/pine_b_561"]
 [editable path="Ship/Clearing/Pieces/pine_a_562"]
 [editable path="Ship/Clearing/Pieces/pine_b_563"]
-[editable path="Ship/Clearing/Pieces/pine_a_564"]
-[editable path="Ship/Clearing/Pieces/pine_b_565"]
-[editable path="Ship/Clearing/Pieces/pine_b_566"]
-[editable path="Ship/Clearing/Pieces/pine_a_567"]
-[editable path="Ship/Clearing/Pieces/pine_c_568"]
-[editable path="Ship/Clearing/Pieces/pine_c_569"]
-[editable path="Ship/Clearing/Pieces/pine_a_570"]
-[editable path="Ship/Clearing/Pieces/pine_b_571"]
-[editable path="Ship/Clearing/Pieces/pine_c_572"]
-[editable path="Ship/Clearing/Pieces/pine_a_573"]
-[editable path="Ship/Clearing/Pieces/pine_a_574"]
-[editable path="Ship/Clearing/Pieces/pine_b_575"]
+[editable path="Ship/Clearing/Pieces/pine_b_564"]
+[editable path="Ship/Clearing/Pieces/pine_a_565"]
+[editable path="Ship/Clearing/Pieces/pine_c_566"]
+[editable path="Ship/Clearing/Pieces/pine_c_567"]
+[editable path="Ship/Clearing/Pieces/pine_a_568"]
+[editable path="Ship/Clearing/Pieces/pine_b_569"]
+[editable path="Ship/Clearing/Pieces/pine_c_570"]
+[editable path="Ship/Clearing/Pieces/pine_a_571"]
+[editable path="Ship/Clearing/Pieces/pine_a_572"]
+[editable path="Ship/Clearing/Pieces/pine_b_573"]
+[editable path="Ship/Clearing/Pieces/pine_b_574"]
+[editable path="Ship/Clearing/Pieces/pine_a_575"]
 [editable path="Ship/Clearing/Pieces/pine_b_576"]
-[editable path="Ship/Clearing/Pieces/pine_a_577"]
-[editable path="Ship/Clearing/Pieces/pine_b_578"]
-[editable path="Ship/Clearing/Pieces/pine_c_579"]
+[editable path="Ship/Clearing/Pieces/pine_c_577"]
+[editable path="Ship/Clearing/Pieces/pine_c_578"]
+[editable path="Ship/Clearing/Pieces/pine_b_579"]
 [editable path="Ship/Clearing/Pieces/pine_c_580"]
-[editable path="Ship/Clearing/Pieces/pine_b_581"]
-[editable path="Ship/Clearing/Pieces/pine_c_582"]
-[editable path="Ship/Clearing/Pieces/pine_c_583"]
+[editable path="Ship/Clearing/Pieces/pine_c_581"]
+[editable path="Ship/Clearing/Pieces/pine_b_582"]
+[editable path="Ship/Clearing/Pieces/pine_b_583"]
 [editable path="Ship/Clearing/Pieces/pine_b_584"]
-[editable path="Ship/Clearing/Pieces/pine_b_585"]
-[editable path="Ship/Clearing/Pieces/pine_b_586"]
-[editable path="Ship/Clearing/Pieces/pine_a_587"]
+[editable path="Ship/Clearing/Pieces/pine_a_585"]
+[editable path="Ship/Clearing/Pieces/pine_c_586"]
+[editable path="Ship/Clearing/Pieces/pine_c_587"]
 [editable path="Ship/Clearing/Pieces/pine_c_588"]
-[editable path="Ship/Clearing/Pieces/pine_c_589"]
+[editable path="Ship/Clearing/Pieces/pine_b_589"]
 [editable path="Ship/Clearing/Pieces/pine_c_590"]
 [editable path="Ship/Clearing/Pieces/pine_b_591"]
-[editable path="Ship/Clearing/Pieces/pine_c_592"]
+[editable path="Ship/Clearing/Pieces/pine_a_592"]
 [editable path="Ship/Clearing/Pieces/pine_b_593"]
-[editable path="Ship/Clearing/Pieces/pine_a_594"]
-[editable path="Ship/Clearing/Pieces/pine_b_595"]
-[editable path="Ship/Clearing/Pieces/pine_c_596"]
-[editable path="Ship/Clearing/Pieces/pine_a_597"]
+[editable path="Ship/Clearing/Pieces/pine_c_594"]
+[editable path="Ship/Clearing/Pieces/pine_a_595"]
+[editable path="Ship/Clearing/Pieces/pine_a_596"]
+[editable path="Ship/Clearing/Pieces/pine_c_597"]
 [editable path="Ship/Clearing/Pieces/pine_a_598"]
-[editable path="Ship/Clearing/Pieces/pine_c_599"]
+[editable path="Ship/Clearing/Pieces/pine_a_599"]
 [editable path="Ship/Clearing/Pieces/pine_a_600"]
-[editable path="Ship/Clearing/Pieces/pine_a_601"]
-[editable path="Ship/Clearing/Pieces/pine_a_602"]
-[editable path="Ship/Clearing/Pieces/pine_c_603"]
-[editable path="Ship/Clearing/Pieces/pine_c_604"]
+[editable path="Ship/Clearing/Pieces/pine_c_601"]
+[editable path="Ship/Clearing/Pieces/pine_c_602"]
+[editable path="Ship/Clearing/Pieces/pine_a_603"]
+[editable path="Ship/Clearing/Pieces/pine_b_604"]
 [editable path="Ship/Clearing/Pieces/pine_a_605"]
-[editable path="Ship/Clearing/Pieces/pine_b_606"]
-[editable path="Ship/Clearing/Pieces/pine_a_607"]
-[editable path="Ship/Clearing/Pieces/pine_c_608"]
-[editable path="Ship/Clearing/Pieces/pine_b_609"]
-[editable path="Ship/Clearing/Pieces/pine_a_610"]
-[editable path="Ship/Clearing/Pieces/pine_a_611"]
-[editable path="Ship/Clearing/Pieces/pine_c_612"]
-[editable path="Ship/Clearing/Pieces/pine_c_613"]
-[editable path="Ship/Clearing/Pieces/pine_a_614"]
-[editable path="Ship/Clearing/Pieces/pine_b_615"]
-[editable path="Ship/Clearing/Pieces/pine_c_616"]
-[editable path="Ship/Clearing/Pieces/pine_c_617"]
+[editable path="Ship/Clearing/Pieces/pine_c_606"]
+[editable path="Ship/Clearing/Pieces/pine_b_607"]
+[editable path="Ship/Clearing/Pieces/pine_a_608"]
+[editable path="Ship/Clearing/Pieces/pine_a_609"]
+[editable path="Ship/Clearing/Pieces/pine_c_610"]
+[editable path="Ship/Clearing/Pieces/pine_c_611"]
+[editable path="Ship/Clearing/Pieces/pine_a_612"]
+[editable path="Ship/Clearing/Pieces/pine_b_613"]
+[editable path="Ship/Clearing/Pieces/pine_c_614"]
+[editable path="Ship/Clearing/Pieces/pine_c_615"]
+[editable path="Ship/Clearing/Pieces/pine_a_616"]
+[editable path="Ship/Clearing/Pieces/pine_a_617"]
 [editable path="Ship/Clearing/Pieces/pine_a_618"]
-[editable path="Ship/Clearing/Pieces/pine_a_619"]
-[editable path="Ship/Clearing/Pieces/pine_a_620"]
-[editable path="Ship/Clearing/Pieces/pine_c_621"]
-[editable path="Ship/Clearing/Pieces/pine_c_622"]
-[editable path="Ship/Clearing/Pieces/pine_a_623"]
-[editable path="Ship/Clearing/Pieces/pine_a_624"]
-[editable path="Ship/Clearing/Pieces/pine_c_625"]
+[editable path="Ship/Clearing/Pieces/pine_c_619"]
+[editable path="Ship/Clearing/Pieces/pine_c_620"]
+[editable path="Ship/Clearing/Pieces/pine_a_621"]
+[editable path="Ship/Clearing/Pieces/pine_a_622"]
+[editable path="Ship/Clearing/Pieces/pine_c_623"]
+[editable path="Ship/Clearing/Pieces/pine_c_624"]
+[editable path="Ship/Clearing/Pieces/pine_a_625"]
 [editable path="Ship/Clearing/Pieces/pine_c_626"]
-[editable path="Ship/Clearing/Pieces/pine_a_627"]
-[editable path="Ship/Clearing/Pieces/pine_c_628"]
-[editable path="Ship/Clearing/Pieces/pine_b_629"]
-[editable path="Ship/Clearing/Pieces/pine_a_630"]
+[editable path="Ship/Clearing/Pieces/pine_b_627"]
+[editable path="Ship/Clearing/Pieces/pine_a_628"]
+[editable path="Ship/Clearing/Pieces/pine_s_629"]
+[editable path="Ship/Clearing/Pieces/pine_s_630"]
 [editable path="Ship/Clearing/Pieces/pine_s_631"]
 [editable path="Ship/Clearing/Pieces/pine_s_632"]
 [editable path="Ship/Clearing/Pieces/pine_s_633"]
@@ -8643,277 +8634,277 @@ metadata/index = 9
 [editable path="Ship/Clearing/Pieces/pine_s_635"]
 [editable path="Ship/Clearing/Pieces/pine_s_636"]
 [editable path="Ship/Clearing/Pieces/pine_s_637"]
-[editable path="Ship/Clearing/Pieces/pine_s_638"]
-[editable path="Ship/Clearing/Pieces/pine_s_639"]
-[editable path="Ship/Clearing/Pieces/rock_a_640"]
-[editable path="Ship/Clearing/Pieces/rock_b_641"]
-[editable path="Ship/Clearing/Pieces/rock_c_642"]
+[editable path="Ship/Clearing/Pieces/rock_a_638"]
+[editable path="Ship/Clearing/Pieces/rock_b_639"]
+[editable path="Ship/Clearing/Pieces/rock_c_640"]
+[editable path="Ship/Clearing/Pieces/rock_a_641"]
+[editable path="Ship/Clearing/Pieces/rock_b_642"]
 [editable path="Ship/Clearing/Pieces/rock_a_643"]
-[editable path="Ship/Clearing/Pieces/rock_b_644"]
-[editable path="Ship/Clearing/Pieces/rock_a_645"]
-[editable path="Ship/Clearing/Pieces/rock_a_646"]
-[editable path="Ship/Clearing/Pieces/rock_c_647"]
-[editable path="Ship/Clearing/Pieces/pine_g_648"]
-[editable path="Ship/Clearing/Pieces/pine_d_649"]
-[editable path="Ship/Clearing/Pieces/pine_e_650"]
-[editable path="Ship/Clearing/Pieces/pine_e_651"]
-[editable path="Ship/Clearing/Pieces/pine_g_652"]
-[editable path="Ship/Clearing/Pieces/pine_f_653"]
-[editable path="Ship/Clearing/Pieces/pine_f_654"]
-[editable path="Ship/Clearing/Pieces/pine_g_655"]
-[editable path="Ship/Clearing/Pieces/pine_g_656"]
-[editable path="Ship/Clearing/Pieces/pine_e_657"]
-[editable path="Ship/Clearing/Pieces/pine_e_658"]
+[editable path="Ship/Clearing/Pieces/rock_a_644"]
+[editable path="Ship/Clearing/Pieces/rock_c_645"]
+[editable path="Ship/Clearing/Pieces/pine_g_646"]
+[editable path="Ship/Clearing/Pieces/pine_d_647"]
+[editable path="Ship/Clearing/Pieces/pine_e_648"]
+[editable path="Ship/Clearing/Pieces/pine_e_649"]
+[editable path="Ship/Clearing/Pieces/pine_g_650"]
+[editable path="Ship/Clearing/Pieces/pine_f_651"]
+[editable path="Ship/Clearing/Pieces/pine_f_652"]
+[editable path="Ship/Clearing/Pieces/pine_g_653"]
+[editable path="Ship/Clearing/Pieces/pine_g_654"]
+[editable path="Ship/Clearing/Pieces/pine_e_655"]
+[editable path="Ship/Clearing/Pieces/pine_e_656"]
+[editable path="Ship/Clearing/Pieces/pine_f_657"]
+[editable path="Ship/Clearing/Pieces/pine_d_658"]
 [editable path="Ship/Clearing/Pieces/pine_f_659"]
 [editable path="Ship/Clearing/Pieces/pine_d_660"]
-[editable path="Ship/Clearing/Pieces/pine_f_661"]
-[editable path="Ship/Clearing/Pieces/pine_d_662"]
-[editable path="Ship/Clearing/Pieces/pine_d_663"]
-[editable path="Ship/Clearing/Pieces/pine_f_664"]
-[editable path="Ship/Clearing/Pieces/pine_f_665"]
-[editable path="Ship/Clearing/Pieces/pine_e_666"]
+[editable path="Ship/Clearing/Pieces/pine_d_661"]
+[editable path="Ship/Clearing/Pieces/pine_f_662"]
+[editable path="Ship/Clearing/Pieces/pine_f_663"]
+[editable path="Ship/Clearing/Pieces/pine_e_664"]
+[editable path="Ship/Clearing/Pieces/pine_g_665"]
+[editable path="Ship/Clearing/Pieces/pine_g_666"]
 [editable path="Ship/Clearing/Pieces/pine_g_667"]
-[editable path="Ship/Clearing/Pieces/pine_g_668"]
-[editable path="Ship/Clearing/Pieces/pine_g_669"]
-[editable path="Ship/Clearing/Pieces/pine_f_670"]
+[editable path="Ship/Clearing/Pieces/pine_f_668"]
+[editable path="Ship/Clearing/Pieces/pine_f_669"]
+[editable path="Ship/Clearing/Pieces/pine_d_670"]
 [editable path="Ship/Clearing/Pieces/pine_f_671"]
 [editable path="Ship/Clearing/Pieces/pine_d_672"]
-[editable path="Ship/Clearing/Pieces/pine_f_673"]
-[editable path="Ship/Clearing/Pieces/pine_d_674"]
+[editable path="Ship/Clearing/Pieces/pine_d_673"]
+[editable path="Ship/Clearing/Pieces/pine_e_674"]
 [editable path="Ship/Clearing/Pieces/pine_d_675"]
-[editable path="Ship/Clearing/Pieces/pine_e_676"]
-[editable path="Ship/Clearing/Pieces/pine_d_677"]
-[editable path="Ship/Clearing/Pieces/pine_g_678"]
-[editable path="Ship/Clearing/Pieces/pine_f_679"]
+[editable path="Ship/Clearing/Pieces/pine_g_676"]
+[editable path="Ship/Clearing/Pieces/pine_f_677"]
+[editable path="Ship/Clearing/Pieces/pine_e_678"]
+[editable path="Ship/Clearing/Pieces/pine_e_679"]
 [editable path="Ship/Clearing/Pieces/pine_e_680"]
-[editable path="Ship/Clearing/Pieces/pine_e_681"]
-[editable path="Ship/Clearing/Pieces/pine_e_682"]
+[editable path="Ship/Clearing/Pieces/pine_g_681"]
+[editable path="Ship/Clearing/Pieces/pine_g_682"]
 [editable path="Ship/Clearing/Pieces/pine_g_683"]
-[editable path="Ship/Clearing/Pieces/pine_g_684"]
+[editable path="Ship/Clearing/Pieces/pine_f_684"]
 [editable path="Ship/Clearing/Pieces/pine_g_685"]
 [editable path="Ship/Clearing/Pieces/pine_f_686"]
-[editable path="Ship/Clearing/Pieces/pine_g_687"]
-[editable path="Ship/Clearing/Pieces/pine_f_688"]
-[editable path="Ship/Clearing/Pieces/pine_f_689"]
-[editable path="Ship/Clearing/Pieces/pine_d_690"]
-[editable path="Ship/Clearing/Pieces/pine_d_691"]
-[editable path="Ship/Clearing/Pieces/pine_g_692"]
-[editable path="Ship/Clearing/Pieces/pine_e_693"]
-[editable path="Ship/Clearing/Pieces/pine_f_694"]
-[editable path="Ship/Clearing/Pieces/pine_g_695"]
+[editable path="Ship/Clearing/Pieces/pine_f_687"]
+[editable path="Ship/Clearing/Pieces/pine_d_688"]
+[editable path="Ship/Clearing/Pieces/pine_d_689"]
+[editable path="Ship/Clearing/Pieces/pine_g_690"]
+[editable path="Ship/Clearing/Pieces/pine_e_691"]
+[editable path="Ship/Clearing/Pieces/pine_f_692"]
+[editable path="Ship/Clearing/Pieces/pine_g_693"]
+[editable path="Ship/Clearing/Pieces/pine_d_694"]
+[editable path="Ship/Clearing/Pieces/pine_d_695"]
 [editable path="Ship/Clearing/Pieces/pine_d_696"]
-[editable path="Ship/Clearing/Pieces/pine_d_697"]
+[editable path="Ship/Clearing/Pieces/pine_g_697"]
 [editable path="Ship/Clearing/Pieces/pine_d_698"]
-[editable path="Ship/Clearing/Pieces/pine_g_699"]
-[editable path="Ship/Clearing/Pieces/pine_d_700"]
-[editable path="Ship/Clearing/Pieces/pine_e_701"]
-[editable path="Ship/Clearing/Pieces/pine_f_702"]
-[editable path="Ship/Clearing/Pieces/pine_g_703"]
-[editable path="Ship/Clearing/Pieces/pine_e_704"]
+[editable path="Ship/Clearing/Pieces/pine_e_699"]
+[editable path="Ship/Clearing/Pieces/pine_f_700"]
+[editable path="Ship/Clearing/Pieces/pine_g_701"]
+[editable path="Ship/Clearing/Pieces/pine_e_702"]
+[editable path="Ship/Clearing/Pieces/pine_d_703"]
+[editable path="Ship/Clearing/Pieces/pine_g_704"]
 [editable path="Ship/Clearing/Pieces/pine_d_705"]
-[editable path="Ship/Clearing/Pieces/pine_g_706"]
-[editable path="Ship/Clearing/Pieces/pine_d_707"]
-[editable path="Ship/Clearing/Pieces/pine_d_708"]
-[editable path="Ship/Clearing/Pieces/pine_g_709"]
-[editable path="Ship/Clearing/Pieces/pine_e_710"]
-[editable path="Ship/Clearing/Pieces/pine_f_711"]
-[editable path="Ship/Clearing/Pieces/bush_s_712"]
-[editable path="Ship/Clearing/Pieces/bush_l_713"]
-[editable path="Ship/Clearing/Pieces/bush_l_714"]
+[editable path="Ship/Clearing/Pieces/pine_d_706"]
+[editable path="Ship/Clearing/Pieces/pine_g_707"]
+[editable path="Ship/Clearing/Pieces/pine_e_708"]
+[editable path="Ship/Clearing/Pieces/pine_f_709"]
+[editable path="Ship/Clearing/Pieces/bush_s_710"]
+[editable path="Ship/Clearing/Pieces/bush_l_711"]
+[editable path="Ship/Clearing/Pieces/bush_l_712"]
+[editable path="Ship/Clearing/Pieces/bush_s_713"]
+[editable path="Ship/Clearing/Pieces/bush_s_714"]
 [editable path="Ship/Clearing/Pieces/bush_s_715"]
 [editable path="Ship/Clearing/Pieces/bush_s_716"]
 [editable path="Ship/Clearing/Pieces/bush_s_717"]
 [editable path="Ship/Clearing/Pieces/bush_s_718"]
-[editable path="Ship/Clearing/Pieces/bush_s_719"]
+[editable path="Ship/Clearing/Pieces/bush_l_719"]
 [editable path="Ship/Clearing/Pieces/bush_s_720"]
-[editable path="Ship/Clearing/Pieces/bush_l_721"]
+[editable path="Ship/Clearing/Pieces/bush_m_721"]
 [editable path="Ship/Clearing/Pieces/bush_s_722"]
-[editable path="Ship/Clearing/Pieces/bush_m_723"]
-[editable path="Ship/Clearing/Pieces/bush_s_724"]
-[editable path="Ship/Clearing/Pieces/bush_s_725"]
-[editable path="Ship/Clearing/Pieces/bush_l_726"]
-[editable path="Ship/Clearing/Pieces/bush_m_727"]
+[editable path="Ship/Clearing/Pieces/bush_s_723"]
+[editable path="Ship/Clearing/Pieces/bush_l_724"]
+[editable path="Ship/Clearing/Pieces/bush_m_725"]
+[editable path="Ship/Clearing/Pieces/bush_m_726"]
+[editable path="Ship/Clearing/Pieces/bush_s_727"]
 [editable path="Ship/Clearing/Pieces/bush_m_728"]
-[editable path="Ship/Clearing/Pieces/bush_s_729"]
-[editable path="Ship/Clearing/Pieces/bush_m_730"]
-[editable path="Ship/Clearing/Pieces/bush_l_731"]
-[editable path="Ship/Clearing/Pieces/bush_l_732"]
-[editable path="Ship/Clearing/Pieces/bush_m_733"]
-[editable path="Ship/Clearing/Pieces/bush_m_734"]
-[editable path="Ship/Clearing/Pieces/bush_l_735"]
-[editable path="Ship/Clearing/Pieces/bush_s_736"]
-[editable path="Ship/Clearing/Pieces/bush_m_737"]
+[editable path="Ship/Clearing/Pieces/bush_l_729"]
+[editable path="Ship/Clearing/Pieces/bush_l_730"]
+[editable path="Ship/Clearing/Pieces/bush_m_731"]
+[editable path="Ship/Clearing/Pieces/bush_m_732"]
+[editable path="Ship/Clearing/Pieces/bush_l_733"]
+[editable path="Ship/Clearing/Pieces/bush_s_734"]
+[editable path="Ship/Clearing/Pieces/bush_m_735"]
+[editable path="Ship/Clearing/Pieces/log_a_736"]
+[editable path="Ship/Clearing/Pieces/log_b_737"]
 [editable path="Ship/Clearing/Pieces/log_a_738"]
-[editable path="Ship/Clearing/Pieces/log_b_739"]
+[editable path="Ship/Clearing/Pieces/log_a_739"]
 [editable path="Ship/Clearing/Pieces/log_a_740"]
-[editable path="Ship/Clearing/Pieces/log_a_741"]
-[editable path="Ship/Clearing/Pieces/log_a_742"]
-[editable path="Ship/Clearing/Pieces/log_b_743"]
+[editable path="Ship/Clearing/Pieces/log_b_741"]
+[editable path="Ship/Clearing/Pieces/stump_742"]
+[editable path="Ship/Clearing/Pieces/stump_743"]
 [editable path="Ship/Clearing/Pieces/stump_744"]
 [editable path="Ship/Clearing/Pieces/stump_745"]
 [editable path="Ship/Clearing/Pieces/stump_746"]
-[editable path="Ship/Clearing/Pieces/stump_747"]
-[editable path="Ship/Clearing/Pieces/stump_748"]
-[editable path="Ship/Clearing/Pieces/tuft_b_749"]
+[editable path="Ship/Clearing/Pieces/tuft_b_747"]
+[editable path="Ship/Clearing/Pieces/tuft_b_748"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_749"]
 [editable path="Ship/Clearing/Pieces/tuft_b_750"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_751"]
 [editable path="Ship/Clearing/Pieces/tuft_b_752"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_753"]
-[editable path="Ship/Clearing/Pieces/tuft_b_754"]
+[editable path="Ship/Clearing/Pieces/tuft_a_754"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_755"]
 [editable path="Ship/Clearing/Pieces/tuft_a_756"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_757"]
+[editable path="Ship/Clearing/Pieces/tuft_a_757"]
 [editable path="Ship/Clearing/Pieces/tuft_a_758"]
-[editable path="Ship/Clearing/Pieces/tuft_a_759"]
-[editable path="Ship/Clearing/Pieces/tuft_a_760"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_761"]
-[editable path="Ship/Clearing/Pieces/tuft_b_762"]
-[editable path="Ship/Clearing/Pieces/tuft_b_763"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_759"]
+[editable path="Ship/Clearing/Pieces/tuft_b_760"]
+[editable path="Ship/Clearing/Pieces/tuft_b_761"]
+[editable path="Ship/Clearing/Pieces/tuft_a_762"]
+[editable path="Ship/Clearing/Pieces/tuft_a_763"]
 [editable path="Ship/Clearing/Pieces/tuft_a_764"]
 [editable path="Ship/Clearing/Pieces/tuft_a_765"]
 [editable path="Ship/Clearing/Pieces/tuft_a_766"]
-[editable path="Ship/Clearing/Pieces/tuft_a_767"]
-[editable path="Ship/Clearing/Pieces/tuft_a_768"]
+[editable path="Ship/Clearing/Pieces/tuft_b_767"]
+[editable path="Ship/Clearing/Pieces/tuft_b_768"]
 [editable path="Ship/Clearing/Pieces/tuft_b_769"]
-[editable path="Ship/Clearing/Pieces/tuft_b_770"]
-[editable path="Ship/Clearing/Pieces/tuft_b_771"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_770"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_771"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_772"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_773"]
+[editable path="Ship/Clearing/Pieces/tuft_b_773"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_774"]
-[editable path="Ship/Clearing/Pieces/tuft_b_775"]
+[editable path="Ship/Clearing/Pieces/tuft_a_775"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_776"]
-[editable path="Ship/Clearing/Pieces/tuft_a_777"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_778"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_779"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_777"]
+[editable path="Ship/Clearing/Pieces/tuft_b_778"]
+[editable path="Ship/Clearing/Pieces/tuft_a_779"]
 [editable path="Ship/Clearing/Pieces/tuft_b_780"]
-[editable path="Ship/Clearing/Pieces/tuft_a_781"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_781"]
 [editable path="Ship/Clearing/Pieces/tuft_b_782"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_783"]
-[editable path="Ship/Clearing/Pieces/tuft_b_784"]
-[editable path="Ship/Clearing/Pieces/tuft_b_785"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_786"]
+[editable path="Ship/Clearing/Pieces/tuft_b_783"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_784"]
+[editable path="Ship/Clearing/Pieces/tuft_a_785"]
+[editable path="Ship/Clearing/Pieces/tuft_b_786"]
 [editable path="Ship/Clearing/Pieces/tuft_a_787"]
-[editable path="Ship/Clearing/Pieces/tuft_b_788"]
+[editable path="Ship/Clearing/Pieces/tuft_a_788"]
 [editable path="Ship/Clearing/Pieces/tuft_a_789"]
-[editable path="Ship/Clearing/Pieces/tuft_a_790"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_790"]
 [editable path="Ship/Clearing/Pieces/tuft_a_791"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_792"]
-[editable path="Ship/Clearing/Pieces/tuft_a_793"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_793"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_794"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_795"]
+[editable path="Ship/Clearing/Pieces/tuft_b_795"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_796"]
 [editable path="Ship/Clearing/Pieces/tuft_b_797"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_798"]
-[editable path="Ship/Clearing/Pieces/tuft_b_799"]
-[editable path="Ship/Clearing/Pieces/tuft_a_800"]
-[editable path="Ship/Clearing/Pieces/tuft_a_801"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_802"]
+[editable path="Ship/Clearing/Pieces/tuft_a_798"]
+[editable path="Ship/Clearing/Pieces/tuft_a_799"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_800"]
+[editable path="Ship/Clearing/Pieces/tuft_b_801"]
+[editable path="Ship/Clearing/Pieces/tuft_a_802"]
 [editable path="Ship/Clearing/Pieces/tuft_b_803"]
 [editable path="Ship/Clearing/Pieces/tuft_a_804"]
-[editable path="Ship/Clearing/Pieces/tuft_b_805"]
-[editable path="Ship/Clearing/Pieces/tuft_a_806"]
-[editable path="Ship/Clearing/Pieces/tuft_a_807"]
-[editable path="Ship/Clearing/Pieces/tuft_b_808"]
-[editable path="Ship/Clearing/Pieces/tuft_b_809"]
-[editable path="Ship/Clearing/Pieces/tuft_a_810"]
-[editable path="Ship/Clearing/Pieces/tuft_a_811"]
-[editable path="Ship/Clearing/Pieces/tuft_b_812"]
-[editable path="Ship/Clearing/Pieces/tuft_b_813"]
+[editable path="Ship/Clearing/Pieces/tuft_a_805"]
+[editable path="Ship/Clearing/Pieces/tuft_b_806"]
+[editable path="Ship/Clearing/Pieces/tuft_b_807"]
+[editable path="Ship/Clearing/Pieces/tuft_a_808"]
+[editable path="Ship/Clearing/Pieces/tuft_a_809"]
+[editable path="Ship/Clearing/Pieces/tuft_b_810"]
+[editable path="Ship/Clearing/Pieces/tuft_b_811"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_812"]
+[editable path="Ship/Clearing/Pieces/tuft_a_813"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_814"]
-[editable path="Ship/Clearing/Pieces/tuft_a_815"]
+[editable path="Ship/Clearing/Pieces/tuft_b_815"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_816"]
-[editable path="Ship/Clearing/Pieces/tuft_b_817"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_818"]
+[editable path="Ship/Clearing/Pieces/tuft_a_817"]
+[editable path="Ship/Clearing/Pieces/tuft_a_818"]
 [editable path="Ship/Clearing/Pieces/tuft_a_819"]
 [editable path="Ship/Clearing/Pieces/tuft_a_820"]
-[editable path="Ship/Clearing/Pieces/tuft_a_821"]
-[editable path="Ship/Clearing/Pieces/tuft_a_822"]
-[editable path="Ship/Clearing/Pieces/tuft_b_823"]
-[editable path="Ship/Clearing/Pieces/tuft_b_824"]
+[editable path="Ship/Clearing/Pieces/tuft_b_821"]
+[editable path="Ship/Clearing/Pieces/tuft_b_822"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_823"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_824"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_825"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_826"]
+[editable path="Ship/Clearing/Pieces/tuft_b_826"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_827"]
-[editable path="Ship/Clearing/Pieces/tuft_b_828"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_829"]
+[editable path="Ship/Clearing/Pieces/tuft_a_828"]
+[editable path="Ship/Clearing/Pieces/tuft_a_829"]
 [editable path="Ship/Clearing/Pieces/tuft_a_830"]
-[editable path="Ship/Clearing/Pieces/tuft_a_831"]
-[editable path="Ship/Clearing/Pieces/tuft_a_832"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_833"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_834"]
-[editable path="Ship/Clearing/Pieces/tuft_a_835"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_831"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_832"]
+[editable path="Ship/Clearing/Pieces/tuft_a_833"]
+[editable path="Ship/Clearing/Pieces/tuft_a_834"]
+[editable path="Ship/Clearing/Pieces/tuft_b_835"]
 [editable path="Ship/Clearing/Pieces/tuft_a_836"]
 [editable path="Ship/Clearing/Pieces/tuft_b_837"]
 [editable path="Ship/Clearing/Pieces/tuft_a_838"]
-[editable path="Ship/Clearing/Pieces/tuft_b_839"]
-[editable path="Ship/Clearing/Pieces/tuft_a_840"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_841"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_842"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_839"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_840"]
+[editable path="Ship/Clearing/Pieces/tuft_a_841"]
+[editable path="Ship/Clearing/Pieces/tuft_b_842"]
 [editable path="Ship/Clearing/Pieces/tuft_a_843"]
 [editable path="Ship/Clearing/Pieces/tuft_b_844"]
-[editable path="Ship/Clearing/Pieces/tuft_a_845"]
-[editable path="Ship/Clearing/Pieces/tuft_b_846"]
-[editable path="Ship/Clearing/Pieces/tuft_b_847"]
-[editable path="Ship/Clearing/Pieces/tuft_a_848"]
+[editable path="Ship/Clearing/Pieces/tuft_b_845"]
+[editable path="Ship/Clearing/Pieces/tuft_a_846"]
+[editable path="Ship/Clearing/Pieces/tuft_a_847"]
+[editable path="Ship/Clearing/Pieces/tuft_b_848"]
 [editable path="Ship/Clearing/Pieces/tuft_a_849"]
-[editable path="Ship/Clearing/Pieces/tuft_b_850"]
-[editable path="Ship/Clearing/Pieces/tuft_a_851"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_852"]
-[editable path="Ship/Clearing/Pieces/tuft_b_853"]
-[editable path="Ship/Clearing/Pieces/tuft_a_854"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_850"]
+[editable path="Ship/Clearing/Pieces/tuft_b_851"]
+[editable path="Ship/Clearing/Pieces/tuft_a_852"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_853"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_854"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_855"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_856"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_857"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_858"]
+[editable path="Ship/Clearing/Pieces/tuft_b_857"]
+[editable path="Ship/Clearing/Pieces/tuft_a_858"]
 [editable path="Ship/Clearing/Pieces/tuft_b_859"]
-[editable path="Ship/Clearing/Pieces/tuft_a_860"]
+[editable path="Ship/Clearing/Pieces/tuft_b_860"]
 [editable path="Ship/Clearing/Pieces/tuft_b_861"]
-[editable path="Ship/Clearing/Pieces/tuft_b_862"]
-[editable path="Ship/Clearing/Pieces/tuft_b_863"]
-[editable path="Ship/Clearing/Pieces/tuft_a_864"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_865"]
+[editable path="Ship/Clearing/Pieces/tuft_a_862"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_863"]
+[editable path="Ship/Clearing/Pieces/tuft_b_864"]
+[editable path="Ship/Clearing/Pieces/tuft_b_865"]
 [editable path="Ship/Clearing/Pieces/tuft_b_866"]
-[editable path="Ship/Clearing/Pieces/tuft_b_867"]
-[editable path="Ship/Clearing/Pieces/tuft_b_868"]
-[editable path="Ship/Clearing/Pieces/tuft_a_869"]
-[editable path="Ship/Clearing/Pieces/tuft_a_870"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_871"]
-[editable path="Ship/Clearing/Pieces/tuft_b_872"]
-[editable path="Ship/Clearing/Pieces/tuft_b_873"]
-[editable path="Ship/Clearing/Pieces/tuft_a_874"]
+[editable path="Ship/Clearing/Pieces/tuft_a_867"]
+[editable path="Ship/Clearing/Pieces/tuft_a_868"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_869"]
+[editable path="Ship/Clearing/Pieces/tuft_b_870"]
+[editable path="Ship/Clearing/Pieces/tuft_b_871"]
+[editable path="Ship/Clearing/Pieces/tuft_a_872"]
+[editable path="Ship/Clearing/Pieces/tuft_a_873"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_874"]
 [editable path="Ship/Clearing/Pieces/tuft_a_875"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_876"]
-[editable path="Ship/Clearing/Pieces/tuft_a_877"]
+[editable path="Ship/Clearing/Pieces/tuft_b_876"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_877"]
 [editable path="Ship/Clearing/Pieces/tuft_b_878"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_879"]
-[editable path="Ship/Clearing/Pieces/tuft_b_880"]
-[editable path="Ship/Clearing/Pieces/tuft_b_881"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_882"]
-[editable path="Ship/Clearing/Pieces/tuft_a_883"]
-[editable path="Ship/Clearing/Pieces/tuft_a_884"]
-[editable path="Ship/Clearing/Pieces/tuft_b_885"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_886"]
+[editable path="Ship/Clearing/Pieces/tuft_b_879"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_880"]
+[editable path="Ship/Clearing/Pieces/tuft_a_881"]
+[editable path="Ship/Clearing/Pieces/tuft_a_882"]
+[editable path="Ship/Clearing/Pieces/tuft_b_883"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_884"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_885"]
+[editable path="Ship/Clearing/Pieces/tuft_b_886"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_887"]
-[editable path="Ship/Clearing/Pieces/tuft_b_888"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_889"]
-[editable path="Ship/Clearing/Pieces/tuft_a_890"]
-[editable path="Ship/Clearing/Pieces/tuft_b_891"]
-[editable path="Ship/Clearing/Pieces/tuft_b_892"]
+[editable path="Ship/Clearing/Pieces/tuft_a_888"]
+[editable path="Ship/Clearing/Pieces/tuft_b_889"]
+[editable path="Ship/Clearing/Pieces/tuft_b_890"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_891"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_892"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_893"]
 [editable path="Ship/Clearing/Pieces/tuft_dry_894"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_895"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_896"]
+[editable path="Ship/Clearing/Pieces/tuft_b_895"]
+[editable path="Ship/Clearing/Pieces/tuft_b_896"]
 [editable path="Ship/Clearing/Pieces/tuft_b_897"]
 [editable path="Ship/Clearing/Pieces/tuft_b_898"]
-[editable path="Ship/Clearing/Pieces/tuft_b_899"]
-[editable path="Ship/Clearing/Pieces/tuft_b_900"]
+[editable path="Ship/Clearing/Pieces/tuft_a_899"]
+[editable path="Ship/Clearing/Pieces/tuft_dry_900"]
 [editable path="Ship/Clearing/Pieces/tuft_a_901"]
-[editable path="Ship/Clearing/Pieces/tuft_dry_902"]
+[editable path="Ship/Clearing/Pieces/tuft_b_902"]
 [editable path="Ship/Clearing/Pieces/tuft_a_903"]
 [editable path="Ship/Clearing/Pieces/tuft_b_904"]
-[editable path="Ship/Clearing/Pieces/tuft_a_905"]
+[editable path="Ship/Clearing/Pieces/tuft_b_905"]
 [editable path="Ship/Clearing/Pieces/tuft_b_906"]
-[editable path="Ship/Clearing/Pieces/tuft_b_907"]
-[editable path="Ship/Clearing/Pieces/tuft_b_908"]
+[editable path="Ship/Clearing/Pieces/party_post_907"]
+[editable path="Ship/Clearing/Pieces/party_post_908"]
 [editable path="Ship/Clearing/Pieces/party_post_909"]
 [editable path="Ship/Clearing/Pieces/party_post_910"]
 [editable path="Ship/Clearing/Pieces/party_post_911"]
@@ -8921,146 +8912,144 @@ metadata/index = 9
 [editable path="Ship/Clearing/Pieces/party_post_913"]
 [editable path="Ship/Clearing/Pieces/party_post_914"]
 [editable path="Ship/Clearing/Pieces/party_post_915"]
-[editable path="Ship/Clearing/Pieces/party_post_916"]
-[editable path="Ship/Clearing/Pieces/party_post_917"]
-[editable path="Ship/Clearing/Pieces/dirt_patch_918"]
-[editable path="Ship/Clearing/Pieces/fern_b_919"]
-[editable path="Ship/Clearing/Pieces/rock_pile_b_920"]
-[editable path="Ship/Clearing/Pieces/moss_a_921"]
-[editable path="Ship/Clearing/Pieces/litter_922"]
-[editable path="Ship/Clearing/Pieces/fern_a_923"]
-[editable path="Ship/Clearing/Pieces/moss_a_924"]
-[editable path="Ship/Clearing/Pieces/fern_b_925"]
-[editable path="Ship/Clearing/Pieces/rock_pile_a_926"]
-[editable path="Ship/Clearing/Pieces/dirt_path_927"]
-[editable path="Ship/Clearing/Pieces/party_lights_928"]
-[editable path="Ship/Clearing/Pieces/moss_a_929"]
+[editable path="Ship/Clearing/Pieces/dirt_patch_916"]
+[editable path="Ship/Clearing/Pieces/fern_b_917"]
+[editable path="Ship/Clearing/Pieces/rock_pile_b_918"]
+[editable path="Ship/Clearing/Pieces/moss_a_919"]
+[editable path="Ship/Clearing/Pieces/litter_920"]
+[editable path="Ship/Clearing/Pieces/fern_a_921"]
+[editable path="Ship/Clearing/Pieces/moss_a_922"]
+[editable path="Ship/Clearing/Pieces/fern_b_923"]
+[editable path="Ship/Clearing/Pieces/rock_pile_a_924"]
+[editable path="Ship/Clearing/Pieces/dirt_path_925"]
+[editable path="Ship/Clearing/Pieces/party_lights_926"]
+[editable path="Ship/Clearing/Pieces/moss_a_927"]
+[editable path="Ship/Clearing/Pieces/moss_a_928"]
+[editable path="Ship/Clearing/Pieces/moss_b_929"]
 [editable path="Ship/Clearing/Pieces/moss_a_930"]
-[editable path="Ship/Clearing/Pieces/moss_b_931"]
+[editable path="Ship/Clearing/Pieces/litter_931"]
 [editable path="Ship/Clearing/Pieces/moss_a_932"]
-[editable path="Ship/Clearing/Pieces/litter_933"]
-[editable path="Ship/Clearing/Pieces/moss_a_934"]
-[editable path="Ship/Clearing/Pieces/moss_b_935"]
-[editable path="Ship/Clearing/Pieces/litter_936"]
-[editable path="Ship/Clearing/Pieces/litter_937"]
+[editable path="Ship/Clearing/Pieces/moss_b_933"]
+[editable path="Ship/Clearing/Pieces/litter_934"]
+[editable path="Ship/Clearing/Pieces/litter_935"]
+[editable path="Ship/Clearing/Pieces/moss_a_936"]
+[editable path="Ship/Clearing/Pieces/moss_b_937"]
 [editable path="Ship/Clearing/Pieces/moss_a_938"]
 [editable path="Ship/Clearing/Pieces/moss_b_939"]
-[editable path="Ship/Clearing/Pieces/moss_a_940"]
-[editable path="Ship/Clearing/Pieces/moss_b_941"]
-[editable path="Ship/Clearing/Pieces/moss_b_942"]
-[editable path="Ship/Clearing/Pieces/moss_a_943"]
-[editable path="Ship/Clearing/Pieces/moss_a_944"]
+[editable path="Ship/Clearing/Pieces/moss_b_940"]
+[editable path="Ship/Clearing/Pieces/moss_a_941"]
+[editable path="Ship/Clearing/Pieces/moss_a_942"]
+[editable path="Ship/Clearing/Pieces/litter_943"]
+[editable path="Ship/Clearing/Pieces/litter_944"]
 [editable path="Ship/Clearing/Pieces/litter_945"]
-[editable path="Ship/Clearing/Pieces/litter_946"]
-[editable path="Ship/Clearing/Pieces/litter_947"]
-[editable path="Ship/Clearing/Pieces/moss_a_948"]
-[editable path="Ship/Clearing/Pieces/moss_a_949"]
-[editable path="Ship/Clearing/Pieces/moss_b_950"]
-[editable path="Ship/Clearing/Pieces/moss_b_951"]
-[editable path="Ship/Clearing/Pieces/moss_a_952"]
-[editable path="Ship/Clearing/Pieces/litter_953"]
+[editable path="Ship/Clearing/Pieces/moss_a_946"]
+[editable path="Ship/Clearing/Pieces/moss_a_947"]
+[editable path="Ship/Clearing/Pieces/moss_b_948"]
+[editable path="Ship/Clearing/Pieces/moss_b_949"]
+[editable path="Ship/Clearing/Pieces/moss_a_950"]
+[editable path="Ship/Clearing/Pieces/litter_951"]
+[editable path="Ship/Clearing/Pieces/moss_b_952"]
+[editable path="Ship/Clearing/Pieces/moss_a_953"]
 [editable path="Ship/Clearing/Pieces/moss_b_954"]
 [editable path="Ship/Clearing/Pieces/moss_a_955"]
-[editable path="Ship/Clearing/Pieces/moss_b_956"]
-[editable path="Ship/Clearing/Pieces/moss_a_957"]
-[editable path="Ship/Clearing/Pieces/moss_a_958"]
-[editable path="Ship/Clearing/Pieces/moss_b_959"]
-[editable path="Ship/Clearing/Pieces/moss_b_960"]
-[editable path="Ship/Clearing/Pieces/moss_a_961"]
-[editable path="Ship/Clearing/Pieces/moss_a_962"]
-[editable path="Ship/Clearing/Pieces/fern_b_963"]
+[editable path="Ship/Clearing/Pieces/moss_a_956"]
+[editable path="Ship/Clearing/Pieces/moss_b_957"]
+[editable path="Ship/Clearing/Pieces/moss_b_958"]
+[editable path="Ship/Clearing/Pieces/moss_a_959"]
+[editable path="Ship/Clearing/Pieces/moss_a_960"]
+[editable path="Ship/Clearing/Pieces/fern_b_961"]
+[editable path="Ship/Clearing/Pieces/fern_b_962"]
+[editable path="Ship/Clearing/Pieces/fern_a_963"]
 [editable path="Ship/Clearing/Pieces/fern_b_964"]
-[editable path="Ship/Clearing/Pieces/fern_a_965"]
+[editable path="Ship/Clearing/Pieces/fern_b_965"]
 [editable path="Ship/Clearing/Pieces/fern_b_966"]
-[editable path="Ship/Clearing/Pieces/fern_b_967"]
-[editable path="Ship/Clearing/Pieces/fern_b_968"]
+[editable path="Ship/Clearing/Pieces/fern_a_967"]
+[editable path="Ship/Clearing/Pieces/fern_a_968"]
 [editable path="Ship/Clearing/Pieces/fern_a_969"]
 [editable path="Ship/Clearing/Pieces/fern_a_970"]
 [editable path="Ship/Clearing/Pieces/fern_a_971"]
-[editable path="Ship/Clearing/Pieces/fern_a_972"]
-[editable path="Ship/Clearing/Pieces/fern_a_973"]
-[editable path="Ship/Clearing/Pieces/fern_b_974"]
-[editable path="Ship/Clearing/Pieces/fern_b_975"]
-[editable path="Ship/Clearing/Pieces/fern_a_976"]
-[editable path="Ship/Clearing/Pieces/fern_a_977"]
-[editable path="Ship/Clearing/Pieces/fern_b_978"]
-[editable path="Ship/Clearing/Pieces/fern_b_979"]
-[editable path="Ship/Clearing/Pieces/fern_a_980"]
-[editable path="Ship/Clearing/Pieces/fern_a_981"]
+[editable path="Ship/Clearing/Pieces/fern_b_972"]
+[editable path="Ship/Clearing/Pieces/fern_b_973"]
+[editable path="Ship/Clearing/Pieces/fern_a_974"]
+[editable path="Ship/Clearing/Pieces/fern_a_975"]
+[editable path="Ship/Clearing/Pieces/fern_b_976"]
+[editable path="Ship/Clearing/Pieces/fern_b_977"]
+[editable path="Ship/Clearing/Pieces/fern_a_978"]
+[editable path="Ship/Clearing/Pieces/fern_a_979"]
+[editable path="Ship/Clearing/Pieces/fern_b_980"]
+[editable path="Ship/Clearing/Pieces/fern_b_981"]
 [editable path="Ship/Clearing/Pieces/fern_b_982"]
 [editable path="Ship/Clearing/Pieces/fern_b_983"]
-[editable path="Ship/Clearing/Pieces/fern_b_984"]
+[editable path="Ship/Clearing/Pieces/fern_a_984"]
 [editable path="Ship/Clearing/Pieces/fern_b_985"]
 [editable path="Ship/Clearing/Pieces/fern_a_986"]
 [editable path="Ship/Clearing/Pieces/fern_b_987"]
-[editable path="Ship/Clearing/Pieces/fern_a_988"]
+[editable path="Ship/Clearing/Pieces/fern_b_988"]
 [editable path="Ship/Clearing/Pieces/fern_b_989"]
-[editable path="Ship/Clearing/Pieces/fern_b_990"]
+[editable path="Ship/Clearing/Pieces/fern_a_990"]
 [editable path="Ship/Clearing/Pieces/fern_b_991"]
 [editable path="Ship/Clearing/Pieces/fern_a_992"]
 [editable path="Ship/Clearing/Pieces/fern_b_993"]
-[editable path="Ship/Clearing/Pieces/fern_a_994"]
+[editable path="Ship/Clearing/Pieces/fern_b_994"]
 [editable path="Ship/Clearing/Pieces/fern_b_995"]
 [editable path="Ship/Clearing/Pieces/fern_b_996"]
-[editable path="Ship/Clearing/Pieces/fern_b_997"]
-[editable path="Ship/Clearing/Pieces/fern_b_998"]
+[editable path="Ship/Clearing/Pieces/fern_a_997"]
+[editable path="Ship/Clearing/Pieces/fern_a_998"]
 [editable path="Ship/Clearing/Pieces/fern_a_999"]
-[editable path="Ship/Clearing/Pieces/fern_a_1000"]
+[editable path="Ship/Clearing/Pieces/fern_b_1000"]
 [editable path="Ship/Clearing/Pieces/fern_a_1001"]
-[editable path="Ship/Clearing/Pieces/fern_b_1002"]
+[editable path="Ship/Clearing/Pieces/fern_a_1002"]
 [editable path="Ship/Clearing/Pieces/fern_a_1003"]
 [editable path="Ship/Clearing/Pieces/fern_a_1004"]
-[editable path="Ship/Clearing/Pieces/fern_a_1005"]
+[editable path="Ship/Clearing/Pieces/fern_b_1005"]
 [editable path="Ship/Clearing/Pieces/fern_a_1006"]
-[editable path="Ship/Clearing/Pieces/fern_b_1007"]
-[editable path="Ship/Clearing/Pieces/fern_a_1008"]
+[editable path="Ship/Clearing/Pieces/fern_a_1007"]
+[editable path="Ship/Clearing/Pieces/fern_b_1008"]
 [editable path="Ship/Clearing/Pieces/fern_a_1009"]
 [editable path="Ship/Clearing/Pieces/fern_b_1010"]
-[editable path="Ship/Clearing/Pieces/fern_a_1011"]
-[editable path="Ship/Clearing/Pieces/fern_b_1012"]
+[editable path="Ship/Clearing/Pieces/fern_b_1011"]
+[editable path="Ship/Clearing/Pieces/fern_a_1012"]
 [editable path="Ship/Clearing/Pieces/fern_b_1013"]
 [editable path="Ship/Clearing/Pieces/fern_a_1014"]
-[editable path="Ship/Clearing/Pieces/fern_b_1015"]
+[editable path="Ship/Clearing/Pieces/fern_a_1015"]
 [editable path="Ship/Clearing/Pieces/fern_a_1016"]
-[editable path="Ship/Clearing/Pieces/fern_a_1017"]
+[editable path="Ship/Clearing/Pieces/fern_b_1017"]
 [editable path="Ship/Clearing/Pieces/fern_a_1018"]
 [editable path="Ship/Clearing/Pieces/fern_b_1019"]
-[editable path="Ship/Clearing/Pieces/fern_a_1020"]
+[editable path="Ship/Clearing/Pieces/fern_b_1020"]
 [editable path="Ship/Clearing/Pieces/fern_b_1021"]
 [editable path="Ship/Clearing/Pieces/fern_b_1022"]
 [editable path="Ship/Clearing/Pieces/fern_b_1023"]
 [editable path="Ship/Clearing/Pieces/fern_b_1024"]
-[editable path="Ship/Clearing/Pieces/fern_b_1025"]
+[editable path="Ship/Clearing/Pieces/fern_a_1025"]
 [editable path="Ship/Clearing/Pieces/fern_b_1026"]
 [editable path="Ship/Clearing/Pieces/fern_a_1027"]
 [editable path="Ship/Clearing/Pieces/fern_b_1028"]
-[editable path="Ship/Clearing/Pieces/fern_a_1029"]
-[editable path="Ship/Clearing/Pieces/fern_b_1030"]
-[editable path="Ship/Clearing/Pieces/fern_b_1031"]
-[editable path="Ship/Clearing/Pieces/fern_a_1032"]
-[editable path="Ship/Clearing/Pieces/rock_b_1033"]
+[editable path="Ship/Clearing/Pieces/fern_b_1029"]
+[editable path="Ship/Clearing/Pieces/fern_a_1030"]
+[editable path="Ship/Clearing/Pieces/rock_b_1031"]
+[editable path="Ship/Clearing/Pieces/rock_pile_a_1032"]
+[editable path="Ship/Clearing/Pieces/rock_pile_b_1033"]
 [editable path="Ship/Clearing/Pieces/rock_pile_a_1034"]
 [editable path="Ship/Clearing/Pieces/rock_pile_b_1035"]
 [editable path="Ship/Clearing/Pieces/rock_pile_a_1036"]
 [editable path="Ship/Clearing/Pieces/rock_pile_b_1037"]
-[editable path="Ship/Clearing/Pieces/rock_pile_a_1038"]
-[editable path="Ship/Clearing/Pieces/rock_pile_b_1039"]
+[editable path="Ship/Clearing/Pieces/log_c_1038"]
+[editable path="Ship/Clearing/Pieces/log_c_1039"]
 [editable path="Ship/Clearing/Pieces/log_c_1040"]
-[editable path="Ship/Clearing/Pieces/log_c_1041"]
-[editable path="Ship/Clearing/Pieces/log_c_1042"]
-[editable path="Ship/Clearing/Pieces/rock_b_1043"]
-[editable path="Ship/Clearing/Pieces/rock_b_1044"]
-[editable path="Ship/Clearing/Pieces/bush_l_1045"]
-[editable path="Ship/Clearing/Pieces/bush_s_1046"]
+[editable path="Ship/Clearing/Pieces/rock_b_1041"]
+[editable path="Ship/Clearing/Pieces/rock_b_1042"]
+[editable path="Ship/Clearing/Pieces/bush_l_1043"]
+[editable path="Ship/Clearing/Pieces/bush_s_1044"]
+[editable path="Ship/Clearing/Pieces/bush_m_1045"]
+[editable path="Ship/Clearing/Pieces/bush_l_1046"]
 [editable path="Ship/Clearing/Pieces/bush_m_1047"]
-[editable path="Ship/Clearing/Pieces/bush_l_1048"]
-[editable path="Ship/Clearing/Pieces/bush_m_1049"]
-[editable path="Ship/Clearing/Pieces/bush_m_1050"]
-[editable path="Ship/Clearing/Pieces/bush_l_1051"]
-[editable path="Ship/Clearing/Pieces/bush_s_1052"]
-[editable path="Ship/Clearing/Pieces/bush_s_1053"]
-[editable path="Ship/Clearing/Pieces/bush_m_1054"]
-[editable path="Ship/Clearing/Pieces/bush_m_1055"]
+[editable path="Ship/Clearing/Pieces/bush_m_1048"]
+[editable path="Ship/Clearing/Pieces/bush_l_1049"]
+[editable path="Ship/Clearing/Pieces/bush_s_1050"]
+[editable path="Ship/Clearing/Pieces/bush_s_1051"]
+[editable path="Ship/Clearing/Pieces/bush_m_1052"]
+[editable path="Ship/Clearing/Pieces/bush_m_1053"]
 [editable path="Ship/Nose/jaw_lower"]
 [editable path="Ship/Nose/jaw_upper"]
 [editable path="Ship/Nose/jaw_root"]
