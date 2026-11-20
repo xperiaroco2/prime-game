@@ -3,6 +3,7 @@
   "folders": {
     "characters": "res://assets/characters/",
     "environment": "res://assets/environment/",
+    "body": "res://assets/body/",
     "audio": "res://assets/audio/",
     "ui": "res://assets/ui/"
   },
@@ -16,7 +17,22 @@
     "_about": "compress/mode of a texture's .import per folder: 2 VRAM Compressed (3D), 0 Lossless (UI).",
     "res://assets/characters/": 2,
     "res://assets/environment/": 2,
+    "res://assets/body/": 2,
     "res://assets/ui/": 0
+  },
+  "body": {
+    "_about": "A GLB under assets/body/<id>/ (a first-person viewmodel, #1587), its row keyed by <id>: the clips the game plays (their art names as Godot 4.7.2 imports them, a _Loop suffix dropped and looping) and the nodes it hangs things on. The art package's HANDOFF.md is the source.",
+    "fp_hands": {
+      "clips": [
+        {"name": "Idle", "loop": true},
+        {"name": "Run", "loop": true},
+        {"name": "Crystal_Idle", "loop": true},
+        {"name": "Crystal_Run", "loop": true},
+        {"name": "Punch", "loop": false},
+        {"name": "Crystal_Hit", "loop": false}
+      ],
+      "nodes": ["CrystalSocket"]
+    }
   },
   "character": {
     "_about": "A GLB under assets/characters/. The bones are the art export's rig as measured (art docs/animations.md: CharacterArmature, 62 Ultimate Modular bones plus Toe.L and Toe.R); the contract v2 may replace them. The clips are the art MVP set's names (art tools/blender/anim_sets/mvp.toml) as Godot 4.7.2 imports them (a _Loop suffix dropped, the clip looping): the clips the avatar maps (client/player/avatar_clips.gd, #522; the knockdown is a ragdoll, art #115, so Knockdown, Crawl and Getup_Fours went); the GLB carries more (jump, turn, raise, talk, push, knife), unchecked until a mapping uses them.",

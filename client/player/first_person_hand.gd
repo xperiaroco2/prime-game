@@ -20,6 +20,10 @@ const CLOSE_TURN := Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))
 ## begin_slide is given. A look, "not a decision".
 const SLIDE_FROM := Vector3(0.0, -0.35, 0.05)
 
+## The kinds another view draws in the hand (the first-person hands' crystal, #1587): one of them
+## is still the kind shown (shown_kind), with no view of its own here.
+var hidden_kinds: Array[StringName] = []
+
 var _shown_kind: StringName = &""
 var _shown_colour: Color
 var _shown_id := -1
@@ -67,7 +71,7 @@ func show_item(
 	if _view != null:
 		_view.queue_free()
 		_view = null
-	if kind.is_empty():
+	if kind.is_empty() or hidden_kinds.has(kind):
 		return
 	_view = ItemView.make(-1, kind, colour, null, parts)
 	_view.name = "HandItem"

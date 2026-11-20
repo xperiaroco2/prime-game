@@ -5398,11 +5398,12 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
   counted). `hang_slot()` alone picks a slot: the lowest free one (a taken-down uncounted photo's), else a new one
   after the last. Shots no film lists and no photo shows are pruned as the host's `PhotoTask._prune`.
 - **The layers.** `PhotoLayers`: `LIVE_AVATAR` (visual layer 19) for what moves live (the remote bodies, a downed
-  player's live ragdoll, the first-person hands, a carried item's view), `PHOTO` (layer 20) for the pictures'
-  puppets; every live camera's `cull_mask` is `LIVE_VIEW` (all but `PHOTO`), a picture's camera `PHOTO_VIEW` (all
-  but `LIVE_AVATAR`); `STATION` (layer 18, in both views) holds the ship's crystal sockets' and chargers' meshes
+  player's live ragdoll, the first-person hand item, a carried item's view), `PHOTO` (layer 20) for the pictures'
+  puppets; every live camera's `cull_mask` is `LIVE_VIEW` (all but `PHOTO`, `MIRROR_SELF` and `HANDS`), a picture's
+  camera `PHOTO_VIEW` (all but `LIVE_AVATAR`, `MIRROR_SELF` and `HANDS`); `STATION` (layer 18, in both views) holds the ship's crystal sockets' and chargers' meshes
   (§9.5.27); `MIRROR_SELF` (layer 17, in neither) holds the lobby mirror's stand-in of the own body, which only the
-  mirror's lens draws (`MIRROR_VIEW`, §4.7.68). Ground items and dead bodies (`BodyViews` puts the handed-over ragdoll back on `GROUND`) stay
+  mirror's lens draws (`MIRROR_VIEW`, §4.7.68); `HANDS` (layer 16, in neither) holds the first-person hands and the
+  crystal they hold, which only `FpView`'s camera draws (§4.7.69). Ground items and dead bodies (`BodyViews` puts the handed-over ragdoll back on `GROUND`) stay
   in both, as they move only by events.
 - **The looks and the views.** `PhotoLooks` builds the film's and the photo's look (a card whose +Y face holds the
   picture slot); `PhotoViews` binds the camera, printer and board scenes of `levels/stations/` by their kinds'
@@ -5842,8 +5843,8 @@ GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first 
   `ClientModel.posed`, in the own roster colour (the host's `ProfileChanged`; nothing predicted). Shown again after
   being hidden, it faces the look at once (`snap_look`). It shows only while the own body stands (`body_life_of`
   living: a downed or limp own body is drawn as its ragdoll, KE5) and the reflection renders. The first-person hand
-  item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye; the stand-in holds no item view
-  (kept simple).
+  item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye, but a crystal, which the
+  first-person hands hold on `HANDS` (§4.7.69: only its glow shows); the stand-in holds no item view (kept simple).
 - **Cost.** The lens renders (`UPDATE_ALWAYS`) only while the eye is in front of the plane (`MIN_EYE_M`) and the
   glass is not wholly outside one of its frustum's planes (`seen_by`); else its viewport is off and the stand-in
   hidden. Its picture is `HEIGHT_PX` 512 rows (the width by the glass's aspect: 410), with no positional shadows, no
@@ -5859,6 +5860,68 @@ GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first 
   snap, the carry, hidden while down; `clear`), `item_world_mirror_test.gd` (the wiring), `photo_layers_test.gd`,
   `lobby_hall_test.gd` (the glass marker) and `item_world_children_test.gd`; the `shot` preview
   `client/dev/mirror_preview.tscn` shows it.
+
+#### 4.7.69 The first-person hands (#1587)
+The own player's hands, as first-person games draw a viewmodel (concept A, prime-game-art#136; the art package's
+`HANDOFF.md`). `FpHands` (`client/player/fp_hands.gd`) instances the package (`assets/body/fp_hands/fp_hands.glb`,
+§11.1's `body/`) under the player's camera at an identity transform, every mesh of it on `PhotoLayers.HANDS` (visual
+layer 16) alone with no shadow. `FpView` (`client/player/fp_view.gd`, a CanvasLayer under the HUD at layer -1) draws
+that layer, and only that layer, through its own `Camera3D` at the package's 50 degrees in a transparent SubViewport
+the size of the screen. The SubViewport shares the level's World3D, and its camera copies the player camera's
+transform every frame. Its environment is a copy of the live view's (the hall's or the world's;
+`hands_environment`) whose background is the transparent clear colour, without SSAO, SSIL, SDFGI, fog or glow,
+and the pass renders no shadow map (`positional_shadow_atlas_size` 0): the hands receive no shadows. With no
+package (`FpHands.model` null) there is no view and no pass. `LIVE_VIEW` and `PHOTO_VIEW` both leave `HANDS` out, so neither the live view nor a picture
+draws the hands. The view shows while the own player is living and the player camera is its viewport's current one
+(not the downed, spectate or viewfinder camera).
+- **Light** (the HANDOFF's values): a fill on `HANDS` alone (energy 0.3, warm white, from the right and a little
+  above) and the level's own
+  lights. `FpView.light_level`, which `GameLevel.swap` runs on every level it adds, puts `HANDS` on the `layers` and
+  `light_cull_mask` of each light the live view draws (its `layers` in `LIVE_VIEW`), the lobby's own (layer 11)
+  too. A light added later (the dead's hall, a photo's flash) does not light the hands.
+- **The clips** (the package's names): `Idle` or `Run` with an empty hand, `Crystal_Idle` or `Crystal_Run` with a
+  crystal, by the own horizontal speed (from 0.5 m/s), blended over 0.15 s. The run plays at the own speed over
+  4.5 m/s, kept within 0.7 to 1.6. The controller feeds the speed every physics frame. The state clips loop
+  and the hits play once whatever the package's clip names say (`_set_loops`).
+- **The hit:** `Punch`, or `Crystal_Hit` with a crystal, plays once when the host's public `Swung` names the own
+  peer (`Game._on_event`), then the state's clip again. It follows the host's acceptance of the own `Use` (the
+  rules of #1609); it predicts nothing, and nothing shows whether the swing touched anyone. A held button
+  chains the hits: a `Swung` while the same hit is still ending starts it over.
+- **The crystal:** a held `crystal_charged` or `crystal_spent` is the energy crystal's own look (`ShipCrystalLook`)
+  on the package's `CrystalSocket`, its meshes on `HANDS`. Its own light keeps 40 % of a crystal's in a socket
+  (`set_light_share`, the engineer's word of 2026-11-18). That light sits on `LIVE_AVATAR`, as a carried item's (the
+  live camera draws it, a picture never), and its cull mask reaches GROUND but not `HANDS`: it lights the room round
+  the eye and never burns the hands white. The hands' fill keeps out of the sky and of baked light (`sky_mode`
+  LIGHT_ONLY, `BAKE_DISABLED`). The others see the carried crystal as before, the carried item's greybox view
+  at the holder. `FirstPersonHand` keeps the kind (`shown_kind`, the HUD and playcheck's `hand.item`) but
+  draws no view of its own for a kind in its `hidden_kinds`; `FpHands.attach` sets them to the crystal kinds when
+  the package has its `CrystalSocket`. Gaps: the lobby mirror (`MIRROR_VIEW`) draws no held crystal, only its
+  light (no crystal in the lobby today); the spectate camera's hand (`LifeView.spectate_hand`) still draws a
+  watched player's crystal as the greybox item, not the hands of that player's own screen.
+- **The colour:** the own body colour from the own profile (`ClientModel.colour_of(own_peer)`, `BodyColours`),
+  which `ItemViews` passes on every frame. It multiplies each material's own albedo, as `CharacterRig` tints a
+  remote body; the package's skin is a neutral texture under a white factor, so the albedo is the body colour
+  (until it is known, the package's default `DEFAULT_TINT`, sRGB 0.40 0.86 0.80). The hands' environment takes
+  `AMBIENT_SHARE` (0.8) of the view's ambient light.
+- **Both arms:** the package's `FPArms` is one skin of both forearms and hands on one rig (the package the engineer
+  approved for M8 on prime-game-art#387, 2026-11-20: two compact fists at rest, the right punches, the overhead
+  crystal hit; the polish is art#388); where each hand is in a clip is the clip's own. The code only picks the
+  clips, and tints and layers every mesh of the package, so a package with the arms split into meshes changes no
+  code.
+- **The fists:** `FPArms`' two morph targets, `fist` (the right hand) and `fist_L` (the left), are keyed in every
+  clip: 1 in `Idle`, `Run` and `Punch`, 0 in the crystal clips. The code keys and resets none: the switch's blend
+  opens the fists onto the crystal over its 0.15 s and closes them again. A crystal taken or dropped during a hit of
+  the other state ends that hit at once (its clip would key the old fists), and the new state's clip blends in.
+  Tests: `fp_hands_test.gd` on a fixture; `tests/integration/client/player/fp_hands_art_test.gd` on the package
+  (the keys on `FPArms` in every clip, the blend, the colour and the layer), in the nightly `lfs` job (CI has only
+  the Git LFS stand-in: skip).
+
+The hands have no sound beyond the existing swing. A later package from the art repo replaces the one GLB (its
+`.import`, its credits, and the textures Godot extracts from it, which `check` writes and which keep
+`compress/mode=2`): the code uses only the HANDOFF's node and clip names, and the import check (§11.3)
+holds them (`asset_contract.json`'s `body` row: the six clips with their loops and `CrystalSocket`). Without the package's nodes (CI's
+Git LFS stand-in) the hands show nothing and every call is harmless. Stills: `client/dev/fp_hands_preview_<state>.tscn`
+(idle, run, punch, crystal, crystal_hit; punch_default in the package's default colour), the eye in the ship's hall. Tests: `tests/unit/client/player/fp_hands_test.gd`.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the
@@ -10507,6 +10570,7 @@ This handoff (#519) serves the character (#522) and the house (#523); its dry ru
 assets/
   characters/<id>/<id>.glb     a character: body, rig and clips in one GLB (art `export`)
   environment/<id>/<id>.glb    a house, a room or a prop, its textures beside it
+  body/<id>/<id>.glb           a first-person viewmodel (the hands, #1587), its textures beside it
   audio/<id>/<id>.wav|.ogg     a sound effect or a music track
   ui/<id>/<id>.png|.ttf|.otf   a UI image or a font
 ```
@@ -10561,7 +10625,8 @@ assets/
   `optimizer/enabled=false` on the AnimationPlayer node (`_subresources={"nodes": {"PATH:AnimationPlayer":
   {"optimizer/enabled": false}}}`; the optimizer moved joints up to 16.7 mm). Loop modes come from the clip names: Godot 4.7.2 imports a clip named `<Name>_Loop` as `<Name>`
   with `LOOP_LINEAR`, so no per-clip setting is needed. An image keeps its folder's compression: `compress/mode=2`
-  (VRAM Compressed, for 3D) under `characters/` and `environment/`, `0` (Lossless) under `ui/`.
+  (VRAM Compressed, for 3D) under `characters/`, `environment/` and `body/`, `0` (Lossless) under `ui/`. A body GLB
+  (`body/<id>/`, #1587) keeps the animation optimizer off as a character does.
 - **The colliders** (#523, the LFS ADR's amendment of 2026-10-14): an environment GLB's import-hint colliders
   (`-colonly`, `-convcolonly`, `-col`, `-convcol`) leave the GLB as text, so a checkout without LFS content (CI,
   bots) still has the level's floors, walls and stairs. `tools\run.cmd colliders` (`tools/runner/colliders.py`)
