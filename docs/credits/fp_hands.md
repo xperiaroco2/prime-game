@@ -5,7 +5,7 @@
   from the art repo's `specs/fp_hand_dims.toml`, concept A refined; its rig read from the earlier build t4; the clips
   keyed from code in headless Blender; no motion source, no part generated or downloaded)
 - **Source:** the art manifest `assets/body/fp_hands/manifest.toml` in xperiaroco2/prime-game-art (art #136, PR art
-  #387, branch `feat/fp-hand-four-136` at `00444542`, the package's run g5 of 2026-11-20: two compact fists at
+  #387, `main` at `1af43a64`, the package's run g5 of 2026-11-20: two compact fists at
   rest, the right punches, the overhead crystal hit); the GLB is the package's `export/fp_hands.glb`, matching its
   Git LFS object's SHA-256 and the manifest's `[[raw]]`
   (`66349bd02cbfd39c42d6dd0dc035e64f2c696ccdc4342e1df2213652525c69dc`). The PNGs beside it are its embedded textures
