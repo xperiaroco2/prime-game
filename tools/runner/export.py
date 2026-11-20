@@ -95,6 +95,8 @@ TRANSLATIONS = ("client/i18n/strings.en.translation", "client/i18n/strings.uk.tr
 IMPORT_TIMEOUT = 900
 PACK_WITHOUT_LINUX = ("twovoip", "webrtc_native")
 PROBE = ROOT / "tools" / "export" / "export_probe.gd"
+# ContentFingerprint's text line for the empty lobby_level of a mode without a lobby (the tutorial, #1664): no file.
+NO_LOBBY = "level  missing"
 EXPORT_TIMEOUT = 600
 PROBE_TIMEOUT = 120
 LFS_POINTER = b"version https://git-lfs.github.com/spec/v1"
@@ -252,18 +254,23 @@ class Probe:
     def levels(self) -> list[str]:
         """The level files the modes name, in order, each once."""
         found: list[str] = []
-        for lines in self.texts.values():
-            for line in lines:
-                parts = line.split(" ")
-                if parts[0] == "level" and parts[1] not in found:
-                    found.append(parts[1])
+        for mode in self.texts:
+            found += [level for level in self.levels_of(mode) if level not in found]
         return found
 
     def levels_of(self, mode: str) -> list[str]:
-        return [line.split(" ")[1] for line in self.texts.get(mode, []) if line.startswith("level ")]
+        """The level files `mode` names. A mode without a lobby (the tutorial, #1664) has the text line `level  missing`
+        for its empty lobby_level: no level."""
+        levels = [line.split(" ")[1] for line in self.texts.get(mode, []) if line.startswith("level ")]
+        return [level for level in levels if level]
 
     def missing_digests(self) -> list[str]:
-        return [line for lines in self.texts.values() for line in lines if line.endswith(" missing")]
+        return [
+            line
+            for lines in self.texts.values()
+            for line in lines
+            if line.endswith(" missing") and line != NO_LOBBY
+        ]
 
 
 def parse_probe(lines: list[str]) -> Probe:

@@ -42,6 +42,27 @@ class ProbeTest(unittest.TestCase):
         self.assertEqual(probe.missing, [f"{MODE}: res://levels/rooms/room.tscn"])
         self.assertEqual(probe.missing_digests(), ["file res://levels/rooms/room.tscn missing"])
 
+    def test_a_mode_without_a_lobby_names_no_level_and_misses_nothing(self) -> None:
+        # v0.8.0-rc1's release run (#1664): the tutorial mode has no lobby_level, and ContentFingerprint writes the
+        # empty lobby as `level  missing`; that is no level and no file missing from the export.
+        tutorial = "res://content/modes/tutorial_mode.tres"
+        probe = export.parse_probe(
+            [
+                *PROBE_OUT[:-1],
+                f"EXPORT mode {tutorial} 512",
+                f"EXPORT text {tutorial} mode 7",
+                f"EXPORT text {tutorial} level  missing",
+                f"EXPORT text {tutorial} level res://levels/tutorial/tutorial.tscn 9e3c",
+                "EXPORT done 2",
+            ]
+        )
+        self.assertEqual(
+            probe.levels(),
+            ["res://levels/lobby/lobby.tscn", "res://levels/greybox/greybox.tscn", "res://levels/tutorial/tutorial.tscn"],
+        )
+        self.assertEqual(probe.levels_of(tutorial), ["res://levels/tutorial/tutorial.tscn"])
+        self.assertEqual(probe.missing_digests(), ["file res://levels/rooms/room.tscn missing"])
+
     def test_a_probe_that_never_finished_or_found_no_mode_fails(self) -> None:
         with self.assertRaises(Failure):
             export.parse_probe(PROBE_OUT[:-1])
