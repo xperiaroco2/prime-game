@@ -55,10 +55,13 @@ const KEEPALIVE: Array[int] = [0, 0, 0]
 ## Nothing heard from a peer for this long, keepalives included, is a leave (the M6 ADR §2.6):
 ## past a 5.2 s freeze and WebRTC's own 12.8 s on loopback, and LaneOrder's stall rule uses it too.
 const SILENCE_MS := 20000
-## A join not admitted this long after join() gives up (E54, a placeholder): no offer came (a
-## full or refusing host answers none), or the channels never opened. The host closes a half-made
-## connection after as long from the joiner's arrival.
+## A join not admitted after this long of polling (POLL_GAP_MAX_MS) gives up (E54, a placeholder):
+## no offer came (a full or refusing host answers none), or the channels never opened. The host
+## closes a half-made connection after as long from the joiner's arrival.
 const JOIN_TIMEOUT_MS := 15000
+## A join timeout counts a gap between polls up to this (#950): a stalled process answers nobody,
+## so its stall is no time the other side had. SILENCE_MS stays on the wall clock.
+const POLL_GAP_MAX_MS := 250
 ## A channel closed under a live connection becomes a leave after this long (placeholder): a client
 ## closing resets its channels just before its connection ends, and the host may read the first in
 ## a poll before the second.
@@ -122,8 +125,10 @@ var _next_peer_id := HOST_ID + 1
 var _max_clients := 0
 var _room_code := ""
 var _ice_servers: Array = []
-## Client: when join() started, whether the service ever answered, the id ADMIT gave.
-var _join_started_ms := 0
+## The join timeouts' clock, ms: the gaps between polls, each up to POLL_GAP_MAX_MS.
+var _polled_ms := 0
+## Client: when join() started (on _polled_ms), whether the service answered, the id ADMIT gave.
+var _join_started_polled_ms := 0
 var _signal_opened := false
 var _client_id := 0
 ## Client: `found` named another version; the join is failing and applies no offer.
@@ -144,6 +149,8 @@ class Conn:
 	var pc: WebRTCPeerConnection
 	var channels: Dictionary[NetKindTable.Lane, WebRTCDataChannel] = {}
 	var started_ms := 0
+	## started_ms on the transport's _polled_ms: the join timeout runs on it.
+	var started_polled_ms := 0
 	## Host: an answer was applied. Client: the offer was.
 	var described := false
 	## Every channel opened: the host sent ADMIT, the client waits for it.
@@ -329,7 +336,7 @@ func _backend_join(address: String, _port: int) -> Error:
 	var err := _open_signaller()
 	if err != OK:
 		return err
-	_join_started_ms = Time.get_ticks_msec()
+	_join_started_polled_ms = _polled_ms
 	found_protocol = -1
 	found_content = 0
 	_signaller.join_room(address)
@@ -343,6 +350,7 @@ func _backend_poll() -> void:
 	var now := Time.get_ticks_msec()
 	var since := _last_poll_ms if _last_poll_ms >= 0 else now
 	_last_poll_ms = now
+	_polled_ms += mini(now - since, POLL_GAP_MAX_MS)
 	for peer_id: int in _conns.keys():
 		if _conns.has(peer_id):
 			_step_connection(_conns[peer_id], now)
@@ -350,7 +358,8 @@ func _backend_poll() -> void:
 		if _conns.has(peer_id):
 			_read(_conns[peer_id], now, since)
 	_judge(now)
-	if role() == Role.CLIENT and _client_id == 0 and now - _join_started_ms > join_timeout_ms:
+	var join_waited := _polled_ms - _join_started_polled_ms
+	if role() == Role.CLIENT and _client_id == 0 and join_waited > join_timeout_ms:
 		_fail_join(JOIN_UNREACHABLE)
 	_ping(now)
 	for conn: Conn in _conns.values():
@@ -474,6 +483,7 @@ func _new_connection(key: int, joiner: int, ice_servers: Array) -> Conn:
 		channel.write_mode = WebRTCDataChannel.WRITE_MODE_BINARY
 		conn.channels[lane] = channel
 	conn.started_ms = Time.get_ticks_msec()
+	conn.started_polled_ms = _polled_ms
 	conn.last_sent_ms = conn.started_ms
 	conn.last_heard_ms = conn.started_ms
 	_conns[key] = conn
@@ -502,7 +512,7 @@ func _step_connection(conn: Conn, now: int) -> void:
 	elif not conn.open:
 		if conn.state() == WebRTCPeerConnection.STATE_CONNECTED and conn.all_channels_open():
 			_opened(conn, now)
-		elif now - conn.started_ms > join_timeout_ms:
+		elif _polled_ms - conn.started_polled_ms > join_timeout_ms:
 			_lose(conn, JOIN_UNREACHABLE)
 
 

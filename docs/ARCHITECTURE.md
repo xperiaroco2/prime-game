@@ -570,13 +570,18 @@ in the pregame, and no honest bot may decode it). How it looks: the `shot`s of �
     host read the first a poll before the second: 1 run in 10). Inside that grace a send on a channel the client
     closed returns `ERR_DOES_NOT_EXIST`, as for a peer gone, so the host logs no error for it (#639: a leave in
     `bots-webrtc` did in 3 runs of 4). `DISCONNECTED` is transient. A join not admitted
-    `JOIN_TIMEOUT_MS` (15 s) after `join()` gives up with `host_unreachable` (no offer came, or the channels never
-    opened); the host closes a half-made connection after as long. A join whose socket to the service has not opened
-    by `Signaller.CONNECT_TIMEOUT_MS` (5 s, §4.8) gives up before that with `service_unreachable` (#431, #461): on
-    Windows the engine reports a refused connect only at its TCP connect timeout
-    (`network/limits/tcp/connect_timeout_seconds`, 30 s; `WebSocketPeer` and `StreamPeerTCP` alike), though the OS
-    refuses a closed 127.0.0.1 port in about 2 s, and a service that takes the connection but never answers the
-    handshake reports nothing. On Linux the refused socket closes at once (`service_unreachable` too).
+    after `JOIN_TIMEOUT_MS` (15 s) of polling since `join()` gives up with `host_unreachable` (no offer came, or the
+    channels never opened); the host closes a half-made connection after as long. Both count the time the
+    transport polled: a gap between two polls counts up to `POLL_GAP_MAX_MS` (250 ms), so a stall of the own
+    process (a level loading, a loaded PC) is no time the other side had to answer (#950: the bots run's
+    instance 1 hosts, serves the signalling and joins the lurker in one process, where a stall once ended a live
+    join). The silence rule (`SILENCE_MS`) and the signalling's connect timeout stay on the wall clock: a stall of
+    20 s or more still ends a connection, and a stalled socket's `service_unreachable` is retried (§4.6.7). A join
+    whose socket to the service has not opened by `Signaller.CONNECT_TIMEOUT_MS` (5 s, §4.8) gives up before
+    that with `service_unreachable` (#431, #461): on Windows the engine reports a refused connect only at its TCP
+    connect timeout (`network/limits/tcp/connect_timeout_seconds`, 30 s; `WebSocketPeer` and `StreamPeerTCP`
+    alike), though the OS refuses a closed 127.0.0.1 port in about 2 s, and a service that takes the connection
+    but never answers the handshake reports nothing. On Linux the refused socket closes at once (`service_unreachable` too).
   - **Never a send on a closed channel:** each write checks the channel's `get_ready_state()` first (a closed one
     prints an engine `ERROR:` line, M6-1). A leaving peer's channels are drained and discarded until it is gone.
   - **Nor into a connection the other side shuts down** (#950): one closed over there can still read open here for a
@@ -2348,7 +2353,7 @@ Since #149 (M4-6, E20) `host` and `join` run this session with `--headless`, and
 `WebRtcWarmUp.wait()`, #510), so the setup is in no join's `JOIN_TIMEOUT_MS`; a remote bot prints how long its join
 took. A bot
 whose join found no room (`no_room`, `service_unreachable`: its process started first) joins again 0.5 s later;
-every other end (`host_unreachable`, after 15 s at most: the service answered and the connection never opened;
+every other end (`host_unreachable`, after 15 s of polling, §4: the service answered and the connection never opened;
 `joins_closed`, `full` and the other refusals; `host_lost` before the `Welcome`) fails the bot's step at once,
 naming the reason (#483), and a remote bot's view file carries that line to the host. The lurker and the refused
 bot, in the host's process, join again the same way, 3 joins at most (§4.6.4, #509). The fault
