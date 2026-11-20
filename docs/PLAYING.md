@@ -1,16 +1,16 @@
 # Playing with friends
 
 How to get PrimeGame, host a game and get your friends into it. This page is for players. Words in quotes are
-exactly what the game shows.
+exactly what the game shows (small headings, such as "Code", show in capitals).
 
-**Early releases.** The first zips are release candidates (`v0.6.0-rc...`). The code service that "Join with a
-code" and Host use is up, but no full match over the internet has been played on it yet: if a code does not work
-for you, play with **Direct (LAN or VPN)** (below). Take the newest release (marked **Latest**).
+**Early releases.** The code service that hosting and "Join" with a code use is up, but few matches over the internet
+have been played on it yet: if a code does not work for you, join by address (section 4). Take the newest release
+(marked **Latest**).
 
 ## 1. Get the game (Windows)
 
 1. Open the project's [Releases page](https://github.com/xperiaroco2/prime-game/releases) and download the zip
-   for Windows (named like `PrimeGame-v0.6.0-windows-x86_64.zip`).
+   for Windows (named like `PrimeGame-v0.8.0-windows-x86_64.zip`).
 2. Unzip it anywhere, for example to your Desktop.
 3. Run `PrimeGame.exe` inside the unzipped `PrimeGame` folder.
 4. The first time, Windows SmartScreen warns that the app is unrecognised (the game is not signed). Click
@@ -18,80 +18,81 @@ for you, play with **Direct (LAN or VPN)** (below). Take the newest release (mar
 
 Everyone in a game must use the **same release**. When a new one comes out, all of you download it again.
 
+The very first time, the game opens in the tutorial's room and asks "First time here?": **Start the tutorial** (about
+three minutes) or **Skip**. After that (and after Skip) it starts in your own ship, where you can walk around alone.
+Everything else starts from the menu: press **Esc** (the hint at the bottom left says so) to open it.
+
 ## 2. Host a game with a code
 
-1. In the main menu, click **Host**.
-2. You are now in the lobby. The code shows in the top-right corner, next to "Code" (your own 6 characters; "…" while
-   the code service makes your room).
-3. To copy it: press **Esc**, open the **Lobby** tab and click **Copy**.
-4. Paste the code to your friends in any chat app.
+1. Press **Esc** and click **Host a game**.
+2. You are now in your lobby. Press **Esc** again: the code is at the top of the menu, under "Code" (your own 6
+   characters; "…" while the code service makes your room). The match console in the ship shows it too.
+3. Click **Copy** next to it and paste the code to your friends in any chat app.
+
+If no code shows, the code service is not answering (the match console says "The code service isn't answering. To
+let more players in, host directly."): leave (**Esc**, **Leave the session**) and host by address (section 4).
 
 Only people who have the code can join. Keep the game running: when you leave, the game ends for everyone.
 
 ## 3. Join with a code
 
-1. In the main menu, under "Join with a code", type or paste the code into **Code**. Spaces, dashes and
-   upper or lower case do not matter.
-2. Click **Join** (or press Enter).
-3. The connecting screen shows "Joining the game with code ABCDEF" and the step: "Finding the game", then
-   "Connecting", then "Joined: waiting for the host". **Cancel** takes you back to the menu.
+1. Press **Esc** and open **Find a lobby**.
+2. Type the code into **Code**, or paste it exactly as the host's **Copy** gave it (6 characters, nothing between
+   them). Upper or lower case does not matter; **Join** turns on once all 6 characters are there.
+3. Click **Join** (or press Enter).
+4. The connecting screen shows the step: "Finding the game", then "Connecting to the host", then "Entering the
+   lobby". **Cancel** (or Esc) takes you back to your ship.
 
-## 4. Direct (LAN or VPN)
+**On the same home network** you may not need the code at all: **Find a lobby** lists the games running nearby
+under "Lobbies nearby" ("No lobbies nearby" when there are none). Pick one and click the **Join** under the list
+(or double-click it).
 
-Use this when you are all on the same home network, on a shared VPN, or with the fallback in section 6. It works
-today.
+## 4. Join by address (LAN or VPN)
+
+Use this when you are all on the same home network, on a shared VPN, or with the fallback in section 6.
 
 **The host:**
-1. Leave **Port** at 24600 unless you have a reason to change it.
-2. Click **Host Direct**.
+1. Press **Esc**, open **Find a lobby** and click **Join by address**.
+2. Click **Host a game** there, beside **Join** (not the menu's own **Host a game**, which hosts with a code). The
+   game hosts on the port named under the address box ("Port 24600"). To use another port, type it as `:24601` in
+   **Host address** first (your friends then add it to your address too).
 3. Tell your friends your address: your computer's local address (like `192.168.1.20`) on a home network, or your
    VPN address on a VPN.
-4. If Windows asks whether to let PrimeGame use the network, allow it. The game uses UDP on the port above.
+4. If Windows asks whether to let PrimeGame use the network, allow it. The game uses UDP on that port.
 
 **Everyone else:**
-1. Under "Direct (LAN or VPN)", replace the `127.0.0.1` in **Address** with the host's address. You can add the
-   port to it, like `192.168.1.20:24600`; otherwise the **Port** box is used.
-2. Click the **Join** next to **Host Direct** (not the one next to the code).
+1. Press **Esc**, open **Find a lobby** and click **Join by address**.
+2. Type the host's address into **Host address**. You can add the port to it, like `192.168.1.20:24600`; otherwise
+   the port under the box is used.
+3. Click **Join**. **Back** returns to the code box.
 
 ## 5. When it does not connect
 
-When a join or a host fails, you are back in the main menu, and the line at the bottom starts with "The last session
-ended:" followed by the reason. Find the reason here (match the whole quote: two rows start alike):
+When a join or a host fails, a screen says what happened. Its first button, when there is one, is the quickest way
+on; **Back** (or Esc) returns to your ship, with what you typed still there.
 
-| The reason starts with | What to do |
+| The screen says | What to do |
 |---|---|
-| "no game has that code" | Check the code with the host, letter by letter. The host may also have left: ask for the new code. |
-| "the code service could not be reached (or this build has none)" | The code service is down, or your network blocks it. Use Direct (LAN or VPN), or the fallback in section 6. |
-| "the code service refused the join" | Your game may be older than the code service. Download the newest release (the host too). |
-| "the host's lobby is full, or this machine could not reach the host directly" | If the lobby has room, your networks do not let you connect directly. Use the fallback in section 6. |
-| "the host's lobby is full" (nothing after it) | Wait for a free place, or ask someone to leave. |
-| "no answer from the host" | Direct join: check the host's game is running and in the lobby, the address, and the port; the host's firewall must let UDP in on that port. Code join: the host may have left; ask them to host again. |
-| "the host's match is under way" | Wait until the host is back in the lobby, then join again. |
-| "the host runs another protocol version", "the host runs another build" or "the host asked for a map this game does not have" | You and the host have different releases. Both download the newest release. |
-| "the host closed, or the connection was lost" | The host left or the network dropped. Ask the host to host again, then rejoin. |
-| "the map took too long to load here" | The match went on without you. Join again when the host is back in the lobby. |
-| "the map did not load on this machine" | Download and unzip the release again, then retry. |
-| "the session could not start (see the log): no code service is set" | The game was started with an empty `--signal=` (a test setting). Start it without that, or use **Host Direct**. |
-| "the session could not start (see the log)" followed by something else | After **Host Direct**: the port may be in use. Close any other copy of the game, or pick another **Port** (your friends then use it too). |
-
-When you click Join, the line may instead name a problem with what you typed (without "The last session ended:"):
-
-| The message | What to do |
-|---|---|
-| "type the code the host gave you" | The Code box is empty. |
-| "a code is 6 characters of letters and digits, without 0, O, 1, I or L" | The code is mistyped. Copy it again from the host. |
-| "type the host's address" | The Address box is empty. |
-| "... is neither an address nor a host name" | The address is mistyped. Ask the host for it again. |
-| "the port is a number from 1 to 65535, not ..." | Fix the part after the `:` in **Address**, or leave it out and use the **Port** box. |
+| "Couldn't connect" and "No game has this code. Check it with the host." | Check the code with the host, letter by letter. The host may also have left: ask for the new code. |
+| "Couldn't connect" and "The code service isn't answering. Join directly with the host's address." | The code service is down, or your network blocks it. Click **Join directly** and join by address (section 4), or use the fallback in section 6. |
+| "Couldn't connect" and "No link to the host. If the lobby has room, ask the host for an address and join directly." | Your networks do not let you connect to each other. Click **Join directly** and use the fallback in section 6. |
+| "Couldn't connect" and "The lobby is full." | Wait for a free place, or ask someone to leave; then **Try again**. |
+| "Couldn't connect" and "The host isn't answering. Check the address and the network." | Check that the host's game is running and in the lobby, the address and the port; the host's firewall must let UDP in on that port. With a code: the host may have left; ask them to host again. Then **Try again**. |
+| "Couldn't connect" and "The round has already started. Join when everyone is back in the lobby." | Wait until the host is back in the lobby, then **Try again**. |
+| "Couldn't connect" and "The host has another version of the game. You need the same one." (sometimes with "Host:" and "You:" versions) | You and the host have different releases. Both download the newest release. |
+| "Connection lost" | The host left or the network dropped. Ask the host to host again, then join again. |
+| "The map didn't load" and "The round goes on without you." | The match went on without you. Join again when the host is back in the lobby; if it keeps happening, download and unzip the release again. |
+| "Couldn't start the game" | Hosting failed, often because the port is in use. Close any other copy of the game and **Try again**, or host on another port (section 4; your friends then use it too). |
+| "The session stopped" and "The game ran into an error. The details are in the log." | Something went wrong in the game. Tell the person who shared the game with you what you were doing. |
 
 ## 6. The fallback when nothing connects
 
-Some home networks block direct connections between players. Then one of these gets you playing over **Direct
-(LAN or VPN)**:
+Some home networks block direct connections between players. Then one of these gets you playing with **Join by
+address** (section 4):
 
 - **playit.gg** (the plan; not tested with the game yet). Only the host installs it. The host creates a free UDP
-  tunnel to port 24600, clicks **Host Direct**, and shares the address playit.gg gives them. Friends type that
-  address, with its port, into **Address** and click **Join**.
+  tunnel to port 24600, clicks **Host a game** under **Join by address**, and shares the address playit.gg gives them.
+  Friends type that address, with its port, into **Host address** and click **Join**.
 - **Tailscale** (if playit.gg does not work out). Everyone installs Tailscale and joins the host's network (see
-  Tailscale's site for its free plan). The host clicks **Host Direct** and shares their Tailscale address.
-  Friends join it under Direct.
+  Tailscale's site for its free plan). The host clicks **Host a game** under **Join by address** and shares their Tailscale
+  address. Friends join it by address.
