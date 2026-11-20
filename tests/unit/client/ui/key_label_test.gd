@@ -91,7 +91,7 @@ func test_space_shift_tab_and_esc_keycaps_are_wide_and_a_rebind_decides() -> voi
 	tab.physical_keycode = KEY_TAB
 	controls.bind(&"interact", tab)
 	var narrow := InputEventKey.new()
-	# N: Z is the left flipper's in the lobby (#1400, Controls.UNLISTED) and refused for sprint.
+	# N: Z is the left flipper's default in the lobby (#1661), so sprint there would clash.
 	narrow.physical_keycode = KEY_N
 	controls.bind(&"sprint", narrow)
 	controls.apply()

@@ -1,11 +1,10 @@
 class_name PinballKeys
 extends Node
 ## The seated player's flipper keys (#1400; ARCHITECTURE §4.7.63, §7.1.22): the held state of
-## `flipper_left` and `flipper_right` (`Controls.UNLISTED`; Settings rows once the deck has them,
-## §4.7.28) goes to the host as one `Flippers(left, right)` intent on each change, and only while
-## the own player holds the seat
-## (ClientPinball.player). Nothing is predicted: the table view turns the flippers from the host's
-## PinballState, which everyone gets.
+## `flipper_left` and `flipper_right` (Settings rows, rebindable, #1661; §4.7.28) goes to the host
+## as one `Flippers(left, right)` intent on each change, and only while the own player holds the
+## seat (ClientPinball.player). Nothing is predicted: the table view turns the flippers from the
+## host's PinballState, which everyone gets.
 ##
 ## - No stuck flipper: a key counts only while `listening` (GamePlayer.apply_flags: no Esc menu,
 ##   the lobby screen or the dead's hall's Round, #1489), `reads_device_input` and the window has
@@ -17,7 +16,7 @@ extends Node
 ##   (§7.1.22), so when the host's PinballState still differs from the last state sent
 ##   RECONCILE_MSEC after the last send and nothing waits, that state goes again.
 
-## The flipper actions (project.godot; Controls.UNLISTED until their Settings rows).
+## The flipper actions (project.godot's defaults Z and Slash; Controls' rows).
 const LEFT := &"flipper_left"
 const RIGHT := &"flipper_right"
 ## The least time between two intents, in milliseconds (not a decision: 16 a second at most).
