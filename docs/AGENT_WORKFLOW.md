@@ -1870,13 +1870,16 @@ webrtc-native (#367), exactly the notices of `export.NOTICES` and no console wra
 `OS.is_debug_build()` false, which turns off F3, the dev tools and the debug kinds), checks that the debug zip
 carries the same notices, and proves the content hash in an export with
 `tools/export/export_probe.gd` run
-on the pack: every level and what it reaches found, a second tree's export equal, one byte changed in each level
+on the pack: every level and what it reaches found, the release tree exported again from the same import equal (a fresh
+import of a `.glb` gives other bytes, #1664), one byte changed in each level
 a new hash; and, since the game's levels reach no other file yet, on `ContentFingerprint`'s test fixtures exported
 from that tree: the walk reaches the same five files as in the project, and one byte of a reached resource or of a
 texture's source changes the hash. The export converts `.tscn`/`.tres` to binary under `.godot/exported/` behind a `.remap`, and ships an
 imported asset's products without its source; `ContentFingerprint` hashes what is shipped, so an export's hash
-differs from a source run's (M6 ADR §2.5). The debug and the release zip of one commit have one hash and play
-together, so a human who hosts with the debug zip sees hidden information through F3 (invariant 8: on that machine
+differs from a source run's (M6 ADR §2.5). The debug and the release zip of one run have one hash and play
+together (another run of the same commit has another hash: a fresh import of a `.glb` gives other bytes, #1664, so a
+replaced release zip does not play with an earlier download of it), so a human who hosts with the debug zip sees
+hidden information through F3 (invariant 8: on that machine
 only). About 3 minutes after the 1.3 GB download (#369's session). The workflow
 `.github/workflows/release.yml` runs it on a pushed `v*` tag (never on a PR), with LFS content (unlike `verify`),
 attaches only the release zip to that tag's GitHub Release (a re-run replaces it) and keeps the debug zip as a
