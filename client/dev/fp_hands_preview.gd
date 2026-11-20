@@ -5,7 +5,7 @@ extends Node3D
 ## controller puts them, in body colour `colour` (BodyColours; -1: the package's default,
 ## FpHands.DEFAULT_TINT). `state` picks the frame: "idle",
 ## "run" (a quarter into its cycle), "punch" (at its contact, 0.15 s), "crystal" (a charged crystal
-## held, a second into Crystal_Idle) or "crystal_hit" (at its contact, 0.18 s). Each clip is
+## held, a second into Crystal_Idle) or "crystal_hit" (at its contact, 0.20 s). Each clip is
 ## seeked and paused, so the still does not depend on the frame rate. Dev only.
 
 const ROOM := "res://levels/estate/rooms/ship.tscn"
@@ -23,7 +23,7 @@ const STATES := {
 	"run": [&"Run", 0.23],
 	"punch": [&"Punch", 0.15],
 	"crystal": [&"Crystal_Idle", 1.0],
-	"crystal_hit": [&"Crystal_Hit", 0.18],
+	"crystal_hit": [&"Crystal_Hit", 0.20],
 }
 
 @export var state := "idle"
