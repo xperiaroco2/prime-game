@@ -5910,8 +5910,11 @@ draws the hands. The view shows while the own player is living and the player ca
   code.
 - **The fists:** `FPArms`' two morph targets, `fist` (the right hand) and `fist_L` (the left), are keyed in every
   clip: 1 in `Idle`, `Run` and `Punch`, 0 in the crystal clips. The code keys and resets none: the switch's blend
-  opens the fists onto the crystal over its 0.15 s and closes them again (`fp_hands_test.gd`, on a fixture, and on
-  the package where its Git LFS content is there).
+  opens the fists onto the crystal over its 0.15 s and closes them again. A crystal taken or dropped during a hit of
+  the other state ends that hit at once (its clip would key the old fists), and the new state's clip blends in.
+  Tests: `fp_hands_test.gd` on a fixture; `tests/integration/client/player/fp_hands_art_test.gd` on the package
+  (the keys on `FPArms` in every clip, the blend, the colour and the layer), in the nightly `lfs` job (CI has only
+  the Git LFS stand-in: skip).
 
 The hands have no sound beyond the existing swing. A later package from the art repo replaces the one GLB (its
 `.import`, its credits, and the textures Godot extracts from it, which `check` writes and which keep

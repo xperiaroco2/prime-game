@@ -173,6 +173,10 @@ func set_held(kind: StringName) -> void:
 		_show_crystal(1.0 if kind == &"crystal_charged" else 0.0)
 	elif crystal != null:
 		crystal.set_shown(false)
+	# A hit of the other state ends here: its clip keys its own fists, so the crystal would show in
+	# a closed fist (or the hands stay open round none) until it ended.
+	if _hitting and StringName(player.current_animation) != hit_clip(holds_crystal()):
+		_hitting = false
 	_follow_state()
 
 

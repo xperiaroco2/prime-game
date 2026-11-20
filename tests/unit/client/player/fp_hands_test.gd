@@ -255,8 +255,9 @@ func _assert_fists(arms: MeshInstance3D, value: float) -> void:
 		assert_float(arms.get_blend_shape_value(index)).is_equal_approx(value, 1e-3)
 
 
-## Plays `hands` on for `seconds` in frames of FRAME_S, as the game's frames do (the morphs one
-## blends show the step before: seen in the real package too, Godot 4.7.2), then one empty step.
+## Plays `hands` on for `seconds` in frames of FRAME_S, as the game's frames do, then one empty
+## step: a cross-fade's weight reaches the morphs one advance() late (Godot 4.7.2, seen on the
+## real package too), and the empty step settles it.
 func _play_for(hands: FpHands, seconds: float) -> void:
 	var left := seconds
 	while left > 1e-6:
@@ -294,41 +295,35 @@ func test_the_fists_are_the_clips_and_open_onto_the_crystal_in_the_blend() -> vo
 	hands.play_hit()
 	_play_for(hands, FpHands.HIT_BLEND_S * 2.0)
 	assert_str(hands.current_clip()).is_equal("Punch")
+	# The Punch pins the hit's own keys (1, against the state's 1 and a missing track's 0); the
+	# crystal hit's 0 above is the state's too.
 	_assert_fists(arms, 1.0)
 
 
-func test_the_package_keys_both_fists_in_every_clip_and_both_arms_take_colour_and_layer() -> void:
-	# The real package (art#387, g5): both arms in FPArms' one skin, both morphs keyed in each
-	# clip. CI has its Git LFS stand-in only: nothing to check there.
-	var hands: FpHands = auto_free(FpHands.new())
+func test_a_crystal_taken_or_dropped_in_a_hit_ends_the_hit() -> void:
+	# The hit's clip keys its own fists: the crystal shown in a closed fist, or open hands round
+	# none, until it ended. It ends at once and the new state's clip blends in.
+	var hands: FpHands = auto_free(FpHands.new(_fixture(true, false, false, true)))
 	add_child(hands)
-	if hands.model == null:
-		return
-	for clip: StringName in CLIPS:
-		var animation := hands.player.get_animation(clip)
-		var keyed: Array[String] = []
-		for track: int in animation.get_track_count():
-			if animation.track_get_type(track) != Animation.TYPE_BLEND_SHAPE:
-				continue
-			keyed.append(String(animation.track_get_path(track).get_concatenated_subnames()))
-			for key: int in animation.track_get_key_count(track):
-				var value := animation.track_get_key_value(track, key) as float
-				assert_float(value).is_equal_approx(_fist_of(clip), 1e-3)
-		assert_array(keyed).contains_exactly_in_any_order(["fist", "fist_L"])
-	var colour := BodyColours.of(2)
-	hands.set_tint(colour)
-	var meshes := hands.model.find_children("*", "MeshInstance3D", true, false)
-	assert_array(meshes).is_not_empty()
-	for node: Node in meshes:
-		var mesh := node as MeshInstance3D
-		assert_int(mesh.layers).is_equal(PhotoLayers.HANDS)
-		assert_int(mesh.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
-		for i: int in mesh.get_surface_override_material_count():
-			var material := mesh.get_active_material(i) as BaseMaterial3D
-			# The package's skin factor is white (HANDOFF): the hands are the own colour.
-			assert_that(material.albedo_color).is_equal(colour)
 	var arms := hands.model.find_child("FPArms", true, false) as MeshInstance3D
-	assert_int(arms.get_blend_shape_count()).is_equal(FISTS.size())
+	hands.play_hit()
+	_play_for(hands, FpHands.HIT_BLEND_S)
+	hands.set_held(&"crystal_charged")
+	assert_str(hands.current_clip()).is_equal("Crystal_Idle")
+	_play_for(hands, FpHands.BLEND_S * 2.0)
+	_assert_fists(arms, 0.0)
+	hands.play_hit()
+	_play_for(hands, FpHands.HIT_BLEND_S)
+	hands.set_held(&"")
+	assert_str(hands.current_clip()).is_equal("Idle")
+	_play_for(hands, FpHands.BLEND_S * 2.0)
+	_assert_fists(arms, 1.0)
+	# A change that keeps the hit's state (charged to spent) lets the hit play on.
+	hands.set_held(&"crystal_charged")
+	_play_for(hands, FpHands.BLEND_S * 2.0)
+	hands.play_hit()
+	hands.set_held(&"crystal_spent")
+	assert_str(hands.current_clip()).is_equal("Crystal_Hit")
 
 
 func test_a_held_crystal_sits_on_the_socket_at_forty_percent_light() -> void:
