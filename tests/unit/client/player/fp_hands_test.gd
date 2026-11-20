@@ -11,9 +11,38 @@ const CLIPS: Array[StringName] = [
 const SKIN := Color(0.8, 0.6, 0.5)
 ## A second arm's own albedo (a package may split the two arms into meshes or surfaces).
 const SKIN_2 := Color(0.6, 0.5, 0.4)
+## The package's two morph targets (art#387's HANDOFF): the right fist and the left.
+const FISTS: Array[StringName] = [&"fist", &"fist_L"]
+## One frame of the game at 60 Hz, the step _play_for advances the clips by.
+const FRAME_S := 1.0 / 60.0
 
 
-func _fixture(with_player := true, looping_hit := false, second_arm := false) -> PackedScene:
+## The fists each clip keys (HANDOFF "Clips"): closed with an empty hand, open on the crystal.
+static func _fist_of(clip: StringName) -> float:
+	return 0.0 if String(clip).begins_with("Crystal") else 1.0
+
+
+## A triangle with the package's two morph targets, its surface in `skin`.
+static func _fist_mesh(skin: StandardMaterial3D) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	for target: StringName in FISTS:
+		mesh.add_blend_shape(target)
+	var points := PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = points
+	var shape: Array = []
+	shape.resize(Mesh.ARRAY_MAX)
+	shape[Mesh.ARRAY_VERTEX] = points
+	var shapes: Array[Array] = [shape, shape.duplicate()]
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, shapes)
+	mesh.surface_set_material(0, skin)
+	return mesh
+
+
+func _fixture(
+	with_player := true, looping_hit := false, second_arm := false, fists := false
+) -> PackedScene:
 	var root := Node3D.new()
 	root.name = "Fixture"
 	if with_player:
@@ -26,6 +55,11 @@ func _fixture(with_player := true, looping_hit := false, second_arm := false) ->
 			# As the package imports them: the state clips loop (their `_Loop` names), the hits not.
 			if (clip != &"Punch" and clip != &"Crystal_Hit") or looping_hit:
 				animation.loop_mode = Animation.LOOP_LINEAR
+			if fists:
+				for target: StringName in FISTS:
+					var track := animation.add_track(Animation.TYPE_BLEND_SHAPE)
+					animation.track_set_path(track, NodePath("FPArms:%s" % target))
+					animation.blend_shape_track_insert_key(track, 0.0, _fist_of(clip))
 			library.add_animation(clip, animation)
 		player.add_animation_library(&"", library)
 		root.add_child(player)
@@ -40,7 +74,7 @@ func _fixture(with_player := true, looping_hit := false, second_arm := false) ->
 	var skin := StandardMaterial3D.new()
 	skin.albedo_color = SKIN
 	box.material = skin
-	arms.mesh = box
+	arms.mesh = _fist_mesh(skin) if fists else box
 	root.add_child(arms)
 	arms.owner = root
 	if second_arm:
@@ -196,7 +230,7 @@ func test_the_hands_take_the_own_body_colour() -> void:
 
 
 func test_every_arm_takes_the_colour_and_the_layer() -> void:
-	# The two hands in view (art#136, 2026-11-20) are one skin today; a package that splits the
+	# The two hands in view (art#387, 2026-11-20) are one skin today; a package that splits the
 	# arms into meshes still gets both in the own colour, on HANDS alone, with no shadow.
 	var hands: FpHands = auto_free(FpHands.new(_fixture(true, false, true)))
 	add_child(hands)
@@ -212,6 +246,89 @@ func test_every_arm_takes_the_colour_and_the_layer() -> void:
 		)
 		assert_int(arm.layers).is_equal(PhotoLayers.HANDS)
 		assert_int(arm.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+
+
+func _assert_fists(arms: MeshInstance3D, value: float) -> void:
+	for target: StringName in FISTS:
+		var index := arms.find_blend_shape_by_name(target)
+		assert_int(index).is_not_equal(-1)
+		assert_float(arms.get_blend_shape_value(index)).is_equal_approx(value, 1e-3)
+
+
+## Plays `hands` on for `seconds` in frames of FRAME_S, as the game's frames do (the morphs one
+## blends show the step before: seen in the real package too, Godot 4.7.2), then one empty step.
+func _play_for(hands: FpHands, seconds: float) -> void:
+	var left := seconds
+	while left > 1e-6:
+		var step := minf(FRAME_S, left)
+		hands.player.advance(step)
+		left -= step
+	hands.player.advance(0.0)
+
+
+func test_the_fists_are_the_clips_and_open_onto_the_crystal_in_the_blend() -> void:
+	# Both morphs (art#387: fist the right, fist_L the left) are the clips' alone: the code keys
+	# and resets none, so the fists close with an empty hand, open on the crystal over the
+	# switch's blend (HANDOFF "Clips") and close again; a hit keeps them as its clip keys them.
+	var hands: FpHands = auto_free(FpHands.new(_fixture(true, false, false, true)))
+	add_child(hands)
+	var arms := hands.model.find_child("FPArms", true, false) as MeshInstance3D
+	_play_for(hands, 0.1)
+	_assert_fists(arms, 1.0)
+	hands.set_held(&"crystal_charged")
+	_play_for(hands, FpHands.BLEND_S / 2.0)
+	for target: StringName in FISTS:
+		var halfway := arms.get_blend_shape_value(arms.find_blend_shape_by_name(target))
+		assert_float(halfway).is_between(0.1, 0.9)
+	_play_for(hands, FpHands.BLEND_S)
+	_assert_fists(arms, 0.0)
+	hands.play_hit()
+	_play_for(hands, FpHands.HIT_BLEND_S * 2.0)
+	assert_str(hands.current_clip()).is_equal("Crystal_Hit")
+	_assert_fists(arms, 0.0)
+	hands.player.animation_finished.emit(&"Crystal_Hit")
+	hands.set_held(&"")
+	assert_str(hands.current_clip()).is_equal("Idle")
+	_play_for(hands, FpHands.BLEND_S * 2.0)
+	_assert_fists(arms, 1.0)
+	hands.play_hit()
+	_play_for(hands, FpHands.HIT_BLEND_S * 2.0)
+	assert_str(hands.current_clip()).is_equal("Punch")
+	_assert_fists(arms, 1.0)
+
+
+func test_the_package_keys_both_fists_in_every_clip_and_both_arms_take_colour_and_layer() -> void:
+	# The real package (art#387, g5): both arms in FPArms' one skin, both morphs keyed in each
+	# clip. CI has its Git LFS stand-in only: nothing to check there.
+	var hands: FpHands = auto_free(FpHands.new())
+	add_child(hands)
+	if hands.model == null:
+		return
+	for clip: StringName in CLIPS:
+		var animation := hands.player.get_animation(clip)
+		var keyed: Array[String] = []
+		for track: int in animation.get_track_count():
+			if animation.track_get_type(track) != Animation.TYPE_BLEND_SHAPE:
+				continue
+			keyed.append(String(animation.track_get_path(track).get_concatenated_subnames()))
+			for key: int in animation.track_get_key_count(track):
+				var value := animation.track_get_key_value(track, key) as float
+				assert_float(value).is_equal_approx(_fist_of(clip), 1e-3)
+		assert_array(keyed).contains_exactly_in_any_order(["fist", "fist_L"])
+	var colour := BodyColours.of(2)
+	hands.set_tint(colour)
+	var meshes := hands.model.find_children("*", "MeshInstance3D", true, false)
+	assert_array(meshes).is_not_empty()
+	for node: Node in meshes:
+		var mesh := node as MeshInstance3D
+		assert_int(mesh.layers).is_equal(PhotoLayers.HANDS)
+		assert_int(mesh.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		for i: int in mesh.get_surface_override_material_count():
+			var material := mesh.get_active_material(i) as BaseMaterial3D
+			# The package's skin factor is white (HANDOFF): the hands are the own colour.
+			assert_that(material.albedo_color).is_equal(colour)
+	var arms := hands.model.find_child("FPArms", true, false) as MeshInstance3D
+	assert_int(arms.get_blend_shape_count()).is_equal(FISTS.size())
 
 
 func test_a_held_crystal_sits_on_the_socket_at_forty_percent_light() -> void:

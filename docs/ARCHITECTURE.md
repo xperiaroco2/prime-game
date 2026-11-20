@@ -5903,10 +5903,15 @@ draws the hands. The view shows while the own player is living and the player ca
   remote body; the package's skin is a neutral texture under a white factor, so the albedo is the body colour
   (until it is known, the package's default `DEFAULT_TINT`, sRGB 0.40 0.86 0.80). The hands' environment takes
   `AMBIENT_SHARE` (0.8) of the view's ambient light.
-- **Both arms:** the package's `FPArms` is one skin of both forearms and hands on one rig; where each hand is in a
-  clip (the left too: below the frame, or in view as the art repo's two-hand rest of 2026-11-20 has it, not yet
-  approved) is the clip's own. The code only picks the clips, and tints and layers every mesh of the package, so a
-  package with both hands in view, or with the arms split into meshes, changes no code.
+- **Both arms:** the package's `FPArms` is one skin of both forearms and hands on one rig (the package the engineer
+  approved for M8 on prime-game-art#387, 2026-11-20: two compact fists at rest, the right punches, the overhead
+  crystal hit; the polish is art#388); where each hand is in a clip is the clip's own. The code only picks the
+  clips, and tints and layers every mesh of the package, so a package with the arms split into meshes changes no
+  code.
+- **The fists:** `FPArms`' two morph targets, `fist` (the right hand) and `fist_L` (the left), are keyed in every
+  clip: 1 in `Idle`, `Run` and `Punch`, 0 in the crystal clips. The code keys and resets none: the switch's blend
+  opens the fists onto the crystal over its 0.15 s and closes them again (`fp_hands_test.gd`, on a fixture, and on
+  the package where its Git LFS content is there).
 
 The hands have no sound beyond the existing swing. A later package from the art repo replaces the one GLB (its
 `.import`, its credits, and the textures Godot extracts from it, which `check` writes and which keep
