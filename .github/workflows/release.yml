@@ -49,7 +49,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      # A re-run of the job replaces the zip on the release it already created.
+      # A re-run of the job replaces the zip on the release it already created. Its content hash differs (a fresh import
+      # of a .glb gives other bytes, #1664): the replaced zip does not play with an earlier download of the tag.
       - name: Publish the release zip
         env:
           GH_TOKEN: ${{ github.token }}

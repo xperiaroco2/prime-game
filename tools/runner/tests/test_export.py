@@ -42,6 +42,63 @@ class ProbeTest(unittest.TestCase):
         self.assertEqual(probe.missing, [f"{MODE}: res://levels/rooms/room.tscn"])
         self.assertEqual(probe.missing_digests(), ["file res://levels/rooms/room.tscn missing"])
 
+    def test_a_mode_without_a_lobby_names_no_level_and_misses_nothing(self) -> None:
+        # v0.8.0-rc1's release run (#1664): the tutorial mode has no lobby_level, and ContentFingerprint writes the
+        # empty lobby as `level  missing`; that is no level and no file missing from the export.
+        tutorial = "res://content/modes/tutorial_mode.tres"
+        probe = export.parse_probe(
+            [
+                *PROBE_OUT[:-1],
+                f"EXPORT mode {tutorial} 512",
+                f"EXPORT text {tutorial} mode 7",
+                f"EXPORT text {tutorial} level  missing",
+                f"EXPORT text {tutorial} level res://levels/tutorial/tutorial.tscn 9e3c",
+                "EXPORT done 2",
+            ]
+        )
+        self.assertEqual(
+            probe.levels(),
+            ["res://levels/lobby/lobby.tscn", "res://levels/greybox/greybox.tscn", "res://levels/tutorial/tutorial.tscn"],
+        )
+        self.assertEqual(probe.levels_of(tutorial), ["res://levels/tutorial/tutorial.tscn"])
+        self.assertEqual(probe.missing_digests(), ["file res://levels/rooms/room.tscn missing"])
+
+    def test_only_the_lobby_may_be_empty(self) -> None:
+        # An empty map slot is a broken mode, not a mode without a lobby: it stays missing.
+        empty_map = export.parse_probe(
+            [
+                f"EXPORT mode {MODE} 1",
+                f"EXPORT text {MODE} mode 7",
+                f"EXPORT text {MODE} level res://levels/lobby/lobby.tscn d1a4",
+                f"EXPORT text {MODE} level  missing",
+                "EXPORT done 1",
+            ]
+        )
+        self.assertEqual(empty_map.missing_digests(), ["level  missing"])
+        self.assertEqual(empty_map.levels_of(MODE), ["res://levels/lobby/lobby.tscn", ""])
+
+    def test_a_mode_without_a_lobby_passes_the_proofs_first_check(self) -> None:
+        tutorial = "res://content/modes/tutorial_mode.tres"
+        release = export.parse_probe(
+            [
+                *[line for line in PROBE_OUT[:-1] if "missing" not in line],
+                f"EXPORT mode {tutorial} 512",
+                f"EXPORT text {tutorial} mode 7",
+                f"EXPORT text {tutorial} level  missing",
+                f"EXPORT text {tutorial} level res://levels/tutorial/tutorial.tscn 9e3c",
+                "EXPORT done 2",
+            ]
+        )
+        with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
+            export,
+            EXPORT=Path(out),
+            export=mock.Mock(side_effect=Failure("stop")),
+            ok=mock.DEFAULT,
+        ):
+            with self.assertRaises(Failure) as caught:
+                export.prove_hash(Path("build"), Path("data"), release)
+        self.assertEqual(str(caught.exception), "stop")
+
     def test_a_probe_that_never_finished_or_found_no_mode_fails(self) -> None:
         with self.assertRaises(Failure):
             export.parse_probe(PROBE_OUT[:-1])
@@ -64,7 +121,7 @@ class ProbeTest(unittest.TestCase):
 
     def test_a_proof_with_a_missing_file_fails_before_any_export(self) -> None:
         with self.assertRaises(Failure) as caught:
-            export.prove_hash("HEAD", Path("unused"), export.parse_probe(PROBE_OUT))
+            export.prove_hash(Path("unused"), Path("unused"), export.parse_probe(PROBE_OUT))
         self.assertIn("misses files", str(caught.exception))
         self.assertIn("room.tscn", str(caught.exception))
 
@@ -414,22 +471,139 @@ class ImportTest(unittest.TestCase):
             ],
         )
 
-    def test_the_second_tree_of_the_hash_proof_is_imported_before_its_export(self) -> None:
-        calls: list[str] = []
-        again = Path("again")
+    def test_the_hash_proof_exports_again_from_the_release_import(self) -> None:
+        # A fresh import of a .glb gives other bytes (#1664): the proof neither makes nor imports a second tree.
+        build = Path("build")
         release = export.parse_probe([line for line in PROBE_OUT if "missing" not in line])
         with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
             export,
             EXPORT=Path(out),
-            clean_tree=mock.Mock(side_effect=lambda rev, dest: calls.append("clean_tree") or again),
-            import_tree=mock.Mock(side_effect=lambda tree, data, log: calls.append(f"import_tree {tree}")),
+            clean_tree=mock.DEFAULT,
+            import_tree=mock.DEFAULT,
             export=mock.Mock(side_effect=Failure("stop")),
             ok=mock.DEFAULT,
         ):
             with self.assertRaises(Failure):
-                export.prove_hash("HEAD", Path("data"), release)
-            self.assertEqual(export.export.call_args.args[0], again)
-        self.assertEqual(calls, ["clean_tree", f"import_tree {again}"])
+                export.prove_hash(build, Path("data"), release)
+            self.assertEqual(export.export.call_args.args[0], build)
+            export.clean_tree.assert_not_called()
+            export.import_tree.assert_not_called()
+
+    def _proof_tree(self, root: Path) -> dict[Path, bytes]:
+        """A release tree for prove_hash: PROBE_OUT's two levels, the presets and the walk's fixtures."""
+        files = {
+            "levels/lobby/lobby.tscn": b'[gd_scene format=3]\n\n[node name="Lobby" type="Node3D"]\n',
+            "levels/greybox/greybox.tscn": b'[gd_scene format=3]\n\n[node name="Greybox" type="Node3D"]\n',
+            "export_presets.cfg": b'exclude_filter="tests/*"\n',
+            "tests/unit/.keep": b"",
+        }
+        for path, (old, _) in export.FIXTURE_EDITS.items():
+            files[path.removeprefix("res://")] = b"x " + old + b" y\n"
+        for name, text in files.items():
+            (root / name).parent.mkdir(parents=True, exist_ok=True)
+            (root / name).write_bytes(text)
+        return {root / name: text for name, text in files.items()}
+
+    def _proof_probe(self, release: export.Probe) -> mock.Mock:
+        """The probe of each proof pack, by its folder: the release's hash again, another one for a changed level, the
+        walk and another walk for a changed fixture."""
+
+        def probe(pack: Path, data: Path, walk: tuple[str, ...] = ()) -> export.Probe:
+            name = pack.parent.name
+            if name == "again":
+                return release
+            if name.startswith("level-"):
+                return export.Probe(fingerprints={mode: 1 for mode in release.fingerprints})
+            if name == "walk":
+                return export.Probe(walks={export.FIXTURE_MAP: 1}, reached={export.FIXTURE_MAP: export.FIXTURE_REACHED})
+            return export.Probe(walks={export.FIXTURE_MAP: 2})
+
+        return mock.Mock(side_effect=probe)
+
+    def test_the_hash_proof_gives_the_release_tree_its_bytes_back(self) -> None:
+        release = export.parse_probe([line for line in PROBE_OUT if "missing" not in line])
+        with tempfile.TemporaryDirectory() as out:
+            tree = Path(out) / "trees" / "build"
+            original = self._proof_tree(tree)
+            changed: dict[str, list[str]] = {}
+
+            def record(where: Path, data: Path, mode: str, preset: str, target: Path, log: str) -> None:
+                self.assertEqual(where, tree)
+                changed[target.parent.name] = [
+                    path.relative_to(tree).as_posix() for path, text in original.items() if path.read_bytes() != text
+                ]
+
+            with mock.patch.multiple(
+                export, EXPORT=Path(out), export=mock.Mock(side_effect=record), probe=self._proof_probe(release),
+                ok=mock.DEFAULT,
+            ):
+                export.prove_hash(tree, Path("data"), release)
+            self.assertEqual({path: path.read_bytes() for path in original}, original)
+        fixtures = [path.removeprefix("res://") for path in export.FIXTURE_EDITS]
+        self.assertEqual(
+            changed,
+            {
+                "again": [],
+                "level-0": ["levels/lobby/lobby.tscn"],
+                "level-1": ["levels/greybox/greybox.tscn"],
+                "walk": ["export_presets.cfg"],
+                "walk-0": ["export_presets.cfg", fixtures[0]],
+                "walk-1": ["export_presets.cfg", fixtures[1]],
+            },
+        )
+
+    def test_a_failed_proof_export_still_gives_the_release_tree_its_bytes_back(self) -> None:
+        release = export.parse_probe([line for line in PROBE_OUT if "missing" not in line])
+        for failing in ("level-1", "walk-0"):
+            with self.subTest(failing), tempfile.TemporaryDirectory() as out:
+                tree = Path(out) / "trees" / "build"
+                original = self._proof_tree(tree)
+
+                def fail(where: Path, data: Path, mode: str, preset: str, target: Path, log: str) -> None:
+                    if target.parent.name == failing:
+                        raise Failure("stop")
+
+                with mock.patch.multiple(
+                    export, EXPORT=Path(out), export=mock.Mock(side_effect=fail), probe=self._proof_probe(release),
+                    ok=mock.DEFAULT,
+                ):
+                    with self.assertRaises(Failure):
+                        export.prove_hash(tree, Path("data"), release)
+                self.assertEqual({path: path.read_bytes() for path in original}, original)
+
+    def test_the_hash_proof_runs_on_the_release_tree_once_its_zips_are_written(self) -> None:
+        trees: list[Path] = []
+
+        def prove(tree: Path, data: Path, probe: export.Probe) -> None:
+            trees.append(tree)
+            raise Failure("stop")
+
+        release = export.parse_probe([line for line in PROBE_OUT if "missing" not in line])
+        with tempfile.TemporaryDirectory() as out, mock.patch.multiple(
+            export,
+            EXPORT=Path(out),
+            git=mock.Mock(return_value=Result(rc=0, out="a" * 40 + "\n", timed_out=False, seconds=0.0)),
+            install_templates=mock.DEFAULT,
+            clean_tree=mock.Mock(side_effect=lambda rev, dest: dest),
+            set_version=mock.DEFAULT,
+            import_tree=mock.DEFAULT,
+            export=mock.DEFAULT,
+            add_notices=mock.DEFAULT,
+            write_zip=mock.DEFAULT,
+            check_release=mock.Mock(return_value=[]),
+            missing_notices=mock.Mock(return_value=[]),
+            probe=mock.Mock(return_value=release),
+            missing_translations=mock.Mock(return_value=[]),
+            prove_hash=mock.Mock(side_effect=prove),
+            say=mock.DEFAULT,
+            ok=mock.DEFAULT,
+        ):
+            with self.assertRaises(Failure):
+                export.main("v0.8.0")
+            self.assertEqual(export.write_zip.call_count, 2)
+            self.assertEqual(export.clean_tree.call_count, 1)
+            self.assertEqual(export.import_tree.call_count, 1)
+        self.assertEqual(trees, [Path(out) / "trees" / "build"])
 
 
 class HelpersTest(unittest.TestCase):

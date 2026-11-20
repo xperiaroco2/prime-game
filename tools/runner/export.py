@@ -20,8 +20,9 @@
    OS.is_debug_build() is false only in a release template, and the F3 overlay, the dev tools and the debug wire kinds
    exist only when it is true (invariant 8). The debug zip must carry the same notices.
 5. The content hash in an export (M6 ADR §2.5): tools/export/export_probe.gd runs against the release pack. Every
-   level and every file it reaches is found, and both UI translations load (#1131); a second tree of the same commit
-   exported again gives the same hash; one byte changed in each level gives another. The game's levels reach no other file yet, so the walk is proven on
+   level and every file it reaches is found, and both UI translations load (#1131); the release's tree exported again
+   from the same import gives the same hash (a fresh import of a `.glb` gives other bytes, #1664); one byte changed in
+   each level gives another. The walk is also proven on
    the test fixtures of ContentFingerprint's suite, exported from that tree with tests/fixtures/ kept: a map reaching
    two scenes, a resource and an imported texture (the binary scenes' dependencies and the export's `.import`), every
    one found, and one byte of the resource or of the texture's source changing the hash.
@@ -95,6 +96,8 @@ TRANSLATIONS = ("client/i18n/strings.en.translation", "client/i18n/strings.uk.tr
 IMPORT_TIMEOUT = 900
 PACK_WITHOUT_LINUX = ("twovoip", "webrtc_native")
 PROBE = ROOT / "tools" / "export" / "export_probe.gd"
+# ContentFingerprint's first level line for a mode with an empty lobby_level (the tutorial, #1664): no file.
+NO_LOBBY = "level  missing"
 EXPORT_TIMEOUT = 600
 PROBE_TIMEOUT = 120
 LFS_POINTER = b"version https://git-lfs.github.com/spec/v1"
@@ -252,18 +255,30 @@ class Probe:
     def levels(self) -> list[str]:
         """The level files the modes name, in order, each once."""
         found: list[str] = []
-        for lines in self.texts.values():
-            for line in lines:
-                parts = line.split(" ")
-                if parts[0] == "level" and parts[1] not in found:
-                    found.append(parts[1])
+        for mode in self.texts:
+            found += [level for level in self.levels_of(mode) if level not in found]
         return found
 
     def levels_of(self, mode: str) -> list[str]:
-        return [line.split(" ")[1] for line in self.texts.get(mode, []) if line.startswith("level ")]
+        """The level files `mode` names, its lobby first. A mode with an empty lobby_level (the tutorial, #1664) has
+        `NO_LOBBY` as its first level line: no level. An empty map stays, and fails as missing."""
+        lines = self._level_lines(mode)
+        return [line.split(" ")[1] for n, line in enumerate(lines) if n > 0 or line != NO_LOBBY]
 
     def missing_digests(self) -> list[str]:
-        return [line for lines in self.texts.values() for line in lines if line.endswith(" missing")]
+        """The text lines whose digest is `missing`, but for an empty lobby (`levels_of`)."""
+        found: list[str] = []
+        for lines in self.texts.values():
+            first_level = next((n for n, line in enumerate(lines) if line.startswith("level ")), -1)
+            found += [
+                line
+                for n, line in enumerate(lines)
+                if line.endswith(" missing") and not (n == first_level and line == NO_LOBBY)
+            ]
+        return found
+
+    def _level_lines(self, mode: str) -> list[str]:
+        return [line for line in self.texts.get(mode, []) if line.startswith("level ")]
 
 
 def parse_probe(lines: list[str]) -> Probe:
@@ -419,21 +434,21 @@ def set_version(tree: Path, version: str) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
-def prove_hash(rev: str, data: Path, release: Probe) -> None:
-    """The content hash criteria of #369 on a second clean tree of `rev`; raises Failure on any miss."""
+def prove_hash(tree: Path, data: Path, release: Probe) -> None:
+    """The content hash criteria of #369 on `tree`, the release's own imported tree, once its builds are zipped;
+    raises Failure on any miss. Every proof export reuses the release's import: Godot 4.7.2 imports a `.glb` into other
+    bytes on a fresh import, so a second import of one commit gives another hash (#1664, the engineer's option A)."""
     if release.missing or release.missing_digests():
         raise Failure("in the export the hash misses files: " + "; ".join(release.missing + release.missing_digests()))
     ok(f"every level file and what it reaches is found in the export ({len(release.levels())} levels)")
-    tree = clean_tree(rev, EXPORT / "trees" / "again")
-    import_tree(tree, data, "export-import-again")
     proof = EXPORT / "proof"
     if proof.exists():
         shutil.rmtree(proof)
     export(tree, data, "--export-pack", RELEASE, proof / "again" / f"{GAME}.pck", "export-again")
     again = probe(proof / "again" / f"{GAME}.pck", data)
     if again.fingerprints != release.fingerprints or again.texts != release.texts:
-        raise Failure(f"two exports of {rev} disagree: {release.fingerprints} and {again.fingerprints}")
-    ok(f"two exports of one commit give one hash: {release.fingerprints}")
+        raise Failure(f"two exports of one import disagree: {release.fingerprints} and {again.fingerprints}")
+    ok(f"two exports of one import give one hash: {release.fingerprints}")
     for n, level in enumerate(release.levels()):
         path = tree / level.removeprefix("res://")
         before = path.read_bytes()
@@ -536,7 +551,7 @@ def main(version: str | None = None, rev: str = "HEAD") -> int:
     if untranslated:
         raise Failure(f"{release_zip.name} lacks the UI translations {untranslated}: the game would show its keys")
     ok(f"{release_zip.name} carries the UI translations ({len(TRANSLATIONS)} files)")
-    prove_hash(commit, data, release)
+    prove_hash(tree, data, release)
     for archive in (release_zip, debug_zip):
         say(f"EXPORT {archive.relative_to(ROOT).as_posix()} {archive.stat().st_size // (1 << 20)} MB")
     say(f"export: done ({commit[:9]})")
