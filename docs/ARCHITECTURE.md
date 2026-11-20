@@ -5398,11 +5398,12 @@ unchanged and nothing hidden is drawn (each picture is rendered locally from wha
   counted). `hang_slot()` alone picks a slot: the lowest free one (a taken-down uncounted photo's), else a new one
   after the last. Shots no film lists and no photo shows are pruned as the host's `PhotoTask._prune`.
 - **The layers.** `PhotoLayers`: `LIVE_AVATAR` (visual layer 19) for what moves live (the remote bodies, a downed
-  player's live ragdoll, the first-person hands, a carried item's view), `PHOTO` (layer 20) for the pictures'
-  puppets; every live camera's `cull_mask` is `LIVE_VIEW` (all but `PHOTO`), a picture's camera `PHOTO_VIEW` (all
-  but `LIVE_AVATAR`); `STATION` (layer 18, in both views) holds the ship's crystal sockets' and chargers' meshes
+  player's live ragdoll, the first-person hand item, a carried item's view), `PHOTO` (layer 20) for the pictures'
+  puppets; every live camera's `cull_mask` is `LIVE_VIEW` (all but `PHOTO`, `MIRROR_SELF` and `HANDS`), a picture's
+  camera `PHOTO_VIEW` (all but `LIVE_AVATAR`, `MIRROR_SELF` and `HANDS`); `STATION` (layer 18, in both views) holds the ship's crystal sockets' and chargers' meshes
   (§9.5.27); `MIRROR_SELF` (layer 17, in neither) holds the lobby mirror's stand-in of the own body, which only the
-  mirror's lens draws (`MIRROR_VIEW`, §4.7.68). Ground items and dead bodies (`BodyViews` puts the handed-over ragdoll back on `GROUND`) stay
+  mirror's lens draws (`MIRROR_VIEW`, §4.7.68); `HANDS` (layer 16, in neither) holds the first-person hands and the
+  crystal they hold, which only `FpView`'s camera draws (§4.7.69). Ground items and dead bodies (`BodyViews` puts the handed-over ragdoll back on `GROUND`) stay
   in both, as they move only by events.
 - **The looks and the views.** `PhotoLooks` builds the film's and the photo's look (a card whose +Y face holds the
   picture slot); `PhotoViews` binds the camera, printer and board scenes of `levels/stations/` by their kinds'
@@ -5842,8 +5843,8 @@ GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first 
   `ClientModel.posed`, in the own roster colour (the host's `ProfileChanged`; nothing predicted). Shown again after
   being hidden, it faces the look at once (`snap_look`). It shows only while the own body stands (`body_life_of`
   living: a downed or limp own body is drawn as its ragdoll, KE5) and the reflection renders. The first-person hand
-  item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye; the stand-in holds no item view
-  (kept simple).
+  item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye, but a crystal, which the
+  first-person hands hold on `HANDS` (§4.7.69: only its glow shows); the stand-in holds no item view (kept simple).
 - **Cost.** The lens renders (`UPDATE_ALWAYS`) only while the eye is in front of the plane (`MIN_EYE_M`) and the
   glass is not wholly outside one of its frustum's planes (`seen_by`); else its viewport is off and the stand-in
   hidden. Its picture is `HEIGHT_PX` 512 rows (the width by the glass's aspect: 410), with no positional shadows, no
@@ -5894,7 +5895,8 @@ draws the hands. The view shows while the own player is living and the player ca
   LIGHT_ONLY, `BAKE_DISABLED`). The others see the carried crystal as before, the carried item's greybox view
   at the holder. `FirstPersonHand` keeps the kind (`shown_kind`, the HUD and playcheck's `hand.item`) but
   draws no view of its own for a kind in its `hidden_kinds`; `FpHands.attach` sets them to the crystal kinds when
-  the package has its `CrystalSocket`. A gap: the spectate camera's hand (`LifeView.spectate_hand`) still draws a
+  the package has its `CrystalSocket`. Gaps: the lobby mirror (`MIRROR_VIEW`) draws no held crystal, only its
+  light (no crystal in the lobby today); the spectate camera's hand (`LifeView.spectate_hand`) still draws a
   watched player's crystal as the greybox item, not the hands of that player's own screen.
 - **The colour:** the own body colour from the own profile (`ClientModel.colour_of(own_peer)`, `BodyColours`),
   which `ItemViews` passes on every frame. It multiplies each material's own albedo, as `CharacterRig` tints a
