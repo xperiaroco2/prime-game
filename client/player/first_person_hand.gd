@@ -2,7 +2,7 @@ class_name FirstPersonHand
 extends Node3D
 ## The own hand item in the first-person view (ARCHITECTURE §4.7, Hands; M4-8): a child of the
 ## local player's camera showing the item the own ClientModel says is in the own hand, by the same
-## greybox look as in the world (ItemView). A one-handed item sits low on the right; a two-handed
+## look as in the world (ItemView). A one-handed item sits low on the right; a two-handed
 ## one (the package) low in the middle, held with both hands. ItemViews tells it what to show; it
 ## reads nothing itself. The offsets are looks, placeholders until the art pass. The hand item is on
 ## PhotoLayers.LIVE_AVATAR, so a shot's picture never draws it beside the holder's puppet (#787).
@@ -75,6 +75,10 @@ func show_item(
 		return
 	_view = ItemView.make(-1, kind, colour, null, parts)
 	_view.name = "HandItem"
+	if _view.crystal() != null:
+		# At the eye a crystal's light keeps the first-person hands' share (#1587, #1672): the
+		# spectate hand shows it as the carrier's own screen does.
+		_view.crystal().set_light_share(FpHands.LIGHT_SHARE)
 	_hold()
 	PhotoLayers.assign(_view, PhotoLayers.LIVE_AVATAR)
 	add_child(_view)
