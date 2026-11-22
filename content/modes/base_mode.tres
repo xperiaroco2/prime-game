@@ -763,7 +763,6 @@ from = 68
 script = ExtResource("66_respawn")
 tag = &"respawn"
 rng_purpose = &"respawn"
-print_s = 2.0
 hall_tag = &"dead"
 hall_rng_purpose = &"hall"
 hall_radius_m = 32.0

@@ -41,7 +41,7 @@
 
 - **In the M8 slice** (GDD §3, "The M8 slice"; #1492): everyone spawns and respawns on the ship's clearing, in a
   loose crowd before the open jaw ramp; the wait is 30 s, then 3 s of invulnerability. The points across the map are the
-  full match's, after the slice; the dead's room, the body and the drone below are in M8 (#1489).
+  full match's, after the slice; the dead's room and the body below are in M8 (#1489), the drone is not (#1684).
 - **Death costs time, not the match** (#1032): about 5 or 6 respawn points across the map (the full match, after the
   slice); to farm an outed human the aliens would have to split up and guard every point, time they do not spend on
   tasks.
@@ -60,9 +60,12 @@
   ([#1032 c6223852584](https://github.com/xperiaroco2/prime-game/issues/1032#issuecomment-6223852584)).
 - **The body stays** where the player died until the return: evidence for whoever finds it (kills are still not
   revealed, §4). It disappears when the player is printed back (2026-10-31, the same comment).
-- **The return:** a small drone hovers over the respawn point and "3D-prints" the player back in about 2 s, from the
-  feet up, seen by everyone near (the engineer, 2026-10-15; the length 2026-10-31, the same comment); the player
-  cannot move or be hit while printed; then the invulnerability. Engine part: #1489. Numbers are placeholders.
+- **The return:** when the wait ends, the player just appears on the drawn respawn point, at once, and the
+  invulnerability follows (the engineer, 2026-11-23: "Дрон взагалі відміняємо… людина просто з'являється і все";
+  #1683). **The drone is deferred** to the backlog (#1684): a small drone hovering over the respawn point and
+  "3D-printing" the player back in about 2 s, from the feet up, seen by everyone near, the player unable to move or be
+  hit while printed (the engineer, 2026-10-15; the length 2026-10-31, the same comment). Its engine part (#1489) stays
+  in the code, off: the base mode's print time is 0.
 
 ## 4. Points
 
