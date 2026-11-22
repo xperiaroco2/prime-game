@@ -2,7 +2,7 @@ class_name FpHands
 extends Node3D
 ## The first-person hands (#1587; ARCHITECTURE §4.7.69): the art package's viewmodel (concept A,
 ## prime-game-art#136, its HANDOFF.md) under the local player's camera, at an identity transform,
-## its axes the camera's. Every mesh of it, and the crystal it holds, is on PhotoLayers.HANDS
+## its axes the camera's. Every mesh of it, and the crystal or mug it holds, is on PhotoLayers.HANDS
 ## alone with no shadow, so only FpView's own camera draws it (at the package's 50 degrees) and
 ## neither the live view nor a picture does.
 ## - The clips switch by state (clip_for): Idle or Run with an empty hand, Crystal_Idle or
@@ -22,7 +22,8 @@ extends Node3D
 ##   CharacterRig tints a remote body.
 ## - Both arms are the package's (its FPArms skin on one rig, both hands in view): where each hand
 ##   is in a clip is the clip's own, and so are the fists (FPArms' morphs fist and fist_L, keyed in
-##   every clip, opened onto the crystal by the switch's blend). The code picks clips and tints and
+##   every clip, opened onto the crystal by the switch's blend), but the right fist round a held mug
+##   (GRIP). The code picks clips and tints and
 ##   layers every mesh it finds, so a package with the arms split into meshes needs no change here.
 ## It reads nothing itself: the controller (update) and ItemViews (set_held, set_tint) feed it, and
 ## Game plays the hit on the host's own Swung. Without the package's nodes (CI's Git LFS stand-in)
@@ -49,7 +50,9 @@ const GRIP := 0.45
 ## palm, its +Z to the thumb): upright on the screen in Idle, its side against the palm, the handle
 ## on the far side. A look, "not a decision".
 const MUG_AT := Transform3D(
-	Basis(Vector3(-0.815, 0.579, -0.016), Vector3(0.58, 0.814, -0.022), Vector3(0.0, -0.027, -0.999)),
+	Basis(
+		Vector3(-0.815, 0.579, -0.016), Vector3(0.58, 0.814, -0.022), Vector3(0.0, -0.027, -0.999)
+	),
 	Vector3(-0.098, 0.036, -0.003)
 )
 ## A switch between two state clips blends over this many seconds (the HANDOFF's 0.15 s).
@@ -177,12 +180,12 @@ func attach(holder: Node, camera: Camera3D, hand: FirstPersonHand) -> void:
 	camera.add_child(self)
 	if model == null:
 		return
-	var held: Array[StringName] = []
+	var left_to_us: Array[StringName] = []
 	if socket != null:
-		held.append_array(CRYSTAL_KINDS)
+		left_to_us.append_array(CRYSTAL_KINDS)
 	if grip != null:
-		held.append_array(MugLooks.KINDS)
-	hand.hidden_kinds = held
+		left_to_us.append_array(MugLooks.KINDS)
+	hand.hidden_kinds = left_to_us
 	view = FpView.new()
 	view.source = camera
 	holder.add_child(view)
@@ -225,7 +228,7 @@ func holds_crystal() -> bool:
 	return is_crystal(_held)
 
 
-## Whether the right hand holds a mug now.
+## Whether the right hand's grip shows a mug now (false without the grip: the hand item draws it).
 func holds_mug() -> bool:
 	return mug != null
 

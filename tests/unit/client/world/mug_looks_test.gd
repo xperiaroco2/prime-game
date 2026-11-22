@@ -8,7 +8,11 @@ func test_both_kinds_of_the_base_mode_are_mugs() -> void:
 	var mode := load("res://content/modes/base_mode.tres") as GameMode
 	for kind: StringName in MugLooks.KINDS:
 		assert_bool(MugLooks.has(kind)).is_true()
-		assert_object(mode.find_item_kind(kind)).override_failure_message(String(kind)).is_not_null()
+		(
+			assert_object(mode.find_item_kind(kind))
+			. override_failure_message(String(kind))
+			. is_not_null()
+		)
 	assert_bool(MugLooks.has(&"knife")).is_false()
 
 

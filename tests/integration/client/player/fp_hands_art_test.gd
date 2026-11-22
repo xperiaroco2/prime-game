@@ -68,6 +68,37 @@ func test_the_fists_open_onto_the_crystal_and_close_again() -> void:
 	_assert_fists(arms, 1.0)
 
 
+## #1678: the package has the right hand bone and the fist morph the mug's grip needs (renamed in a
+## later package, the grip would vanish and the hand item's look come back unnoticed).
+func test_a_mug_sits_in_the_right_hands_grip_part_open() -> void:
+	var hands := _hands()
+	if hands == null:
+		return
+	var arms := _arms(hands)
+	assert_object(hands.grip).is_not_null()
+	hands.set_held(&"mug")
+	assert_bool(hands.holds_mug()).is_true()
+	for node: Node in hands.mug.find_children("*", "GeometryInstance3D", true, false):
+		var geometry := node as GeometryInstance3D
+		assert_int(geometry.layers).is_equal(PhotoLayers.HANDS)
+		assert_int(geometry.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	var right := arms.find_blend_shape_by_name(&"fist")
+	var left := arms.find_blend_shape_by_name(&"fist_L")
+	_play_for(hands, 0.2)
+	assert_str(hands.current_clip()).is_equal("Idle")
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(FpHands.GRIP, 1e-3)
+	assert_float(arms.get_blend_shape_value(left)).is_equal_approx(1.0, 1e-3)
+	hands.update(5.0)
+	_play_for(hands, FpHands.BLEND_S * 2.0)
+	assert_str(hands.current_clip()).is_equal("Run")
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(FpHands.GRIP, 1e-3)
+	hands.play_hit()
+	_play_for(hands, 0.15)
+	assert_str(hands.current_clip()).is_equal("Punch")
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(FpHands.GRIP, 1e-3)
+	assert_float(arms.get_blend_shape_value(left)).is_equal_approx(1.0, 1e-3)
+
+
 func test_both_arms_take_the_own_colour_on_hands_alone() -> void:
 	var hands := _hands()
 	if hands == null:

@@ -5852,8 +5852,9 @@ GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first 
   `ClientModel.posed`, in the own roster colour (the host's `ProfileChanged`; nothing predicted). Shown again after
   being hidden, it faces the look at once (`snap_look`). It shows only while the own body stands (`body_life_of`
   living: a downed or limp own body is drawn as its ragdoll, KE5) and the reflection renders. The first-person hand
-  item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye, but a crystal, which the
-  first-person hands hold on `HANDS` (§4.7.69: only its glow shows); the stand-in holds no item view (kept simple).
+  item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye, but a crystal or a mug, which
+  the first-person hands hold on `HANDS` (§4.7.69: only a crystal's glow shows; a mug at the hall's bar does not
+  show at all, #1678); the stand-in holds no item view (kept simple).
 - **Cost.** The lens renders (`UPDATE_ALWAYS`) only while the eye is in front of the plane (`MIN_EYE_M`) and the
   glass is not wholly outside one of its frustum's planes (`seen_by`); else its viewport is off and the stand-in
   hidden. Its picture is `HEIGHT_PX` 512 rows (the width by the glass's aspect: 410), with no positional shadows, no
@@ -5915,7 +5916,8 @@ draws the hands. The view shows while the own player is living and the player ca
   `mixer_applied`); the left fist stays the clip's. `FpHands.attach` adds the mug kinds to `hidden_kinds` when the
   package has the `RightHand` bone; without it the hand item draws the mug. The others see it at the holder's
   hand point, `MugLooks.IN_HAND` (half its height) lower, so the hand closes round its middle. The art's mug model
-  and a grip pose, if the art makes one, replace the placeholder, `MUG_AT` and `GRIP`.
+  and a grip pose, if the art makes one, replace the placeholder, `MUG_AT` and `GRIP`. Gap: the lobby mirror draws
+  no held mug (§4.7.68).
 - **The colour:** the own body colour from the own profile (`ClientModel.colour_of(own_peer)`, `BodyColours`),
   which `ItemViews` passes on every frame. It multiplies each material's own albedo, as `CharacterRig` tints a
   remote body; the package's skin is a neutral texture under a white factor, so the albedo is the body colour
@@ -5927,11 +5929,13 @@ draws the hands. The view shows while the own player is living and the player ca
   clips, and tints and layers every mesh of the package, so a package with the arms split into meshes changes no
   code.
 - **The fists:** `FPArms`' two morph targets, `fist` (the right hand) and `fist_L` (the left), are keyed in every
-  clip: 1 in `Idle`, `Run` and `Punch`, 0 in the crystal clips. The code keys and resets none: the switch's blend
+  clip: 1 in `Idle`, `Run` and `Punch`, 0 in the crystal clips. The code keys none but the right fist round a held
+  mug (The mug, above), and resets none: the switch's blend
   opens the fists onto the crystal over its 0.15 s and closes them again. A crystal taken or dropped during a hit of
   the other state ends that hit at once (its clip would key the old fists), and the new state's clip blends in.
   Tests: `fp_hands_test.gd` on a fixture; `tests/integration/client/player/fp_hands_art_test.gd` on the package
-  (the keys on `FPArms` in every clip, the blend, the colour and the layer), in the nightly `lfs` job (CI has only
+  (the keys on `FPArms` in every clip, the blend, the colour and the layer, the mug's grip), in the nightly `lfs`
+  job (CI has only
   the Git LFS stand-in: skip).
 
 The hands have no sound beyond the existing swing. A later package from the art repo replaces the one GLB (its
