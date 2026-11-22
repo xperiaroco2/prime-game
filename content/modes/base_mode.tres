@@ -134,9 +134,6 @@
 [ext_resource type="Script" uid="uid://dppk72upxnkh1" path="res://core/pinball/end_pinball.gd" id="212_end_pinball"]
 [ext_resource type="Script" uid="uid://dak407qpyhuxo" path="res://core/pinball/pinball_seated.gd" id="213_pinball_seated"]
 [ext_resource type="Script" uid="uid://0j0fqsw0t0ps" path="res://core/pinball/set_flippers.gd" id="214_set_flippers"]
-[ext_resource type="Script" path="res://core/booth/booth_ticks.gd" id="198_booth_ticks"]
-[ext_resource type="Script" path="res://core/booth/stop_booth.gd" id="199_stop_booth"]
-[ext_resource type="Resource" path="res://content/stations/booth.tres" id="200_booth"]
 [ext_resource type="Resource" path="res://content/items/strip.tres" id="201_strip"]
 [ext_resource type="Script" uid="uid://dksgpuwd17pse" path="res://core/content/voice_effect.gd" id="199_voice_effect"]
 [ext_resource type="Script" uid="uid://dauwyiiix1ait" path="res://core/movement/wheel_pose_in_range.gd" id="215_wheel_pose_in_range"]
@@ -358,16 +355,6 @@ script = ExtResource("148_vanish_ticks")
 script = ExtResource("172_station_ticks")
 kind = ExtResource("174_tap")
 
-[sub_resource type="Resource" id="StationTicks_booth"]
-script = ExtResource("172_station_ticks")
-kind = ExtResource("200_booth")
-
-[sub_resource type="Resource" id="BoothTicks_lobby"]
-script = ExtResource("198_booth_ticks")
-
-[sub_resource type="Resource" id="Stop_booth"]
-script = ExtResource("199_stop_booth")
-
 [sub_resource type="Resource" id="DrunkTicks_lobby"]
 script = ExtResource("171_drunk_ticks")
 
@@ -444,7 +431,7 @@ script = ExtResource("5_phase")
 id = &"lobby"
 phase_class = ExtResource("9_lobby")
 accepts = Array[ExtResource("6_accept")]([SubResource("Accept_lobby_hello"), SubResource("Accept_lobby_move"), SubResource("Accept_lobby_ready"), SubResource("Accept_lobby_settings"), SubResource("Accept_lobby_profile"), SubResource("Accept_lobby_interact"), SubResource("Accept_lobby_pick_up"), SubResource("Accept_lobby_put_down"), SubResource("Accept_lobby_use"), SubResource("UseSecondary_accept_lobby"), SubResource("Accept_lobby_swap"), SubResource("Accept_lobby_draw"), SubResource("HandOver_accept_lobby"), SubResource("TakeOffer_accept_lobby"), SubResource("CancelOffer_accept_lobby"), SubResource("Flippers_accept_lobby"), SubResource("WheelPose_accept")])
-tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks"), SubResource("StationTicks_booth"), SubResource("BoothTicks_lobby"), SubResource("StationTicks_mirror"), SubResource("Mirror_ticks")])
+tick_systems = Array[ExtResource("6_df0dk")]([SubResource("LifeTicks_lobby"), SubResource("ChannelTicks_lobby"), SubResource("VanishTicks_lobby"), SubResource("StationTicks_tap"), SubResource("StationTicks_pinball"), SubResource("Pinball_ticks"), SubResource("DrunkTicks_lobby"), SubResource("Limp_ticks_lobby"), SubResource("Offer_ticks"), SubResource("StationTicks_mirror"), SubResource("Mirror_ticks")])
 voice_rule = SubResource("Voice_lobby")
 level = 1
 snapshots = true
@@ -968,7 +955,6 @@ script = ExtResource("7_row")
 from = &"lobby"
 outcome = &"all_ready"
 to = &"countdown"
-actions = Array[ExtResource("14_effect")]([SubResource("Stop_booth")])
 
 [sub_resource type="Resource" id="Row_countdown_cancelled"]
 script = ExtResource("7_row")

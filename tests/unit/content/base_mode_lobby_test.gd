@@ -67,18 +67,15 @@ func test_the_hall_runs_life_channel_vanish_and_the_bar_s_ticks() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	for phase_id: StringName in HALL:
 		var systems := mode.find_phase(phase_id).tick_systems
-		# The photo booth (#1396): its station and its clock after the offers', in the Lobby only.
+		# The photo booth (#1396) is hidden until M9 (#1680): neither phase runs its station or its
+		# clock (base_mode_booth_test.gd, which runs it on BaseModeWithBooth).
 		# The mirror (#1394): its places and their ticks last, in the Lobby and the Countdown.
-		assert_int(systems.size()).is_equal(13 if phase_id == &"lobby" else 11)
+		assert_int(systems.size()).is_equal(11)
 		var places := systems[systems.size() - 2] as StationTicks
 		assert_object(places).is_not_null()
 		assert_str(String(places.kind.id)).is_equal("mirror")
 		assert_bool(places.every_marker).is_true()
 		assert_object(systems[systems.size() - 1]).is_instanceof(MirrorTicks)
-		if phase_id == &"lobby":
-			assert_object(systems[9]).is_instanceof(StationTicks)
-			assert_str(String((systems[9] as StationTicks).kind.id)).is_equal("booth")
-			assert_object(systems[10]).is_instanceof(BoothTicks)
 		assert_object(systems[0]).is_instanceof(LifeTicks)
 		assert_object(systems[1]).is_instanceof(ChannelTicks)
 		assert_object(systems[2]).is_instanceof(VanishTicks)
