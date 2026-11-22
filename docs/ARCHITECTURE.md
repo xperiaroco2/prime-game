@@ -2909,7 +2909,11 @@ with `SnapshotBuffer`'s poses. What the build pinned:
 - `client/world/`: `ItemWorld` (`Items` under `World`, made by `Game`) holds `ItemViews`, `CircleViews`,
   `ItemInteractions` and `WorldSounds` (since #801 also `StationViews` and `StationHums`, §4.7.54) and gives the HUD what the model does not hold (`hud_local()`: the predicted
   stamina and the crosshair's hint; `Game` adds whom a dead player watches, #168). `ItemView` is one item's
-  greybox look by its kind's id (D7 (a)), a labelled box for an unknown kind, its origin the resting point;
+  greybox look by its kind's id (D7 (a)), a labelled box for an unknown kind, its origin the resting point; the
+  energy crystal's two kinds are the crystal's own model (`ShipCrystalLook`, #1672: charged lit, spent grey, its
+  light skipping the stations' meshes and the first-person hands and casting shadows, so it stops at walls as
+  the photo flash's does (P6), and at the first-person hands' 40 % in a hand item; the labelled box only without
+  the Git LFS model);
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
   (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
   holder is downed (the own player too, whose first-person hand then shows nothing), hidden while it has no body
@@ -5892,12 +5896,12 @@ draws the hands. The view shows while the own player is living and the player ca
   (`set_light_share`, the engineer's word of 2026-11-18). That light sits on `LIVE_AVATAR`, as a carried item's (the
   live camera draws it, a picture never), and its cull mask reaches GROUND but not `HANDS`: it lights the room round
   the eye and never burns the hands white. The hands' fill keeps out of the sky and of baked light (`sky_mode`
-  LIGHT_ONLY, `BAKE_DISABLED`). The others see the carried crystal as before, the carried item's greybox view
-  at the holder. `FirstPersonHand` keeps the kind (`shown_kind`, the HUD and playcheck's `hand.item`) but
+  LIGHT_ONLY, `BAKE_DISABLED`). The others see the carried crystal as its model at the holder's carry point (`ItemView`,
+  #1672), and one lying on the floor as well. `FirstPersonHand` keeps the kind (`shown_kind`, the HUD and playcheck's `hand.item`) but
   draws no view of its own for a kind in its `hidden_kinds`; `FpHands.attach` sets them to the crystal kinds when
   the package has its `CrystalSocket`. Gaps: the lobby mirror (`MIRROR_VIEW`) draws no held crystal, only its
   light (no crystal in the lobby today); the spectate camera's hand (`LifeView.spectate_hand`) still draws a
-  watched player's crystal as the greybox item, not the hands of that player's own screen.
+  watched player's crystal as the hand item (its model since #1672), not the hands of that player's own screen.
 - **The colour:** the own body colour from the own profile (`ClientModel.colour_of(own_peer)`, `BodyColours`),
   which `ItemViews` passes on every frame. It multiplies each material's own albedo, as `CharacterRig` tints a
   remote body; the package's skin is a neutral texture under a white factor, so the albedo is the body colour

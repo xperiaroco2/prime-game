@@ -12,7 +12,7 @@ extends Node3D
 ##   (ShipCrystalLook) on the package's CrystalSocket, its own light at LIGHT_SHARE of a crystal's
 ##   in a socket (the engineer's 40 % of 2026-11-18): it lights the room round the eye and never the
 ##   hands, and on LIVE_AVATAR a picture never draws it. The others see the carried crystal as
-##   before (the greybox carried item at the holder).
+##   its model at the holder's carry point (ItemView, #1672).
 ## - The colour (set_tint): the own body colour (BodyColours) times each material's own albedo, as
 ##   CharacterRig tints a remote body.
 ## - Both arms are the package's (its FPArms skin on one rig, both hands in view): where each hand

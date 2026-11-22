@@ -123,3 +123,68 @@ func test_a_charger_lowers_its_carrier_out_of_charging() -> void:
 ## Whether the packages' art is missing here (CI: LFS pointers); the test then skips.
 func _no_art() -> bool:
 	return ShipDeviceArt.missing(self)
+
+
+## The crystal as an item (#1672): lying, thrown or in another player's hands it is its own model
+## at the kind's charge, not the labelled box; its light skips the stations and the first-person
+## hands, and the whole look follows the item's layer.
+func test_an_item_crystal_is_the_model_at_its_charge() -> void:
+	if ShipDeviceArt.missing(self, true):
+		return
+	for kind: StringName in ItemView.CRYSTAL_CHARGE:
+		var view: ItemView = auto_free(ItemView.make(7, kind, Color.WHITE))
+		var crystal := view.crystal()
+		assert_object(crystal).override_failure_message(String(kind)).is_not_null()
+		assert_float(crystal.charge()).is_equal(ItemView.CRYSTAL_CHARGE[kind])
+		assert_object(view.look().find_child("Label", true, false)).is_null()
+		assert_object(view.look().find_child("Box", true, false)).is_null()
+		var mask := crystal.omni().light_cull_mask
+		assert_int(mask & (PhotoLayers.STATION | PhotoLayers.HANDS)).is_zero()
+		# Its light stops at walls (the photo flash's P6): a carrier behind one is not lit through.
+		assert_bool(crystal.omni().shadow_enabled).is_true()
+		assert_int(crystal.omni().light_bake_mode).is_equal(Light3D.BAKE_DISABLED)
+		for node: Node in crystal.node().find_children("*", "GeometryInstance3D", true, false):
+			assert_int((node as GeometryInstance3D).cast_shadow).is_equal(
+				GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			)
+		# Its light goes with a hidden look or view (a held one, the downed camera's sight hiding).
+		add_child(view)
+		assert_bool(crystal.omni().is_visible_in_tree()).is_equal(kind == &"crystal_charged")
+		view.show_look(false)
+		assert_bool(crystal.omni().is_visible_in_tree()).is_false()
+		view.show_look(true)
+		view.visible = false
+		assert_bool(crystal.omni().is_visible_in_tree()).is_false()
+		remove_child(view)
+		view.set_layer(PhotoLayers.LIVE_AVATAR)
+		assert_int(PhotoLayers.layers_of(view)).is_equal(PhotoLayers.LIVE_AVATAR)
+		# The model stands on the view's origin at CRYSTAL_SIZE, where the aim and the sight point
+		# look for it.
+		var box := _bounds(crystal.node())
+		assert_float(box.position.y).is_equal_approx(0.0, 0.01)
+		assert_vector(box.size).is_equal_approx(ItemView.CRYSTAL_SIZE, Vector3.ONE * 0.01)
+
+
+## The spectate hand's crystal (FirstPersonHand) keeps the first-person hands' light share, as the
+## carrier's own screen shows it (#1672).
+func test_a_crystal_in_the_first_person_hand_keeps_the_hands_light_share() -> void:
+	if ShipDeviceArt.missing(self, true):
+		return
+	var hand: FirstPersonHand = auto_free(FirstPersonHand.new())
+	hand.show_item(&"crystal_charged", Color.WHITE, true)
+	var view := hand.find_child("HandItem", false, false) as ItemView
+	assert_float(view.crystal().omni().light_energy).is_equal_approx(
+		ShipCrystalLook.OMNI_ENERGY * FpHands.LIGHT_SHARE, 1e-5
+	)
+
+
+## The merged bounds of the meshes under `root`, in its space.
+func _bounds(root: Node3D) -> AABB:
+	var box := AABB()
+	var first := true
+	for node: Node in root.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		var b: AABB = ShipStationLooks.relative(mesh, root) * mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box

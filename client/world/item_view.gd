@@ -20,6 +20,15 @@ const SIZES: Dictionary[StringName, Vector3] = {
 	&"package": Vector3(0.45, 0.45, 0.45),
 }
 const UNKNOWN_SIZE := Vector3(0.3, 0.3, 0.3)
+## The energy crystal's kinds and their charge (#1672): drawn as the crystal's own model
+## (ShipCrystalLook, #1556), charged lit and spent grey, its bottom on the resting point as the
+## model's origin is; without the model (CI's Git LFS stand-in) the labelled box.
+const CRYSTAL_CHARGE: Dictionary[StringName, float] = {
+	&"crystal_charged": 1.0,
+	&"crystal_spent": 0.0,
+}
+## The crystal model's bounds (energy_crystal.glb: 0.136 m wide, 0.349 m from its origin up).
+const CRYSTAL_SIZE := Vector3(0.14, 0.35, 0.14)
 const KNIFE_COLOUR := Color(0.7, 0.72, 0.75)
 const UNKNOWN_COLOUR := Color(0.85, 0.3, 0.85)
 ## How far above the box an unknown kind's label floats, in metres.
@@ -32,6 +41,7 @@ var parts := PackedStringArray()
 
 var _look: Node3D
 var _layer := PhotoLayers.GROUND
+var _crystal: ShipCrystalLook
 
 
 ## A view of item `id` of `kind`; `colour` is a package's circle colour (white for other items),
@@ -63,6 +73,8 @@ static func size_of(item_kind: StringName) -> Vector3:
 		return PhotoLooks.size_of(item_kind)
 	if CookingLooks.has(item_kind):
 		return CookingLooks.size_of(item_kind)
+	if CRYSTAL_CHARGE.has(item_kind):
+		return CRYSTAL_SIZE
 	return SIZES.get(item_kind, UNKNOWN_SIZE)
 
 
@@ -107,6 +119,8 @@ func _build(colour: Color, label_text: String) -> void:
 	if CookingLooks.has(kind):
 		_look.add_child(CookingLooks.build(kind))
 		return
+	if CRYSTAL_CHARGE.has(kind) and _build_crystal():
+		return
 	var size := size_of(kind)
 	var mesh := BoxMesh.new()
 	mesh.size = size
@@ -132,6 +146,34 @@ func _build(colour: Color, label_text: String) -> void:
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.position = Vector3.UP * (size.y + LABEL_ABOVE)
 		_look.add_child(label)
+
+
+## The crystal's model in the look, at its charge; false without the model (CI's Git LFS
+## stand-in), so the labelled box stands in. Its own light keeps the seated crystal's rules: it
+## skips the stations' meshes (ShipCrystalLook.seat) and the first-person hands (#1587), so a
+## crystal near either never burns them white. Unlike a seated crystal's (its station is public)
+## it casts shadows, as the photo flash does (P6): a light without them passes through walls, and
+## its glow would show a carrier or a crystal the wall hides. Its own meshes cast none (the light
+## sits in the shell), and no baked or global light takes it past its cull mask.
+func _build_crystal() -> bool:
+	var crystal := ShipCrystalLook.apply()
+	if crystal == null:
+		return false
+	_crystal = crystal
+	crystal.set_charge(CRYSTAL_CHARGE[kind])
+	var omni := crystal.omni()
+	omni.light_cull_mask = omni.light_cull_mask & ~(PhotoLayers.STATION | PhotoLayers.HANDS)
+	omni.shadow_enabled = true
+	omni.light_bake_mode = Light3D.BAKE_DISABLED
+	for node: Node in crystal.node().find_children("*", "GeometryInstance3D", true, false):
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_look.add_child(crystal.node())
+	return true
+
+
+## The crystal's look when this view draws a crystal with its model, else null.
+func crystal() -> ShipCrystalLook:
+	return _crystal
 
 
 ## Puts the look on visual layer `value` (PhotoLayers: GROUND lying or in flight, LIVE_AVATAR
