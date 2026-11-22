@@ -2918,9 +2918,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   energy crystal's two kinds are the crystal's own model (`ShipCrystalLook`, #1672: charged lit, spent grey, its
   light skipping the stations' meshes and the first-person hands and casting shadows, so it stops at walls as
   the photo flash's does (P6), and at the first-person hands' 40 % in a hand item; the labelled box only without
-  the Git LFS model);
+  the Git LFS model); the bar's mugs are `MugLooks`' placeholder (#1678);
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
-  (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
+  (`hand_point()`, a mug `MugLooks.IN_HAND` lower; `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
   holder is downed (the own player too, whose first-person hand then shows nothing), hidden while it has no body
   drawn and when the own living player holds it; in flight, on its arc (§4.7.52). Each view joins
   `SightHider.GROUP` and gives `sight_point()`; the root's `visible` is left to the sight hiding, `ItemViews`
@@ -5907,6 +5907,15 @@ draws the hands. The view shows while the own player is living and the player ca
   the package has its `CrystalSocket`. Gaps: the lobby mirror (`MIRROR_VIEW`) draws no held crystal, only its
   light (no crystal in the lobby today); the spectate camera's hand (`LifeView.spectate_hand`) still draws a
   watched player's crystal as the hand item (its model since #1672), not the hands of that player's own screen.
+- **The mug** (#1678): a held `mug` or `mug_empty` is its `ItemView` look (`MugLooks`' placeholder: a cylinder with
+  a handle, no label) in the right hand, on `MugGrip`, a `BoneAttachment3D` the code adds on the package's
+  `RightHand` bone, at `MUG_AT` (upright on the screen in `Idle`, its side in the palm), its meshes on `HANDS` with
+  no shadow. The package has no one-handed grip, so with a mug the state clips stay the empty hand's and the
+  right fist's morph (`fist`) is held at `GRIP` (0.45, part-open) after every apply of the clips (the mixer's
+  `mixer_applied`); the left fist stays the clip's. `FpHands.attach` adds the mug kinds to `hidden_kinds` when the
+  package has the `RightHand` bone; without it the hand item draws the mug. The others see it at the holder's
+  hand point, `MugLooks.IN_HAND` (half its height) lower, so the hand closes round its middle. The art's mug model
+  and a grip pose, if the art makes one, replace the placeholder, `MUG_AT` and `GRIP`.
 - **The colour:** the own body colour from the own profile (`ClientModel.colour_of(own_peer)`, `BodyColours`),
   which `ItemViews` passes on every frame. It multiplies each material's own albedo, as `CharacterRig` tints a
   remote body; the package's skin is a neutral texture under a white factor, so the albedo is the body colour
