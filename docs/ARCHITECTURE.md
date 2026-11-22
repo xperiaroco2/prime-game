@@ -9946,6 +9946,16 @@ The rules and the table interface are §7.1.22; the client's views (camera, tabl
 
 #### 9.5.29 The photo booth (lobby, #1396; provisional numbers)
 
+**Hidden until M9** (#1680, the engineer's "hide until M9" of 2026-11-23; the ROADMAP's M8 is everything but the
+booth): the shipped base mode lists none of the booth's three parts below (the Lobby's `StationTicks(booth)` and
+`BoothTicks`, `StopBooth` on `Lobby, all_ready → Countdown`), so no booth station stands and none of its rules runs,
+and the lobby's `PhotoBooth` box is invisible with its shape disabled. Nothing else changed: the booth's code, its
+content (`booth.tres`, and `strip.tres`, still an item kind of the mode), the `Booth` marker and its tests stay. Its
+tests on the hall's real layout and the scenario `booth_strip_of_frames` (now in `tests/fixtures/scenarios/`) run on
+`BaseModeWithBooth` (`tests/fixtures/booth/base_mode_with_booth.gd` and `.tres`): the base mode with the three parts
+back. M9 brings the booth back by adding them to the base mode again and showing the box; the text below is the
+booth as it plays then.
+
 GDD §3 Base mode, "The photo booth". `content/stations/booth.tres` (spawn tag `booth`: the hall's `Booth` marker in
 front of the `PhotoBooth` greybox, whose collider stays solid; radius 1.2 m, height 2.5 m: the booth's volume is the
 station's own cylinder; its Interact at the booth and in sight runs `StartBooth(strip, frames 4, countdown 3 s,
@@ -10019,7 +10029,7 @@ levels/
                                    the `Tap` marker (`spawn_tap`, #1390: the bar's tap, beside the Bar box),
                                    the `PinballSpot` marker (`spawn_pinball`, #1398: the machine, in front of
                                    the Pinball box, a top-level node: the box is #1399's),
-                                   the `Booth` marker (`spawn_booth`, #1396: in front of the PhotoBooth box, §9.5.29)
+                                   the `Booth` marker (`spawn_booth`, #1396: in front of the PhotoBooth box, which M8 hides, §9.5.29)
   lobby/lobby_hall.tscn, lobby_hall.gd   the art lobby hall's level set (#1451, §11.1): hall, docked ship, Earth,
                                    lights, spawn markers; its script frees the ship's forest and suns on _ready
   lobby/lobby_render.gd            the lobby's `ShipOccluder` (#1523): the art's shadow atlas and occlusion culling on the
@@ -10406,7 +10416,8 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   three mugs, waiting 0.5 s after a drink before the next pour (the tap's `Cooldown`), past the `drunk_too_much`
   threshold of 90, which bot 2 sees too; the round's placement sobers bot 1), `bar_mug_handed_over` (#1389,
   provisional: bot 1 pours a mug, walks to bot 2 and hands it over; its `PutDown` then hears `empty_hand`; bot 2
-  drinks it, its drunk value 36 to 40, and bot 1's stays 0), `booth_strip_of_frames` (#1396, provisional: bot 2
+  drinks it, its drunk value 36 to 40, and bot 1's stays 0), `booth_strip_of_frames` (#1396, in
+  `tests/fixtures/scenarios/` on `BaseModeWithBooth` since M8 hides the booth, #1680; provisional: bot 2
   stands in the lobby's photo booth, bot 1 walks in and presses it; after the first flash bot 2 moves inside it;
   after the print each bot has its own strip in the hand (`ItemPickedUp`); both get ready and the round starts),
   `pinball_plays_a_ball` (#1510, in `tests/fixtures/scenarios/` on the melee fixture, provisional: bot 1 walks to
