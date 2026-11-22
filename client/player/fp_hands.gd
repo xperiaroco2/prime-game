@@ -13,6 +13,11 @@ extends Node3D
 ##   in a socket (the engineer's 40 % of 2026-11-18): it lights the room round the eye and never the
 ##   hands, and on LIVE_AVATAR a picture never draws it. The others see the carried crystal as
 ##   its model at the holder's carry point (ItemView, #1672).
+## - A held mug (#1678, the bar's mug, full or empty) is its ItemView look in the right hand: on
+##   "MugGrip", a bone attachment the code adds on the package's HAND_BONE, at MUG_AT, with the
+##   right fist's morph held at GRIP over whatever clip plays (the package has no one-handed grip
+##   yet; the art's mug and pose replace both). The others see it in the holder's hand (ItemViews
+##   at the body's hand point).
 ## - The colour (set_tint): the own body colour (BodyColours) times each material's own albedo, as
 ##   CharacterRig tints a remote body.
 ## - Both arms are the package's (its FPArms skin on one rig, both hands in view): where each hand
@@ -35,6 +40,18 @@ const CRYSTAL_HIT := &"Crystal_Hit"
 const SOCKET := "CrystalSocket"
 ## The kinds the hands hold as the energy crystal; any other kind leaves them empty.
 const CRYSTAL_KINDS: Array[StringName] = [&"crystal_charged", &"crystal_spent"]
+## The right hand's bone (HANDOFF "Rig") and its fist's morph target, which a held mug opens.
+const HAND_BONE := "RightHand"
+const FIST_MORPH := &"fist"
+## The right fist's morph while it holds a mug: part-open, the fingers round the mug. A look.
+const GRIP := 0.45
+## The mug's place in the right hand bone's space (its Y along the fingers, its -X out of the
+## palm, its +Z to the thumb): upright on the screen in Idle, its side against the palm, the handle
+## on the far side. A look, "not a decision".
+const MUG_AT := Transform3D(
+	Basis(Vector3(-0.815, 0.579, -0.016), Vector3(0.58, 0.814, -0.022), Vector3(0.0, -0.027, -0.999)),
+	Vector3(-0.098, 0.036, -0.003)
+)
 ## A switch between two state clips blends over this many seconds (the HANDOFF's 0.15 s).
 const BLEND_S := 0.15
 ## A hit starts nearly at once: its first frames are the state's pose anyway.
@@ -65,6 +82,10 @@ var socket: Node3D
 var crystal: ShipCrystalLook
 ## The hands' own camera over the view (attach), null before.
 var view: FpView
+## The right hand's mug grip (a BoneAttachment3D on HAND_BONE), null without that bone.
+var grip: Node3D
+## The held mug's look, null with none held.
+var mug: ItemView
 
 var _scene: PackedScene
 var _materials: Array[BaseMaterial3D] = []
@@ -73,6 +94,9 @@ var _tint := DEFAULT_TINT
 var _held: StringName = &""
 var _speed := 0.0
 var _hitting := false
+## The mesh with the right fist's morph and the morph's index, -1 without one.
+var _fist_mesh: MeshInstance3D
+var _fist_index := -1
 
 
 ## Hands from `scene` (tests pass a fixture); the package's GLB by default.
@@ -111,6 +135,8 @@ func build() -> void:
 	player = players[0] as AnimationPlayer
 	player.animation_finished.connect(_on_finished)
 	socket = model.find_child(SOCKET, true, false) as Node3D
+	_add_grip()
+	player.mixer_applied.connect(_hold_grip)
 	_set_loops()
 	_own_materials()
 	PhotoLayers.assign(model, PhotoLayers.HANDS, false)
@@ -135,20 +161,28 @@ static func is_crystal(kind: StringName) -> bool:
 	return CRYSTAL_KINDS.has(kind)
 
 
+static func is_mug(kind: StringName) -> bool:
+	return MugLooks.has(kind)
+
+
 ## The run clip's speed at an own speed of `speed` m/s.
 static func run_scale(speed: float) -> float:
 	return clampf(speed / RUN_CLIP_MPS, RUN_SCALE_MIN, RUN_SCALE_MAX)
 
 
 ## Puts the hands under the player's `camera`, their own camera (a new FpView following it) under
-## `holder` (the controller), and leaves the crystal to them: `hand`, the hand item, draws none
-## while the package is in.
+## `holder` (the controller), and leaves the crystal and the mug to them: `hand`, the hand item,
+## draws neither while the package has their socket and grip.
 func attach(holder: Node, camera: Camera3D, hand: FirstPersonHand) -> void:
 	camera.add_child(self)
 	if model == null:
 		return
+	var held: Array[StringName] = []
 	if socket != null:
-		hand.hidden_kinds = CRYSTAL_KINDS
+		held.append_array(CRYSTAL_KINDS)
+	if grip != null:
+		held.append_array(MugLooks.KINDS)
+	hand.hidden_kinds = held
 	view = FpView.new()
 	view.source = camera
 	holder.add_child(view)
@@ -173,6 +207,7 @@ func set_held(kind: StringName) -> void:
 		_show_crystal(1.0 if kind == &"crystal_charged" else 0.0)
 	elif crystal != null:
 		crystal.set_shown(false)
+	_show_mug(kind if is_mug(kind) else &"")
 	# A hit of the other state ends here: its clip keys its own fists, so the crystal would show in
 	# a closed fist (or the hands stay open round none) until it ended.
 	if _hitting and StringName(player.current_animation) != hit_clip(holds_crystal()):
@@ -188,6 +223,11 @@ func held() -> StringName:
 ## Whether the hands hold a crystal now.
 func holds_crystal() -> bool:
 	return is_crystal(_held)
+
+
+## Whether the right hand holds a mug now.
+func holds_mug() -> bool:
+	return mug != null
 
 
 ## Plays the hit (the host accepted the own Use: its Swung), Punch or Crystal_Hit once.
@@ -264,6 +304,50 @@ func _show_crystal(charge: float) -> void:
 		crystal.set_light_share(LIGHT_SHARE)
 	crystal.set_charge(charge)
 	crystal.set_shown(true)
+
+
+## Shows the mug of `kind` in the right hand (empty: none), a new look when the kind changes.
+func _show_mug(kind: StringName) -> void:
+	if mug != null and mug.kind != kind:
+		mug.free()
+		mug = null
+	if kind.is_empty() or grip == null or mug != null:
+		_hold_grip()
+		return
+	mug = ItemView.make(-1, kind, Color.WHITE)
+	mug.name = "Mug"
+	mug.transform = MUG_AT
+	PhotoLayers.assign(mug, PhotoLayers.HANDS, false)
+	grip.add_child(mug)
+	_hold_grip()
+
+
+## The right fist part-open round a held mug, after the clips have keyed it (each frame at the
+## mixer's mixer_applied); with none held the clips' own value stands until their next frame.
+func _hold_grip() -> void:
+	if mug != null and _fist_mesh != null:
+		_fist_mesh.set_blend_shape_value(_fist_index, GRIP)
+
+
+## The mug grip on HAND_BONE and the right fist's morph, when the package has them.
+func _add_grip() -> void:
+	for node: Node in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		var index := mesh.find_blend_shape_by_name(FIST_MORPH) if mesh.mesh != null else -1
+		if index >= 0:
+			_fist_mesh = mesh
+			_fist_index = index
+			break
+	for node: Node in model.find_children("*", "Skeleton3D", true, false):
+		var skeleton := node as Skeleton3D
+		if skeleton.find_bone(HAND_BONE) < 0:
+			continue
+		var attachment := BoneAttachment3D.new()
+		attachment.name = "MugGrip"
+		attachment.bone_name = HAND_BONE
+		skeleton.add_child(attachment)
+		grip = attachment
+		return
 
 
 func _apply_tint() -> void:

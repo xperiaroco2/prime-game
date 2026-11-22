@@ -241,6 +241,20 @@ func test_an_item_put_out_of_the_bodys_sight_is_hidden_in_that_physics_frame() -
 	assert_bool(view.visible).is_false()
 
 
+func test_a_mug_hangs_round_the_middle_of_another_players_hand() -> void:
+	# #1678: the hand closes round the mug's middle, not under its bottom; no label over it.
+	_other_at(Vector3(4, 0, 0))
+	_spawn(1, &"mug", Vector3.ZERO)
+	_model.fold(&"ItemPickedUp", {"peer": OTHER, "item": 1})
+	await _drawn()
+	var point := _avatars.body_of(OTHER).hand_point()
+	var view := _items.view_of(1)
+	var at := point.global_transform.translated_local(MugLooks.IN_HAND).origin
+	assert_vector(view.global_position).is_equal_approx(at, Vector3.ONE * 1e-4)
+	assert_bool(view.is_look_shown()).is_true()
+	assert_int(view.find_children("*", "Label3D", true, false).size()).is_zero()
+
+
 func test_an_unknown_kind_gets_a_labelled_box_hidden_by_walls() -> void:
 	_spawn(1, &"wrench", Vector3.ZERO)
 	await _drawn()

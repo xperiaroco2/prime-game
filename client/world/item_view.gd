@@ -14,7 +14,7 @@ extends Node3D
 
 ## The look's sizes in metres, by kind id; Cooking's kinds take CookingLooks' (#776); any other
 ## kind gets UNKNOWN_SIZE and its name as a label. The photo task's film and photo take
-## PhotoLooks' (#787), the booth's strip StripLooks' (#1397).
+## PhotoLooks' (#787), the booth's strip StripLooks' (#1397), the bar's mugs MugLooks' (#1678).
 const SIZES: Dictionary[StringName, Vector3] = {
 	&"knife": Vector3(0.05, 0.04, 0.32),
 	&"package": Vector3(0.45, 0.45, 0.45),
@@ -71,6 +71,8 @@ static func size_of(item_kind: StringName) -> Vector3:
 		return StripLooks.size_of(item_kind)
 	if PhotoLooks.has(item_kind):
 		return PhotoLooks.size_of(item_kind)
+	if MugLooks.has(item_kind):
+		return MugLooks.size_of(item_kind)
 	if CookingLooks.has(item_kind):
 		return CookingLooks.size_of(item_kind)
 	if CRYSTAL_CHARGE.has(item_kind):
@@ -112,6 +114,9 @@ func _build(colour: Color, label_text: String) -> void:
 		return
 	if PhotoLooks.has(kind):
 		_look.add_child(PhotoLooks.build(kind))
+		return
+	if MugLooks.has(kind):
+		_look.add_child(MugLooks.build(kind))
 		return
 	if not parts.is_empty():
 		_look.add_child(CookingLooks.burger(parts))

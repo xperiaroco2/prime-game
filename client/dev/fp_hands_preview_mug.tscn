@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://otww8l5vuk12"]
+
+[ext_resource type="Script" uid="uid://bahpfutyexhtr" path="res://client/dev/fp_hands_preview.gd" id="1_preview"]
+
+[node name="FpHandsPreview" type="Node3D" unique_id=1900328481]
+script = ExtResource("1_preview")
+state = "mug"

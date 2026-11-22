@@ -3,11 +3,13 @@ extends Node3D
 ## §4.7.53): three remote bodies wearing the shipped character, each turned three-quarters to the
 ## camera. Left, Player2 stands idle with the knife in the hand; middle, Player3 stands idle with
 ## the knife on the belt (its left hip towards the camera); right, Player4 carries the package
-## (Idle with the carry layer). Without the LFS art the bodies stay capsules. Dev only: nothing here
-## reaches the game.
+## (Idle with the carry layer). `hand_kind` is the item in Player2's hand (a mug of beer: #1678).
+## Without the LFS art the bodies stay capsules. Dev only: nothing here reaches the game.
 
 const MODE := "res://content/modes/base_mode.tres"
 const BODY := preload("res://client/player/remote_player_body.tscn")
+
+@export var hand_kind: StringName = &"knife"
 
 
 func _ready() -> void:
@@ -16,7 +18,11 @@ func _ready() -> void:
 	_add_floor()
 	_add_light()
 	var holding := _add_player(rules, character, Vector3(-0.9, 0.0, 0.0), 25.0, 0)
-	holding.hand_point().add_child(ItemView.make(1, &"knife", Color.WHITE))
+	var held := ItemView.make(1, hand_kind, Color.WHITE)
+	holding.hand_point().add_child(held)
+	# As ItemViews places it at a body's hand point.
+	if MugLooks.has(hand_kind):
+		held.position = MugLooks.IN_HAND
 	var belted := _add_player(rules, character, Vector3(0.0, 0.0, 0.0), -70.0, 1)
 	belted.belt_point().add_child(ItemView.make(2, &"knife", Color.WHITE))
 	var carrying := _add_player(rules, character, Vector3(0.9, 0.0, 0.0), -30.0, 2)
