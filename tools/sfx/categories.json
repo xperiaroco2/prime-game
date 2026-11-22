@@ -33,8 +33,8 @@
       "duration_s": [0.1, 3.0]
     },
     "life": {
-      "about": "a hit landing, a knockdown, a raise, a death, the drone printing a player back (#1674)",
-      "globs": ["hit*", "knock*", "revive*", "death*", "print*"],
+      "about": "a hit landing, a knockdown, a raise, a death, a dead player back (#1674)",
+      "globs": ["hit*", "knock*", "revive*", "death*", "respawn*"],
       "rms_dbfs": [-32.0, -10.0],
       "duration_s": [0.05, 3.0]
     },
@@ -45,7 +45,7 @@
       "duration_s": [0.05, 2.5]
     },
     "timer": {
-      "about": "the match clock's last seconds and time up (#1674)",
+      "about": "the match clock's last seconds (#1674)",
       "globs": ["timer*"],
       "rms_dbfs": [-34.0, -10.0],
       "duration_s": [0.05, 2.0]

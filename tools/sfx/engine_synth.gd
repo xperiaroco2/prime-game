@@ -7,17 +7,15 @@ extends RefCounted
 ## for the engineer to pick by ear on sfx-check's listening page, "not a decision".
 
 const RATE := 44100
-## The five sounds by file name (without `.wav`), in GDD §8's order.
-const NAMES: Array[StringName] = [
-	&"engine_call", &"engine_beep", &"engine_wail", &"engine_zap", &"engine_blast"
-]
+## The four sounds by file name (without `.wav`), in GDD §8's order. The short circuit's zap is
+## the engineer's pick K1 now (m8_synth.gd, assets/audio/prime_m8/, #1674).
+const NAMES: Array[StringName] = [&"engine_call", &"engine_beep", &"engine_wail", &"engine_blast"]
 ## Each sound's peak after the scaling: the beep held and the wail long, so lower (sfx-check's RMS
-## band), the call soft, the zap and the blast full.
+## band), the call soft, the blast full.
 const PEAKS: Dictionary[StringName, float] = {
 	&"engine_call": 0.45,
 	&"engine_beep": 0.25,
 	&"engine_wail": 0.6,
-	&"engine_zap": 0.8,
 	&"engine_blast": 0.8,
 }
 ## The noise's seed: the same every render.
@@ -34,8 +32,6 @@ static func samples(sound_name: StringName) -> PackedFloat32Array:
 			raw = beep()
 		&"engine_wail":
 			raw = wail()
-		&"engine_zap":
-			raw = zap()
 		&"engine_blast":
 			raw = blast()
 		_:
@@ -83,29 +79,6 @@ static func wail() -> PackedFloat32Array:
 		var level := minf(0.35 + 0.65 * minf(1.0, t / 0.5), _attack(length - t, 0.1))
 		level *= _attack(t, 0.01) * (0.85 + 0.15 * sin(TAU * 7.0 * t))
 		out[i] = level * tone
-	return out
-
-
-## A short circuit: 0.45 s of crackle (noise let through in random 4 ms bursts) over a 110 Hz
-## buzz (a clipped sine) that falls to 70 Hz, all decaying fast.
-static func zap() -> PackedFloat32Array:
-	var length := 0.45
-	var out := _silence(length)
-	var noise := _Noise.new(SEED + 1)
-	var burst := 0
-	var gate := 1.0
-	var phase := 0.0
-	for i in out.size():
-		var t := float(i) / RATE
-		if burst <= 0:
-			burst = int(0.004 * RATE)
-			gate = 1.0 if noise.next() > -0.2 else 0.15
-		burst -= 1
-		var freq := 110.0 - 40.0 * t / length
-		phase += TAU * freq / RATE
-		var buzz := clampf(2.5 * sin(phase), -1.0, 1.0)
-		var level := _attack(t, 0.002) * exp(-t / 0.14)
-		out[i] = level * (0.75 * gate * noise.next() + 0.45 * buzz)
 	return out
 
 
