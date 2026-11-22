@@ -4,7 +4,7 @@ How to get PrimeGame, host a game and get your friends into it. This page is for
 exactly what the game shows (small headings, such as "Code", show in capitals).
 
 **Early releases.** The code service that hosting and "Join" with a code use is up, but few matches over the internet
-have been played on it yet: if a code does not work for you, join by address (section 4). Take the newest release
+have been played on it yet: if a code does not work for you, join by address (section 5). Take the newest release
 (marked **Latest**).
 
 ## 1. Get the game (Windows)
@@ -30,7 +30,7 @@ Everything else starts from the menu: press **Esc** (the hint at the bottom left
 3. Click **Copy** next to it and paste the code to your friends in any chat app.
 
 If no code shows, the code service is not answering (the match console says "The code service isn't answering. To
-let more players in, host directly."): leave (**Esc**, **Leave the session**) and host by address (section 4).
+let more players in, host directly."): leave (**Esc**, **Leave the session**) and host by address (section 5).
 
 Only people who have the code can join. Keep the game running: when you leave, the game ends for everyone.
 
@@ -47,9 +47,29 @@ Only people who have the code can join. Keep the game running: when you leave, t
 under "Lobbies nearby" ("No lobbies nearby" when there are none). Pick one and click the **Join** under the list
 (or double-click it).
 
-## 4. Join by address (LAN or VPN)
+## 4. Start the match
 
-Use this when you are all on the same home network, on a shared VPN, or with the fallback in section 6.
+Everyone is now in the host's lobby, the host's ship; "Players" at the top right lists everyone in it.
+
+**The host, first: set "Dissidents" to 0.** The M8 match is aliens only, but out of the box, from 2 players on,
+the game deals one of you (from 6 players two, from 9 three) a dissident, a role with nothing to do in M8. A match
+that runs out of time then ends with "The Dissidents won" instead of "The aliens lost". To change it:
+1. Walk to the match console in the ship, near where you appear: its screen says "Match" and, for the host,
+   "You're the host: everyone sees your changes". Everyone else sees the values only.
+2. Come within a couple of steps of it, put the crosshair on the **−** beside "Dissidents" and press **E** until it
+   shows **0**.
+
+It stays 0 for as long as you host, through every match and back in the lobby. "Match duration" on the same
+screen sets the match's length.
+
+**Everyone, the host too: press F (Ready).** The chip at the bottom left turns from "Ready: no" to "Ready: yes"
+(F again takes it back), and the top of the screen counts "1 of 3 ready". When the last player is ready, the
+lobby counts down from "Starting in 5" and the match begins (F during the count stops it). When it ends, everyone
+is back in the lobby and presses F again for the next one.
+
+## 5. Join by address (LAN or VPN)
+
+Use this when you are all on the same home network, on a shared VPN, or with the fallback in section 7.
 
 **The host:**
 1. Press **Esc**, open **Find a lobby** and click **Join by address**.
@@ -66,7 +86,7 @@ Use this when you are all on the same home network, on a shared VPN, or with the
    the port under the box is used.
 3. Click **Join**. **Back** returns to the code box.
 
-## 5. When it does not connect
+## 6. When it does not connect
 
 When a join or a host fails, a screen says what happened. Its first button, when there is one, is the quickest way
 on; **Back** (or Esc) returns to your ship, with what you typed still there.
@@ -74,21 +94,21 @@ on; **Back** (or Esc) returns to your ship, with what you typed still there.
 | The screen says | What to do |
 |---|---|
 | "Couldn't connect" and "No game has this code. Check it with the host." | Check the code with the host, letter by letter. The host may also have left: ask for the new code. |
-| "Couldn't connect" and "The code service isn't answering. Join directly with the host's address." | The code service is down, or your network blocks it. Click **Join directly** and join by address (section 4), or use the fallback in section 6. |
-| "Couldn't connect" and "No link to the host. If the lobby has room, ask the host for an address and join directly." | Your networks do not let you connect to each other. Click **Join directly** and use the fallback in section 6. |
+| "Couldn't connect" and "The code service isn't answering. Join directly with the host's address." | The code service is down, or your network blocks it. Click **Join directly** and join by address (section 5), or use the fallback in section 7. |
+| "Couldn't connect" and "No link to the host. If the lobby has room, ask the host for an address and join directly." | Your networks do not let you connect to each other. Click **Join directly** and use the fallback in section 7. |
 | "Couldn't connect" and "The lobby is full." | Wait for a free place, or ask someone to leave; then **Try again**. |
 | "Couldn't connect" and "The host isn't answering. Check the address and the network." | Check that the host's game is running and in the lobby, the address and the port; the host's firewall must let UDP in on that port. With a code: the host may have left; ask them to host again. Then **Try again**. |
 | "Couldn't connect" and "The round has already started. Join when everyone is back in the lobby." | Wait until the host is back in the lobby, then **Try again**. |
 | "Couldn't connect" and "The host has another version of the game. You need the same one." (sometimes with "Host:" and "You:" versions) | You and the host have different releases. Both download the newest release. |
 | "Connection lost" | The host left or the network dropped. Ask the host to host again, then join again. |
 | "The map didn't load" and "The round goes on without you." | The match went on without you. Join again when the host is back in the lobby; if it keeps happening, download and unzip the release again. |
-| "Couldn't start the game" | Hosting failed, often because the port is in use. Close any other copy of the game and **Try again**, or host on another port (section 4; your friends then use it too). |
+| "Couldn't start the game" | Hosting failed, often because the port is in use. Close any other copy of the game and **Try again**, or host on another port (section 5; your friends then use it too). |
 | "The session stopped" and "The game ran into an error. The details are in the log." | Something went wrong in the game. Tell the person who shared the game with you what you were doing. |
 
-## 6. The fallback when nothing connects
+## 7. The fallback when nothing connects
 
 Some home networks block direct connections between players. Then one of these gets you playing with **Join by
-address** (section 4):
+address** (section 5):
 
 - **playit.gg** (the plan; not tested with the game yet). Only the host installs it. The host creates a free UDP
   tunnel to port 24600, clicks **Host a game** under **Join by address**, and shares the address playit.gg gives them.
