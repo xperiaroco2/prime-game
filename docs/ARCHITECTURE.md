@@ -4515,7 +4515,7 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
 No new event, row or rule: a client plays a sound only for the events and the snapshots it already receives, and
 nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
 - **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
-  each), `kenney_rpg_audio/` (`swing_1..2`, `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
+  each), `kenney_rpg_audio/` (`swing_1..2`, unplayed since the M8 swing, #1674; `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
   (`click_1..3`; `ui_outro`, #657; `ui_role_engineers`, `ui_role_dissidents`, #716), Ogg Vorbis through LFS,
   one `docs/credits/` entry per pack; and the project's own `prime_task_feedback/` (`task_success.wav`,
   `task_error.wav`, mono WAV through LFS, §4.7.60), `prime_engine/` (the ship engine's, §4.7.64) and `prime_m8/`
@@ -5706,7 +5706,7 @@ of the mode, never `core/` state (§9.5.27's client).
   - the zap: no event names a short circuit (it is the presser's `KnockedDown` alone, §9.5.27), so
     `ShipEngineSounds.zap_at` takes a `KnockedDown` in play whose body lies within the reach of a tripped breaker of
     an open breakers problem not yet on (its kind's `radius_m` plus `ZAP_SLACK_M`, at most `ZAP_RISE_M` above its
-    floor) and zaps at that breaker; any other knockdown is silent here. The known limit: a hit that downs a player
+    floor) and zaps at that breaker; any other knockdown plays `SfxSet.KNOCKDOWN` at the body (§4.7.70). The known limit: a hit that downs a player
     within that reach also zaps (a public `BreakerShorted` event would settle it: a protocol change left to the
     engineer).
 - **How.** `ShipEngineViews` hands each cue out as its signal `sound_due` (the pseudo-event `ShipEngineSounds.EVENT`,
@@ -5952,9 +5952,11 @@ player's alone.
   the tap's mug) `TAP_POUR` where it spawns; an `ItemChanged` to a drink's `empty_kind` `DRINK` at the holder.
 - **The hit landing.** `Damaged` reaches the victim alone and names no attacker; the attacker gets no confirmation
   of a hit (KnockedDown aside), so only the victim hears a hit land. The victim's `WorldSounds` plays `HIT_FIST` or
-  `HIT_HEAVY` at its own ears (no ray) when the `Damaged` came within `HIT_AFTER_SWING_MS` of another player's swing
-  it heard (Strike emits the swing, then each target's damage, in one tick), heavy as that swing was; a `Damaged`
-  with no swing just before (the engine's zap of a crystal's carrier, which plays the zap) plays nothing.
+  `HIT_HEAVY` at its own ears (no ray) when the `Damaged` (on the wire only `amount` and `health`) came within
+  `HIT_AFTER_SWING_MS` of another player's swing drawn within the mode's strike reach of the ears
+  (`SoundChooser.strike_reach_m`, the largest `Strike.reach_m`, plus `HIT_REACH_SLACK_M`; Strike emits the swing,
+  then each target's damage, in one tick), heavy as that swing was; a swing out of reach counts for nothing, so a
+  crystal swung across the map never makes the own hit heavy; a `Damaged` with no such swing just before (the engine's zap of a crystal's carrier, which plays the zap) plays nothing.
 - **Views' own sounds** travel as a `SoundChooser.CUE` (`id`, `position`) through `WorldSounds.on_event`, cut and
   muffled like an event's: `PinballSounds` (`PinballViews`, each physics frame, at the table's mount) from the own
   `ClientPinball`'s edges within one game (a flipper up, `in_play` up a launch and down a drain, `score` up a
@@ -5977,7 +5979,8 @@ player's alone.
   (End's outro, §4.7.43); a colour picked at the mirror is the swatch's click.
 - **Hidden information** (§5): each sound plays only where its event or flag already reaches the listener, at a
   place the event already makes public, cut at 12 m: the dead's room (its bar and pinball far from the ship and the
-  lobby) is heard by the dead alone; the hit by its victim alone; the mirror and the ticks by the own player alone.
+  lobby) is heard by the dead alone; the hit by its victim alone (an open microphone on speakers may carry it to the attacker beside, as it would the
+  victim's own "ow": accepted, honest play only); the mirror and the ticks by the own player alone.
 - Tests: `tests/unit/tools/sfx/m8_synth_test.gd` (each pick's take, peak, band, the same render, its file that
   `SfxSet` plays, the loop imported), `tests/unit/client/world/world_sounds_m8_test.gd` (the hit after another's
   swing at the victim's ears, heavy, none without a swing or after the own; each event's file; the limp's edge),

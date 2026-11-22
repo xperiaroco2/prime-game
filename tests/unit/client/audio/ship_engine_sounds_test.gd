@@ -101,8 +101,9 @@ func test_the_order_beeps_at_each_lit_lamp_and_never_in_its_pause() -> void:
 	# Fixed: no order, no beep (the fix's success, #1674, at the next frame alone).
 	_model.fold(&"EngineProblemFixed", {"problem": 1})
 	_now = 2 * cycle * step
-	for cue: Dictionary in _due(false):
-		assert_str(str(cue["id"])).is_equal(String(SfxSet.TASK_SUCCESS))
+	var fixed := _due(false)
+	assert_int(fixed.size()).is_equal(1)
+	assert_str(str(fixed[0]["id"])).is_equal(String(SfxSet.TASK_SUCCESS))
 	for frame in range(2 * cycle * step + 1, 4 * cycle * step):
 		_now = frame
 		assert_array(_due(false)).is_empty()

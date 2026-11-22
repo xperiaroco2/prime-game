@@ -77,6 +77,9 @@ const SIZZLE_SECONDS := 0.5
 ## How long after a swing heard a Damaged of the own player is that swing's hit (#1674): the two
 ## come in one tick's batch, so a frame or two at most. A placeholder, "not a decision".
 const HIT_AFTER_SWING_MS := 150
+## How far beyond the mode's strike reach a swinger may be drawn and still be the own hit's: the
+## drawn pose lags the host's, and the ears sit at the eye, not the feet. A placeholder.
+const HIT_REACH_SLACK_M := 1.5
 
 var model: ClientModel
 ## The remote players' interpolated poses: where another player swings and walks.
@@ -142,11 +145,11 @@ func _ready() -> void:
 func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if model == null:
 		return
-	if event_name == &"Swung":
-		_note_swing(fields["peer"] as int)
 	var heard_from: Variant = _heard_from()
 	if not heard_from is Vector3:
 		return
+	if event_name == &"Swung":
+		_note_swing(fields["peer"] as int, heard_from as Vector3)
 	if event_name == &"Damaged":
 		_hit(fields, heard_from as Vector3)
 		return
@@ -383,14 +386,15 @@ func position_of(peer: int) -> Variant:
 	return body.global_position
 
 
-## The hit that landed on the own player (#1674), from its Damaged: only the victim gets one, and
-## it names no attacker. A blow's Damaged comes in the batch of its Swung (Strike emits the swing,
-## then each target's damage, in one tick), so the hit is heavy when the newest swing heard within
-## HIT_AFTER_SWING_MS of it was with a two-handed item; a Damaged with no swing just before (the
-## engine's zap of a crystal's carrier, which plays its own zap) plays nothing. At the ears, with no
-## muffle ray: the blow lands on the own body, nothing stands between.
+## The hit that landed on the own player (#1674), from its Damaged: only the victim gets one (its
+## audience; on the wire it carries only `amount` and `health`), and it names no attacker. A blow's
+## Damaged comes in the batch of its Swung (Strike emits the swing, then each target's damage, in
+## one tick), so the hit is heavy when the newest swing within strike reach of the ears
+## (_note_swing()) came within HIT_AFTER_SWING_MS of it with a two-handed item; a Damaged with no
+## such swing just before (the engine's zap of a crystal's carrier, which plays its own zap) plays
+## nothing. At the ears, with no muffle ray: the blow lands on the own body, nothing stands between.
 func _hit(fields: Dictionary, ears_at: Vector3) -> void:
-	if fields["peer"] as int != model.own_peer or (fields["amount"] as int) <= 0:
+	if (fields["amount"] as int) <= 0:
 		return
 	if _swing_ms < 0 or Time.get_ticks_msec() - _swing_ms > HIT_AFTER_SWING_MS:
 		return
@@ -399,9 +403,18 @@ func _hit(fields: Dictionary, ears_at: Vector3) -> void:
 		_hits += 1
 
 
-## Remembers when `peer`'s swing was heard and whether it was heavy, for the hit that may follow.
-func _note_swing(peer: int) -> void:
+## Remembers when `peer`'s swing was heard and whether it was heavy, for the hit that may follow:
+## only another player's, drawn within SoundChooser.strike_reach_m of the ears `ears_at`
+## (horizontally, plus HIT_REACH_SLACK_M), so a swing far away, out of sight and hearing, never
+## makes the own hit heavy or turns a damage that no blow dealt into a hit.
+func _note_swing(peer: int, ears_at: Vector3) -> void:
 	if peer == model.own_peer:
+		return
+	var at: Variant = position_of(peer)
+	if not at is Vector3:
+		return
+	var flat := Vector2((at as Vector3).x - ears_at.x, (at as Vector3).z - ears_at.z).length()
+	if flat > SoundChooser.strike_reach_m(mode) + HIT_REACH_SLACK_M:
 		return
 	_swing_ms = Time.get_ticks_msec()
 	_swing_heavy = SoundChooser.heavy_hand(model, mode, peer)
@@ -409,14 +422,17 @@ func _note_swing(peer: int) -> void:
 
 ## The lobby's limp (#1674; §7.1.21: a hit or the beer lays a living player down, its avatar's
 ## public `limp` flag): a player going limp falls with the knockdown's sound at its body, a CUE
-## cut and muffled like an event's. Edges only: a player first seen limp (a late join) plays none.
+## cut and muffled like an event's. Edges only: another player first seen limp (a late join) plays
+## none; the own player is in its own snapshot only while it holds still (Snapshots.avatars_for), so
+## its first sight limp is its fall.
 func _play_limps() -> void:
 	var now_limp: Dictionary[int, bool] = {}
 	if model != null:
 		for peer: int in model.avatars:
 			var limp: bool = (model.avatars[peer] as Dictionary).get("limp", false)
 			now_limp[peer] = limp
-			if limp and _limp.has(peer) and not _limp[peer]:
+			var known := _limp.has(peer) or peer == model.own_peer
+			if limp and known and not _limp.get(peer, false):
 				var at: Variant = position_of(peer)
 				if at is Vector3:
 					on_event(SoundChooser.CUE, {"id": SfxSet.KNOCKDOWN, "position": at})

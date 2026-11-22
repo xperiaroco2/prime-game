@@ -325,6 +325,27 @@ static func heavy_hand(model: ClientModel, mode: GameMode, peer: int) -> bool:
 	return kind != null and kind.is_two_handed()
 
 
+## The farthest a blow of `mode` reaches (#1674): the largest `reach_m` of its Strike effects, in
+## its actions and its item kinds' (the client's own copy of the mode); 0 without a mode or a
+## Strike.
+static func strike_reach_m(mode: GameMode) -> float:
+	var reach := 0.0
+	if mode == null:
+		return reach
+	var rules: Array[Rule] = mode.actions.duplicate()
+	for kind: ItemKind in mode.item_kinds:
+		if kind != null:
+			rules.append_array(kind.actions)
+	for rule: Rule in rules:
+		if rule == null:
+			continue
+		for effect: RuleEffect in rule.effects:
+			var strike := effect as Strike
+			if strike != null:
+				reach = maxf(reach, strike.reach_m)
+	return reach
+
+
 ## The drinks of `mode` (#1674): each full kind's id (a kind whose held actions carry a Drink, the
 ## tap's mug) to the id of the kind a drink leaves (its Drink's empty_kind). Empty without a mode.
 static func _drinks(mode: GameMode) -> Dictionary[StringName, StringName]:
