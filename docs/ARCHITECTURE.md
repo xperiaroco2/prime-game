@@ -4515,7 +4515,7 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
 No new event, row or rule: a client plays a sound only for the events and the snapshots it already receives, and
 nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
 - **The files** (§11.1): `assets/audio/kenney_impact_sounds/` (footsteps on concrete, wood, carpet and grass, five
-  each), `kenney_rpg_audio/` (`swing_1..2`, unplayed since the M8 swing, #1674; `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
+  each), `kenney_rpg_audio/` (`pick_up_1..3`, `put_down_1..3`, renamed; the swing's `swing_1..2` removed for the M8 swing, #1685), `kenney_interface_sounds/`
   (`click_1..3`; `ui_outro`, #657; `ui_role_engineers`, `ui_role_dissidents`, #716), Ogg Vorbis through LFS,
   one `docs/credits/` entry per pack; and the project's own `prime_task_feedback/` (`task_success.wav`,
   `task_error.wav`, mono WAV through LFS, §4.7.60), `prime_engine/` (the ship engine's, §4.7.64) and `prime_m8/`
