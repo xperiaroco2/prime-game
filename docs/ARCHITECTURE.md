@@ -4518,8 +4518,8 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   each), `kenney_rpg_audio/` (`swing_1..2`, `pick_up_1..3`, `put_down_1..3`, renamed), `kenney_interface_sounds/`
   (`click_1..3`; `ui_outro`, #657; `ui_role_engineers`, `ui_role_dissidents`, #716), Ogg Vorbis through LFS,
   one `docs/credits/` entry per pack; and the project's own `prime_task_feedback/` (`task_success.wav`,
-  `task_error.wav`, mono WAV through LFS, §4.7.60) and `prime_engine/` (the ship engine's six, §4.7.64), whose CI
-  stand-in is a silent WAV. The packs ship only Ogg, most of it
+  `task_error.wav`, mono WAV through LFS, §4.7.60), `prime_engine/` (the ship engine's, §4.7.64) and `prime_m8/`
+  (the M8 sounds, §4.7.70; the swing's file now), whose CI stand-in is a silent WAV. The packs ship only Ogg, most of it
   stereo: `sfx-check` passes a mono or stereo Ogg (a WAV stays mono, AGENT_WORKFLOW §11.25), header-checked only;
   the engineer's verdicts from its listening page go to `assets/audio/sfx-verdicts.json`. In CI an Ogg pointer
   file imports a real 10 ms Ogg stand-in (the LFS ADR's amendment of 2026-10-10), so every load works there.
@@ -5682,8 +5682,8 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
 No new event, row or rule: the client plays the engine's sounds (GDD §8 "The ship's engine") from what its own
 `ClientModel` already holds (`ClientEngineBook`, the console's `ZoneProgress`, the public `KnockedDown`) and its copy
 of the mode, never `core/` state (§9.5.27's client).
-- **The files.** `assets/audio/prime_engine/` (`engine_call`, `engine_beep`, `engine_wail`, `engine_zap`,
-  `engine_blast`, mono WAV through LFS, one each), the project's own synthesis like
+- **The files.** `assets/audio/prime_engine/` (`engine_call`, `engine_beep`, `engine_wail` and `engine_blast`, mono
+  WAV through LFS, one each; the zap is the engineer's K1 in `prime_m8/`, §4.7.70), the project's own synthesis like
   `prime_task_feedback/` (`tools/sfx/engine_synth.gd`, rendered by `tools/sfx/render_engine_sounds.gd`, seeded noise:
   the same bytes every render; `docs/credits/prime_engine.md`). Placeholders, "not a decision": the engineer picks by
   ear on `tools\run.cmd sfx-check assets/audio/prime_engine --page` (the task category takes `engine*`) and in game.
@@ -5931,6 +5931,59 @@ The hands have no sound beyond the existing swing. A later package from the art 
 holds them (`asset_contract.json`'s `body` row: the six clips with their loops and `CrystalSocket`). Without the package's nodes (CI's
 Git LFS stand-in) the hands show nothing and every call is harmless. Stills: `client/dev/fp_hands_preview_<state>.tscn`
 (idle, run, punch, crystal, crystal_hit; punch_default in the package's default colour), the eye in the ship's hall. Tests: `tests/unit/client/player/fp_hands_test.gd`.
+
+#### 4.7.70 The M8 sounds (#1674)
+No new event, row or rule: every moment of M8 that was silent plays the sound the engineer picked (a listening page
+of 61 takes, 2026-11-23: "все по рекомендаціях по звуку", every recommended take), each from what the own client
+already receives, cut at the hearing range and muffled like every world sound (§4.7.43) unless it is the own
+player's alone.
+- **The files.** `assets/audio/prime_m8/`, 27 mono WAVs through LFS, the project's own synthesis like `prime_engine/`
+  (`tools/sfx/m8_synth.gd`'s `PICKS`: each file a take function of `m8_life_takes.gd`, `m8_lobby_takes.gd` or
+  `m8_engine_takes.gd` over `synth_voices.gd`; `tools/sfx/render_m8_sounds.gd` renders them, seeded: the same bytes
+  every render; `docs/credits/prime_m8.md`). `sfx-check`'s `life`, `lobby` and `timer` categories take them beside
+  `item` (the swings) and `task` (`engine*`). `engine_charging.wav` imports with a forward loop. `SfxSet` plays each
+  under its file name's id; the swing (`SoundChooser.SWING`) and the short circuit (`ENGINE_ZAP`, K1) are M8 files
+  now, and `prime_engine/engine_zap.wav` is gone.
+- **Events** (`SoundChooser.source`): a `Swung` whose swinger holds a two-handed item (`heavy_hand`: the own model's
+  hand, the own mode's `ItemKind.is_two_handed`) `SWING_HEAVY`; any `KnockedDown` but a breaker's short circuit in
+  play `KNOCKDOWN` at the body; `Died`'s `DEATH` and `Respawned`'s `RESPAWN` at their `position` (the return has no
+  drone or print: the player appearing is the sound; nothing sounds on `PrintStarted`); `Revived`'s `REVIVE` at the
+  drawn body; an `ItemSpawned` of a drink's full kind (`_drinks`: an item kind whose held actions carry a `Drink`,
+  the tap's mug) `TAP_POUR` where it spawns; an `ItemChanged` to a drink's `empty_kind` `DRINK` at the holder.
+- **The hit landing.** `Damaged` reaches the victim alone and names no attacker; the attacker gets no confirmation
+  of a hit (KnockedDown aside), so only the victim hears a hit land. The victim's `WorldSounds` plays `HIT_FIST` or
+  `HIT_HEAVY` at its own ears (no ray) when the `Damaged` came within `HIT_AFTER_SWING_MS` of another player's swing
+  it heard (Strike emits the swing, then each target's damage, in one tick), heavy as that swing was; a `Damaged`
+  with no swing just before (the engine's zap of a crystal's carrier, which plays the zap) plays nothing.
+- **Views' own sounds** travel as a `SoundChooser.CUE` (`id`, `position`) through `WorldSounds.on_event`, cut and
+  muffled like an event's: `PinballSounds` (`PinballViews`, each physics frame, at the table's mount) from the own
+  `ClientPinball`'s edges within one game (a flipper up, `in_play` up a launch and down a drain, `score` up a
+  bumper, kicker or target, `best` up a new best; the first state, a new game and a state told again play
+  nothing, `LoadMatch` forgets); the lobby's limp (`WorldSounds`, each physics frame): an avatar's public `limp`
+  flag false to true plays `KNOCKDOWN` at the drawn body (a player first seen limp none).
+- **The engine** (`ShipEngineSounds.due`, §4.7.64, the same edges of the own `ClientEngineBook`): a problem gone
+  with no blast `TASK_SUCCESS` (U2) at each of its stations; a gill set's slit opened `ENGINE_GILL_OPEN`, shut
+  again `ENGINE_GILL_SHUT`, at its button (a problem's open clearing the slits is no shut); a breakers chain first
+  seen `ENGINE_BREAKER_TRIP` at its boards, `next` up `ENGINE_BREAKER_ON` at that breaker, down
+  `ENGINE_BREAKER_TRIP` at the one gone off, the last one on's lamp green (`since` plus the kind's
+  `ramp_ticks`, `ShipEngineViews` passes its `ShipEngine`) `ENGINE_BREAKER_GREEN` there; a crystal laid in a
+  charger `ENGINE_CRYSTAL_CHARGER` there, its charge done `ENGINE_CHARGED` there, fitted back into its socket (not a
+  blast's return) `ENGINE_CRYSTAL_SOCKET`. Pulling and taking a crystal stay the pick-up's click. `StationHums`
+  loops `ENGINE_CHARGING` at a charger while a crystal charges in it (`CHARGING`, before its `tick`), at
+  `CHARGING_DB`.
+- **The own player's** (`UiSounds.cue`, the UI bus, a player each, local): `MIRROR_OPEN` as the mirror's menu opens
+  (`MirrorMenu.refresh`'s edge); `TIMER_TICK` at each of the match clock's last `TICK_SECONDS` while the HUD shows
+  the clock (`GameUi.tick_due`; the downed and the dead see none, so hear none). Time up plays nothing of its own
+  (End's outro, §4.7.43); a colour picked at the mirror is the swatch's click.
+- **Hidden information** (§5): each sound plays only where its event or flag already reaches the listener, at a
+  place the event already makes public, cut at 12 m: the dead's room (its bar and pinball far from the ship and the
+  lobby) is heard by the dead alone; the hit by its victim alone; the mirror and the ticks by the own player alone.
+- Tests: `tests/unit/tools/sfx/m8_synth_test.gd` (each pick's take, peak, band, the same render, its file that
+  `SfxSet` plays, the loop imported), `tests/unit/client/world/world_sounds_m8_test.gd` (the hit after another's
+  swing at the victim's ears, heavy, none without a swing or after the own; each event's file; the limp's edge),
+  `tests/unit/client/audio/pinball_sounds_test.gd`, `ship_engine_m8_sounds_test.gd`,
+  `tests/integration/client/world/station_hums_test.gd` (the charger's loop), `tests/unit/client/ui/
+  mirror_menu_test.gd` (the opening's sound) and `clock_tick_test.gd`. The listening is the engineer's in game.
 
 ### 4.8 Signalling (M6-5a, #366)
 How a host and a joiner find each other before WebRTC connects (the

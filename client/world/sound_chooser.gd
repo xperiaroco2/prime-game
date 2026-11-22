@@ -56,8 +56,17 @@ extends RefCounted
 ## - the ship's engine (#1501, ARCHITECTURE §4.7.64): ShipEngineViews' cues (ShipEngineSounds.EVENT:
 ##   the call, the order's beeps, a problem's wails and the blast, each at its own place, the
 ##   blast heard within ShipEngineSounds.FAR_RANGE_M), and a KnockedDown in play
-##   by a tripped breaker still off its zap there (ShipEngineSounds.zap_at); any other knockdown is
-##   silent here.
+##   by a tripped breaker still off its zap there (ShipEngineSounds.zap_at); any other knockdown
+##   plays SfxSet.KNOCKDOWN at the body.
+## - the M8 sounds (#1674): a Swung with a two-handed item in the swinger's hand (heavy_hand(), the
+##   own model's hand and the own copy of the mode) SfxSet.SWING_HEAVY; Died's death and Respawned's
+##   return at their `position` (the return has no drone: the player's appearing is the sound),
+##   Revived's raise at the body; ItemSpawned of a drink's full kind (_drinks(): the tap's mug) the
+##   tap's pour where it spawns, ItemChanged to a drink's empty kind the gulps at its holder. Each
+##   of these events reaches everyone with its place already public; the cut keeps the dead's room
+##   (its bar and pinball far from the ship and the lobby) to the dead. A CUE is a view's own sound
+##   (PinballSounds, the lobby's limp). The hit landing is no event's here: Damaged reaches only the
+##   victim, whose WorldSounds plays hit() at its own place.
 
 ## About 12 m (E33 (a)): a placeholder, "not a decision".
 const HEARING_RANGE_M := 12.0
@@ -118,6 +127,15 @@ const CAR_AIM_M := SWING_AIM_M
 ## stands in the zone and the generator's panel is. Placeholders, "not a decision".
 const DELIVERY_AIM_M := ITEM_AIM_M
 const ZONE_AIM_M := PANEL_AIM_M
+## A body's sounds (#1674: a knockdown, a death, a raise, a return) aim a hand above where it lies
+## or stands, as an item on the floor. A placeholder, "not a decision".
+const BODY_AIM_M := ITEM_AIM_M
+## A view's own sound (#1674: PinballSounds' table, WorldSounds' lobby limp), a pseudo-event whose
+## fields are `id` (an SfxSet id) and `position` (where it plays), cut and muffled like an event's:
+## the view derives it from what the own model already holds (a public PinballState, a public
+## avatar flag), never from more. Its ray aims a hand above the place.
+const CUE := &"SoundCue"
+const CUE_AIM_M := ITEM_AIM_M
 
 
 ## One sound to play: where it plays, where the occlusion ray aims (`lift` above it) and, for one
@@ -177,8 +195,10 @@ static func source(
 ) -> Sound:
 	match event_name:
 		&"Swung":
-			var at: Variant = position_of.call(fields["peer"] as int)
-			return Sound.new(SWING, at as Vector3, SWING_AIM_M) if at is Vector3 else null
+			var peer: int = fields["peer"]
+			var at: Variant = position_of.call(peer)
+			var swing := SfxSet.SWING_HEAVY if heavy_hand(model, mode, peer) else SWING
+			return Sound.new(swing, at as Vector3, SWING_AIM_M) if at is Vector3 else null
 		&"ItemPickedUp":
 			var item: ClientModel.Item = model.items.get(fields["item"] as int)
 			if item == null:
@@ -244,10 +264,25 @@ static func source(
 			return Sound.new(served, board.position, COUNTER_AIM_M)
 		&"ItemChanged":
 			var changed: ClientModel.Item = model.items.get(fields["item"] as int)
-			var id := _cooked_sound(mode, fields["kind"] as StringName)
-			if changed == null or id == &"":
+			if changed == null:
 				return null
-			return Sound.new(id, changed.position, COUNTER_AIM_M)
+			var kind: StringName = fields["kind"]
+			if kind in _drinks(mode).values():
+				return _drink(changed, position_of)
+			var id := _cooked_sound(mode, kind)
+			return Sound.new(id, changed.position, COUNTER_AIM_M) if id != &"" else null
+		&"ItemSpawned":
+			if not (fields["kind"] as StringName) in _drinks(mode):
+				return null
+			return Sound.new(SfxSet.TAP_POUR, fields["position"] as Vector3, ITEM_AIM_M)
+		&"Died", &"Respawned":
+			var id := SfxSet.DEATH if event_name == &"Died" else SfxSet.RESPAWN
+			return Sound.new(id, fields["position"] as Vector3, BODY_AIM_M)
+		&"Revived":
+			var at: Variant = position_of.call(fields["peer"] as int)
+			return Sound.new(SfxSet.REVIVE, at as Vector3, BODY_AIM_M) if at is Vector3 else null
+		CUE:
+			return Sound.new(fields["id"] as StringName, fields["position"] as Vector3, CUE_AIM_M)
 		&"LiftChanged":
 			if fields["up"] as bool or not in_play(model):
 				return null
@@ -263,13 +298,58 @@ static func source(
 			var at: Vector3 = fields["position"]
 			return Sound.new(id, at, ShipEngineSounds.AIM_M, ShipEngineSounds.range_of(id))
 		&"KnockedDown":
-			if not in_play(model):
-				return null
 			var zapped: Variant = ShipEngineSounds.zap_at(fields, model, mode)
-			if not zapped is Vector3:
-				return null
-			return Sound.new(SfxSet.ENGINE_ZAP, zapped as Vector3, ShipEngineSounds.AIM_M)
+			if in_play(model) and zapped is Vector3:
+				return Sound.new(SfxSet.ENGINE_ZAP, zapped as Vector3, ShipEngineSounds.AIM_M)
+			return Sound.new(SfxSet.KNOCKDOWN, fields["position"] as Vector3, BODY_AIM_M)
 	return null
+
+
+## The hit that landed on the own player (#1674), at `at` (its own place): a two-handed item's
+## when `heavy`, else a fist's. Damaged reaches the victim alone and names no attacker (the
+## attacker gets no confirmation of a hit, KnockedDown aside), so only the victim's client plays it;
+## WorldSounds tells `heavy` from the swing it heard in the same batch of events.
+static func hit(heavy: bool, at: Vector3) -> Sound:
+	return Sound.new(SfxSet.HIT_HEAVY if heavy else SfxSet.HIT_FIST, at, SWING_AIM_M)
+
+
+## Whether `peer` holds a two-handed item in its hand (the crystal), as the own model and the
+## client's own copy of the mode tell it; false without a mode or for an unknown kind.
+static func heavy_hand(model: ClientModel, mode: GameMode, peer: int) -> bool:
+	if model == null or mode == null:
+		return false
+	var item: ClientModel.Item = model.items.get(model.hand_item(peer))
+	if item == null:
+		return false
+	var kind := mode.find_item_kind(item.kind)
+	return kind != null and kind.is_two_handed()
+
+
+## The drinks of `mode` (#1674): each full kind's id (a kind whose held actions carry a Drink, the
+## tap's mug) to the id of the kind a drink leaves (its Drink's empty_kind). Empty without a mode.
+static func _drinks(mode: GameMode) -> Dictionary[StringName, StringName]:
+	var found: Dictionary[StringName, StringName] = {}
+	if mode == null:
+		return found
+	for kind: ItemKind in mode.item_kinds:
+		if kind == null:
+			continue
+		for rule: Rule in kind.actions:
+			if rule == null:
+				continue
+			for effect: RuleEffect in rule.effects:
+				var drink := effect as Drink
+				if drink != null and drink.empty_kind != null:
+					found[kind.id] = drink.empty_kind.id
+	return found
+
+
+## A drink's gulps where `mug` is: at its holder as this client draws it, else where it lies.
+static func _drink(mug: ClientModel.Item, position_of: Callable) -> Sound:
+	var at: Variant = mug.position
+	if mug.holder != ClientModel.NO_HOLDER:
+		at = position_of.call(mug.holder)
+	return Sound.new(SfxSet.DRINK, at as Vector3, SWING_AIM_M) if at is Vector3 else null
 
 
 ## A booth's sound (#1397): the beep and the flash's shutter at its lamp, the print at its slot;

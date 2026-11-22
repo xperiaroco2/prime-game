@@ -130,3 +130,35 @@ func _generator() -> ClientModel:
 func _frames() -> void:
 	for i: int in 3:
 		await get_tree().process_frame
+
+
+## The charger's loop (#1674): the engineer's SfxSet.ENGINE_CHARGING at the charger while a crystal
+## of the own ClientEngineBook charges in it, before its `tick`; it stops at the charge's end.
+func test_a_charging_crystal_plays_the_chargers_loop_until_its_charge_ends() -> void:
+	var mode := load("res://content/modes/base_mode.tres") as GameMode
+	var model := ClientModel.new(mode)
+	model.fold(&"PhaseChanged", PhaseChangedEvent.new(&"round", 100000).to_dict())
+	var charger_at := NEAR + Vector3(0, -1.5, 3)
+	model.fold(
+		&"StationPlaced",
+		{"station": 9, "kind": &"cartridge_charger", "colour": Color.WHITE, "position": charger_at}
+	)
+	var now := [0]
+	_hums.model = model
+	_hums.mode = mode
+	_hums.host_tick = func() -> int: return now[0]
+	var charging := {"station": 4, "charger": 9, "phase": CrystalProblem.CHARGING, "item": 40}
+	charging["tick"] = 300
+	model.fold(&"CrystalChanged", charging)
+	await _frames()
+	assert_int(_hums.hums()).is_equal(1)
+	var hum := _hums.hum_of(9)
+	assert_str(String(hum.name)).is_equal("Charging9")
+	var stream := hum.stream as AudioStreamWAV
+	assert_str(stream.resource_path).is_equal(SfxSet.M8 + "engine_charging.wav")
+	assert_int(stream.loop_mode).is_equal(AudioStreamWAV.LOOP_FORWARD)
+	assert_float(hum.volume_db).is_equal(StationHums.CHARGING_DB)
+	# The charge's end tick passes: the loop stops (its CrystalChanged WAITING follows).
+	now[0] = 300
+	await _frames()
+	assert_int(_hums.hums()).is_equal(0)

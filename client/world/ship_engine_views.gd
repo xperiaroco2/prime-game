@@ -222,7 +222,7 @@ func _process(delta: float) -> void:
 	var share := _draw_strips(type, now)
 	_hologram.update(now, share, delta, blasted)
 	_looks.update(now, delta, _hologram, share, _order_lit(now), blasted)
-	for cue: Dictionary in _sounds.due(model, _console, _centre, now, _hologram.called()):
+	for cue: Dictionary in _sounds.due(model, _console, _centre, now, _hologram.called(), type):
 		sound_due.emit(ShipEngineSounds.EVENT, cue)
 	_draw_lamps(type, now)
 	_draw_gills(type, now, blasted)

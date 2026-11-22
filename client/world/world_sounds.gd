@@ -39,6 +39,11 @@ extends Node3D
 ## SfxSet's files (TASK_SUCCESS, TASK_ERROR), in place of the placeholders that meant done or a
 ## miss (Cooking's served burger and buzz, its burnt hiss, the car repair's part fitted, the
 ## photo's hang).
+## The M8 sounds (#1674, ARCHITECTURE §4.7.70) are SfxSet's files too; besides the events
+## SoundChooser maps, two are this node's own: the hit that lands on the own player (_hit(), from
+## its Damaged, which reaches the victim alone, at the ears) and a player going limp in the lobby
+## (_play_limps(), its avatar's public flag, the knockdown's sound at its body). Views' own sounds
+## (PinballSounds) arrive as SoundChooser.CUEs through on_event.
 
 ## Samples per second of the generated throw blip.
 const MIX_RATE := 22050
@@ -69,6 +74,9 @@ const COOKING_BLIP_SECONDS: Dictionary[StringName, float] = {
 }
 ## The sizzle's placeholder loop (#776): its length in seconds. A placeholder, "not a decision".
 const SIZZLE_SECONDS := 0.5
+## How long after a swing heard a Damaged of the own player is that swing's hit (#1674): the two
+## come in one tick's batch, so a frame or two at most. A placeholder, "not a decision".
+const HIT_AFTER_SWING_MS := 150
 
 var model: ClientModel
 ## The remote players' interpolated poses: where another player swings and walks.
@@ -114,6 +122,13 @@ var _photo_blips: Dictionary[StringName, AudioStreamWAV] = {}
 var _station_blips: Dictionary[StringName, AudioStreamWAV] = {}
 ## Cooking's sounds (cooking_blip()), each made once, by sound id.
 var _cooking_blips: Dictionary[StringName, AudioStreamWAV] = {}
+## When another player's newest swing was heard (Time.get_ticks_msec(), -1 none) and whether it was
+## with a two-handed item: the own hit that follows it (_hit()).
+var _swing_ms := -1
+var _swing_heavy := false
+var _hits := 0
+## Each player's `limp` flag at the last physics frame (_play_limps()).
+var _limp: Dictionary[int, bool] = {}
 
 
 ## Loads every sound now, not at the first footstep or swing in a round (the resource cache then
@@ -127,8 +142,13 @@ func _ready() -> void:
 func on_event(event_name: StringName, fields: Dictionary) -> void:
 	if model == null:
 		return
+	if event_name == &"Swung":
+		_note_swing(fields["peer"] as int)
 	var heard_from: Variant = _heard_from()
 	if not heard_from is Vector3:
+		return
+	if event_name == &"Damaged":
+		_hit(fields, heard_from as Vector3)
 		return
 	var sound := SoundChooser.choose(
 		event_name,
@@ -171,6 +191,11 @@ func play_held() -> void:
 ## How many sounds were started, steps included (tests).
 func played() -> int:
 	return _played
+
+
+## How many hits on the own player were started (tests).
+func hits() -> int:
+	return _hits
 
 
 ## How many muffle rays were cast: one per sound started, but the own steps (tests).
@@ -358,8 +383,49 @@ func position_of(peer: int) -> Variant:
 	return body.global_position
 
 
+## The hit that landed on the own player (#1674), from its Damaged: only the victim gets one, and
+## it names no attacker. A blow's Damaged comes in the batch of its Swung (Strike emits the swing,
+## then each target's damage, in one tick), so the hit is heavy when the newest swing heard within
+## HIT_AFTER_SWING_MS of it was with a two-handed item; a Damaged with no swing just before (the
+## engine's zap of a crystal's carrier, which plays its own zap) plays nothing. At the ears, with no
+## muffle ray: the blow lands on the own body, nothing stands between.
+func _hit(fields: Dictionary, ears_at: Vector3) -> void:
+	if fields["peer"] as int != model.own_peer or (fields["amount"] as int) <= 0:
+		return
+	if _swing_ms < 0 or Time.get_ticks_msec() - _swing_ms > HIT_AFTER_SWING_MS:
+		return
+	var sound := SoundChooser.hit(_swing_heavy, ears_at)
+	if _start(sound, _stream_of(sound.id), ears_at, false):
+		_hits += 1
+
+
+## Remembers when `peer`'s swing was heard and whether it was heavy, for the hit that may follow.
+func _note_swing(peer: int) -> void:
+	if peer == model.own_peer:
+		return
+	_swing_ms = Time.get_ticks_msec()
+	_swing_heavy = SoundChooser.heavy_hand(model, mode, peer)
+
+
+## The lobby's limp (#1674; §7.1.21: a hit or the beer lays a living player down, its avatar's
+## public `limp` flag): a player going limp falls with the knockdown's sound at its body, a CUE
+## cut and muffled like an event's. Edges only: a player first seen limp (a late join) plays none.
+func _play_limps() -> void:
+	var now_limp: Dictionary[int, bool] = {}
+	if model != null:
+		for peer: int in model.avatars:
+			var limp: bool = (model.avatars[peer] as Dictionary).get("limp", false)
+			now_limp[peer] = limp
+			if limp and _limp.has(peer) and not _limp[peer]:
+				var at: Variant = position_of(peer)
+				if at is Vector3:
+					on_event(SoundChooser.CUE, {"id": SfxSet.KNOCKDOWN, "position": at})
+	_limp = now_limp
+
+
 func _physics_process(delta: float) -> void:
 	play_held()
+	_play_limps()
 	var walking: Dictionary[int, Vector3] = {}
 	if player != null and player.is_inside_tree() and player.is_living():
 		walking[0] = player.global_position
