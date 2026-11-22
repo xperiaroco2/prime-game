@@ -9,7 +9,8 @@ func test_the_crystal_kinds_take_the_crystal_s_size() -> void:
 		assert_bool(ItemView.size_of(kind).is_equal_approx(ItemView.CRYSTAL_SIZE)).is_true()
 		var centre := ItemView.centre_of(kind, Vector3.ZERO)
 		assert_float(centre.y).is_equal_approx(ItemView.CRYSTAL_SIZE.y * 0.5, 1e-6)
-	assert_bool(ItemView.size_of(&"mug").is_equal_approx(ItemView.UNKNOWN_SIZE)).is_true()
+	# A kind with no look of its own keeps the unknown box's size (the mug has its own since #1678).
+	assert_bool(ItemView.size_of(&"wrench").is_equal_approx(ItemView.UNKNOWN_SIZE)).is_true()
 
 
 func test_a_crystal_is_its_model_or_else_the_labelled_box() -> void:
