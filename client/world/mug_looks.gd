@@ -1,10 +1,12 @@
 class_name MugLooks
 extends RefCounted
 ## The look of the bar's mug of beer, full and empty (#1678; the base mode's kind ids `mug` and
-## `mug_empty`, #1408): a placeholder built from primitives until the art track's model, a plain
-## cylinder in a neutral colour with a handle on its +X side, no label. Both kinds look alike; the
-## HUD's name tag tells them apart. The origin is the resting point, the bottom of the body. The
-## sizes and colour are looks, "not a decision": the body is a half-litre beer mug's.
+## `mug_empty`, #1408): the art's mug when its package is here (#1697, art#392's contract: GLB, its
+## Beer hidden for an empty mug, held by its Grip), else a placeholder built from primitives, a
+## plain cylinder in a neutral colour with a handle on its +X side, no label, held round its
+## middle; both kinds alike, the HUD's name tag tells them apart. The origin is the resting point,
+## the bottom of the body. The placeholder's sizes and colour are looks, "not a decision": the
+## body is a half-litre beer mug's.
 
 const KINDS: Array[StringName] = [&"mug", &"mug_empty"]
 ## The body: its width (the diameter) and height in metres; the handle sticks out past it.
@@ -17,6 +19,15 @@ const HANDLE_OUTER := 0.036
 ## Where a held mug's origin sits from the body's hand point (ItemViews): half its height lower,
 ## so the hand closes round its middle instead of carrying it on the fist.
 const IN_HAND := Vector3(0.0, -SIZE.y * 0.5, 0.0)
+## The art's mug (art#392's contract, #1697): one GLB for both kinds, its origin the base's middle,
+## the handle on +X; `Mug` always shown, `Beer` hidden for `mug_empty`, `Grip` the handle's middle.
+## Until its package lands the placeholder stands in.
+const GLB := "res://assets/props/mug/mug.glb"
+const BODY := "Mug"
+const BEER := "Beer"
+const GRIP := "Grip"
+
+static var _model: PackedScene
 
 
 static func has(kind: StringName) -> bool:
@@ -27,8 +38,49 @@ static func size_of(_kind: StringName) -> Vector3:
 	return SIZE
 
 
+## The look of `kind`: the art's mug (`model`, by default GLB when it is there, #1697) with its
+## Beer shown for a full mug and hidden for an empty one; else the placeholder.
+static func build(kind: StringName, model: PackedScene = null) -> Node3D:
+	var scene := model if model != null else _art()
+	if scene != null:
+		var made := scene.instantiate() as Node3D
+		if made != null and made.find_child(BODY, true, false) != null:
+			made.name = "Mug"
+			var beer := made.find_child(BEER, true, false) as Node3D
+			if beer != null:
+				beer.visible = kind != &"mug_empty"
+			return made
+		if made != null:
+			made.free()
+	return placeholder()
+
+
+## The grip of the look `look` (one ItemView's, or build()'s node), in `look`'s frame: the point
+## that lands on a hand (the art's `Grip`, its +Y up the handle, its -Z from the handle to the
+## mug's axis), else the placeholder's middle (#1678's hold round the middle).
+static func grip_of(look: Node3D) -> Transform3D:
+	var grip := look.find_child(GRIP, true, false) as Node3D
+	if grip == null:
+		return Transform3D(Basis.IDENTITY, -IN_HAND)
+	var out := Transform3D.IDENTITY
+	var at: Node = grip
+	while at != null and at != look:
+		if at is Node3D:
+			out = (at as Node3D).transform * out
+		at = at.get_parent()
+	return out
+
+
+## The art's mug scene, loaded once; null without it (until its package lands; CI's LFS stand-in
+## has no `Mug` node and is dropped by build()).
+static func _art() -> PackedScene:
+	if _model == null and ResourceLoader.exists(GLB):
+		_model = load(GLB) as PackedScene
+	return _model
+
+
 ## The placeholder: "Body" and "Handle" under one node, one material.
-static func build(_kind: StringName) -> Node3D:
+static func placeholder() -> Node3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = COLOUR
 	material.roughness = 0.4

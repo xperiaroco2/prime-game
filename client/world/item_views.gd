@@ -254,7 +254,7 @@ func _place_at_body(view: ItemView, item: ClientModel.Item, body: RemotePlayerBo
 	if item.belted and model.items.get(model.belt_item2(item.holder)) == item:
 		at = at.translated_local(SECOND_BELT_OFFSET)
 	elif not item.belted and MugLooks.has(item.kind):
-		at = at.translated_local(MugLooks.IN_HAND)
+		at = at * MugLooks.grip_of(view.look()).affine_inverse()
 	view.global_transform = at
 	view.show_look(true)
 

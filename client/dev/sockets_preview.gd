@@ -22,7 +22,7 @@ func _ready() -> void:
 	holding.hand_point().add_child(held)
 	# As ItemViews places it at a body's hand point.
 	if MugLooks.has(hand_kind):
-		held.position = MugLooks.IN_HAND
+		held.transform = MugLooks.grip_of(held.look()).affine_inverse()
 	var belted := _add_player(rules, character, Vector3(0.0, 0.0, 0.0), -70.0, 1)
 	belted.belt_point().add_child(ItemView.make(2, &"knife", Color.WHITE))
 	var carrying := _add_player(rules, character, Vector3(0.9, 0.0, 0.0), -30.0, 2)
