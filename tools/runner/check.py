@@ -29,7 +29,9 @@ IMPORT_TIMEOUT = 300
 # of about 15 lines on a POSIX signal, and a hang's last lines name the step it stopped at.
 IMPORT_TAIL = 25
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")  # as launch.ANSI_RE: the import's progress lines are coloured
-CHECK_TIMEOUT = 180
+# The project step loads every resource of the project: 150 to 180 s on the engineer's machine with the base
+# alien's package (#1694); its limit only stops a hang, so it sits at the import's.
+CHECK_TIMEOUT = 300
 # Exit codes of a finished Godot process that still count as "ran normally".
 NORMAL_EXIT = (0, 1)
 # An access violation: Windows' STATUS_ACCESS_VIOLATION (0xC0000005) and a POSIX SIGSEGV as subprocess reports it.
