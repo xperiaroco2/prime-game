@@ -68,7 +68,7 @@ func test_the_hall_runs_life_channel_vanish_and_the_bar_s_ticks() -> void:
 	for phase_id: StringName in HALL:
 		var systems := mode.find_phase(phase_id).tick_systems
 		# The photo booth (#1396) is hidden until M9 (#1680): neither phase runs its station or its
-		# clock (base_mode_booth_test.gd, which runs it on BaseModeWithBooth).
+		# clock (base_mode_booth_test.gd, which runs it on FixtureBaseModeWithBooth).
 		# The mirror (#1394): its places and their ticks last, in the Lobby and the Countdown.
 		assert_int(systems.size()).is_equal(11)
 		var places := systems[systems.size() - 2] as StationTicks

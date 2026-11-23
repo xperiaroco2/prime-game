@@ -1,34 +1,45 @@
-class_name BaseModeWithBooth
+class_name FixtureBaseModeWithBooth
 extends GameMode
-## The base mode with the photo booth M8 hides (#1680, the engineer's "hide until M9"): its three
-## parts added back, as the base mode had them (#1396) and as M9 brings them back. The Lobby's
-## StationTicks of the booth kind and its BoothTicks, before the mirror's two systems; StopBooth on
-## the Lobby's all_ready row. The booth's tests on the hall's real layout and the bots scenario
-## `booth_strip_of_frames` run on it (base_mode_with_booth.tres), so they keep checking the booth
-## while the game ships without it. Every other part is the base mode's own, shared, never changed:
-## the Lobby phase and the row are copies.
+## The base mode with the photo booth M8 hides (#1680, the engineer's "hide until M9"): the
+## shipped base mode (`content/modes/base_mode.tres`, read when this loads, so it never drifts
+## from it) plus the booth's three parts, as the base mode had them (#1396) and as M9 brings them
+## back: the Lobby's StationTicks of the booth kind and its BoothTicks, before the mirror's two
+## systems, and StopBooth on the Lobby's all_ready row. The booth's tests on the hall's real layout
+## and the bot scenario `booth_strip_of_frames` play here, so they keep checking the booth while
+## the game ships without it. Loaded through `base_mode_with_booth.tres` (PATH), so a bot scenario
+## can name it as its mode and a command log replays it by its path.
 
-const BASE := "res://content/modes/base_mode.tres"
+const PATH := "res://tests/fixtures/booth/base_mode_with_booth.tres"
+const BASE_MODE := "res://content/modes/base_mode.tres"
 const BOOTH := "res://content/stations/booth.tres"
 
 
 func _init() -> void:
-	var base := load(BASE) as GameMode
+	var base := load(BASE_MODE) as GameMode
 	for property: Dictionary in base.get_property_list():
-		var key := property["name"] as String
-		var usage := property["usage"] as int
-		if (usage & PROPERTY_USAGE_STORAGE) == 0 or key == "script" or key.begins_with("resource_"):
-			continue
-		set(key, base.get(key))
-	var with_phases: Array[PhaseSpec] = []
-	for phase: PhaseSpec in base.phases:
-		with_phases.append(_with_booth_ticks(phase) if phase.id == &"lobby" else phase)
-	phases = with_phases
-	var with_rows: Array[Transition] = []
-	for row: Transition in base.transitions:
-		var stops := row.from == &"lobby" and row.outcome == LobbyPhase.ALL_READY
-		with_rows.append(_with_stop(row) if stops else row)
-	transitions = with_rows
+		var usage: int = property["usage"]
+		if usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			var property_name: String = property["name"]
+			var value: Variant = base.get(property_name)
+			# Its own arrays: the copies below leave the cached shipped mode's alone (the parts in
+			# them are shared, as the shipped mode's own).
+			if value is Array:
+				value = (value as Array).duplicate()
+			elif value is Dictionary:
+				value = (value as Dictionary).duplicate()
+			set(property_name, value)
+	for index: int in phases.size():
+		if phases[index].id == &"lobby":
+			phases[index] = _with_booth_ticks(phases[index])
+	for index: int in transitions.size():
+		var row := transitions[index]
+		if row.from == &"lobby" and row.outcome == LobbyPhase.ALL_READY:
+			transitions[index] = _with_stop(row)
+
+
+## The mode, loaded from PATH.
+static func mode() -> GameMode:
+	return load(PATH) as GameMode
 
 
 ## A copy of the Lobby `phase` with the booth's StationTicks and BoothTicks before its last two
@@ -46,7 +57,7 @@ static func _with_booth_ticks(phase: PhaseSpec) -> PhaseSpec:
 
 static func _with_stop(row: Transition) -> Transition:
 	var stops := row.duplicate() as Transition
-	var actions: Array[RuleEffect] = row.actions.duplicate()
-	actions.append(StopBooth.new())
-	stops.actions = actions
+	var stopping: Array[RuleEffect] = row.actions.duplicate()
+	stopping.append(StopBooth.new())
+	stops.actions = stopping
 	return stops

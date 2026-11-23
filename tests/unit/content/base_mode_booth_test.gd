@@ -3,9 +3,9 @@ extends GdUnitTestSuite
 ## shipped booth and strip carry the provisional numbers; on the hall's real layout the booth
 ## stands on its one `booth` marker, a press inside it runs the whole session and prints a strip
 ## for each player in the frames; readying up mid-session stops it, and countdown_done clears the
-## booth and every strip before the map loads. M8 hides the booth (#1680): the shipped base mode
-## places none and runs none of its parts, and the booth's tests run on BaseModeWithBooth, the
-## base mode with its three parts back as M9 brings them.
+## booth and every strip before the map loads. M8 hides the booth (#1680): the shipped base
+## mode places none and runs none of its parts, and the booth's tests run on
+## FixtureBaseModeWithBooth, the base mode with its three parts back as M9 brings them.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
@@ -47,7 +47,11 @@ func _in_booth(mode: GameMode) -> Match:
 func test_m8_s_base_mode_places_no_booth_and_runs_none_of_its_parts() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	for phase: PhaseSpec in mode.phases:
-		assert_bool(BoothTicks.listed_in(phase)).override_failure_message(String(phase.id)).is_false()
+		(
+			assert_bool(BoothTicks.listed_in(phase))
+			. override_failure_message(String(phase.id))
+			. is_false()
+		)
 		for system: TickSystem in phase.tick_systems:
 			var placing := system as StationTicks
 			if placing != null:
@@ -68,7 +72,7 @@ func test_m8_s_base_mode_places_no_booth_and_runs_none_of_its_parts() -> void:
 ## The fixture is the base mode but for the booth's three parts, the base mode's own resources.
 func test_the_base_mode_with_the_booth_adds_only_its_three_parts() -> void:
 	var base := load(BASE_MODE) as GameMode
-	var mode: GameMode = BaseModeWithBooth.new()
+	var mode: GameMode = FixtureBaseModeWithBooth.mode()
 	assert_int(mode.phases.size()).is_equal(base.phases.size())
 	for i: int in base.phases.size():
 		if base.phases[i].id != &"lobby":
@@ -103,7 +107,7 @@ func test_the_shipped_booth_and_strip_carry_the_provisional_numbers() -> void:
 
 
 func test_a_press_in_the_hall_s_booth_prints_a_strip_for_each() -> void:
-	var mode: GameMode = BaseModeWithBooth.new()
+	var mode: GameMode = FixtureBaseModeWithBooth.mode()
 	var game := _in_booth(mode)
 	FixtureBooth.press(game, P1, 1)
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
@@ -123,7 +127,7 @@ func test_a_press_in_the_hall_s_booth_prints_a_strip_for_each() -> void:
 
 
 func test_ready_stops_the_session_and_countdown_done_clears_the_booth_and_its_strips() -> void:
-	var mode: GameMode = BaseModeWithBooth.new()
+	var mode: GameMode = FixtureBaseModeWithBooth.mode()
 	var game := _in_booth(mode)
 	var start := FixtureBooth.start_in(mode)
 	FixtureBooth.press(game, P1, 1)
