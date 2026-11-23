@@ -27,6 +27,13 @@ const ART_LOOKS: Dictionary[String, String] = {
 	"Bar": "res://assets/environment/bar/bar.glb",
 	"Mirror": "res://assets/environment/mirror/mirror.glb",
 }
+## Where each art look stands in the hall, its package's HANDOFF (prime-game-art bar and mirror v6).
+const ART_AT: Dictionary[String, Transform3D] = {
+	"Bar":
+	Transform3D(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(-16.5, 0, -10)),
+	"Mirror":
+	Transform3D(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(-19.86, 0, 8)),
+}
 ## The hall's floor plan inside its straight walls (x, z), the art's layouts/lobby/hall.toml
 ## (x0, x1, zN, zS); the window bows south of it to z 16.
 const INSIDE := Rect2(-20.0, -30.0, 40.0, 40.0)
@@ -169,11 +176,27 @@ func test_each_piece_is_a_separate_box_body_on_the_metre_grid() -> void:
 			# #1700: the approved art is the look, placed by its HANDOFF, and its collider the
 			# HANDOFF's box (the mirror's, from 1 cm off the wall to the glass); one box body still.
 			assert_int(shapes.size()).override_failure_message(piece_name).is_equal(1)
-			var look := piece.get_node_or_null(^"Look")
+			var look := piece.get_node_or_null(^"Look") as Node3D
 			assert_object(look).override_failure_message(piece_name).is_not_null()
 			if look != null:
 				assert_str(look.scene_file_path).is_equal(ART_LOOKS[piece_name])
-			assert_object((shapes[0] as CollisionShape3D).shape as BoxShape3D).is_not_null()
+				# Where its HANDOFF puts it in the hall.
+				(
+					assert_bool(
+						(piece.transform * look.transform).is_equal_approx(ART_AT[piece_name])
+					)
+					. override_failure_message(piece_name + "'s look is off its HANDOFF's place")
+					. is_true()
+				)
+			if shapes.size() != 1:
+				continue
+			var art_shape := shapes[0] as CollisionShape3D
+			assert_object(art_shape.shape as BoxShape3D).is_not_null()
+			if art_shape.shape is BoxShape3D:
+				var art_bounds := _bounds(art_shape)
+				# On the floor; the bar's box from the body's corner, the mirror's from 1 cm off it.
+				assert_float(art_bounds.position.y).is_equal_approx(0.0, EPS)
+				assert_float(art_bounds.position.x - origin.x).is_between(0.0, 0.01 + EPS)
 			continue
 		var meshes := piece.find_children("*", "MeshInstance3D", true, false)
 		assert_int(shapes.size()).override_failure_message(piece_name).is_equal(1)
@@ -496,3 +519,21 @@ func _shape_of(body: Node) -> CollisionShape3D:
 func _bounds(shape: CollisionShape3D) -> AABB:
 	var size := (shape.shape as BoxShape3D).size
 	return LevelWorld.transform_in_scene(shape, _root) * AABB(-size / 2.0, size)
+
+
+## #1700's review: the art pieces bring no light or camera of their own into the lobby (an exported
+## one would light through walls with no shadow, or render past the photo and live layers).
+func test_the_art_pieces_bring_no_light_or_camera() -> void:
+	var console := _root.get_node_or_null(^"MatchConsole")
+	assert_object(console).is_not_null()
+	for piece: Node in [_root.get_node(^"Bar"), _root.get_node(^"Mirror"), console]:
+		var look := piece.get_node_or_null(^"Look")
+		assert_object(look).override_failure_message(str(piece.name)).is_not_null()
+		if look == null:
+			continue
+		for type: String in ["Light3D", "Camera3D"]:
+			(
+				assert_array(look.find_children("*", type, true, false))
+				. override_failure_message("%s brings a %s" % [piece.name, type])
+				. is_empty()
+			)

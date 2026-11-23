@@ -149,3 +149,22 @@ func test_e_leaves_the_screen_to_another_target() -> void:
 	other[0] = false
 	assert_bool(console.press_interact()).is_true()
 	assert_int(sent.size()).is_equal(1)
+
+
+## #1700: the art console's stand-in screen (its ConsoleScreen mesh, in the screen's plane) is
+## hidden where the game's screen is placed, so the two never fight in depth.
+func test_the_art_s_stand_in_screen_is_hidden_where_the_screen_goes() -> void:
+	var console := _console(true)
+	var level: Node3D = auto_free(Node3D.new())
+	add_child(level)
+	var body := Node3D.new()
+	level.add_child(body)
+	var marker := Marker3D.new()
+	marker.add_to_group(MatchConsole.SCREEN_GROUP)
+	body.add_child(marker)
+	var stand_in := MeshInstance3D.new()
+	stand_in.name = MatchConsole.ART_SCREEN
+	stand_in.mesh = QuadMesh.new()
+	body.add_child(stand_in)
+	console.level = level
+	assert_bool(stand_in.visible).is_false()

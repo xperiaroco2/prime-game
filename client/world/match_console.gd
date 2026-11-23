@@ -20,6 +20,9 @@ extends Node3D
 signal setting_changed(id: StringName, value: Variant)
 
 const SCREEN_GROUP := &"match_console_screen"
+## The art console's stand-in screen (prime-game-art match_console v6, #1700), a mesh in the
+## screen's plane the game draws on: hidden where the screen is placed, or the two would fight.
+const ART_SCREEN := "ConsoleScreen"
 ## The screen on the console, metres (provisional, not a decision).
 const SCREEN_M := Vector2(0.96, 0.54)
 ## How far from the eye the crosshair works the screen, metres (provisional).
@@ -228,6 +231,10 @@ func _place() -> void:
 	)
 	if _screen_at != null:
 		quad.global_transform = _screen_at.global_transform
+		for stand_in: Node in _screen_at.get_parent().find_children(
+			ART_SCREEN, "MeshInstance3D", true, false
+		):
+			(stand_in as MeshInstance3D).visible = false
 	else:
 		aim(NOWHERE)
 

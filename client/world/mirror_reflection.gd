@@ -39,6 +39,9 @@ const MIN_SIZE_M := 0.05
 const HEIGHT_PX := 512
 ## How far behind the reflecting plane the glass is drawn: behind the reflection's near plane.
 const GLASS_BEHIND_M := 0.002
+## The art mirror's stand-in glass (prime-game-art mirror v6, #1700), a mesh in the glass's plane
+## the game draws on: hidden where the reflection is placed, or the two would fight in depth.
+const ART_GLASS := "MirrorGlass"
 ## An eye nearer to the plane than this (or behind it) sees no reflection.
 const MIN_EYE_M := 0.05
 ## How far beyond the glass the reflection reaches.
@@ -351,6 +354,9 @@ func _place() -> void:
 	(glass.mesh as QuadMesh).size = _size
 	glass.global_transform = _plane.translated(-_plane.basis.z * GLASS_BEHIND_M)
 	glass.visible = _glass_shown()
+	var art := _marker_at.get_parent().find_children(ART_GLASS, "MeshInstance3D", true, false)
+	for stand_in: Node in art:
+		(stand_in as MeshInstance3D).visible = false
 	viewport.size = _pixels(_size)
 
 

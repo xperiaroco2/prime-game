@@ -21,7 +21,7 @@ const HANDLE_OUTER := 0.036
 const IN_HAND := Vector3(0.0, -SIZE.y * 0.5, 0.0)
 ## The art's mug (art#392's contract, #1697): one GLB for both kinds, its origin the base's middle,
 ## the handle on +X; `Mug` always shown, `Beer` hidden for `mug_empty`, `Grip` the handle's middle.
-## Until its package lands the placeholder stands in.
+## Without its LFS content (CI's stand-in) the placeholder stands in.
 const GLB := "res://assets/environment/mug/mug.glb"
 const BODY := "Mug"
 const BEER := "Beer"
