@@ -30,17 +30,28 @@ const RAIL_COLOUR := Color(0.93, 0.9, 0.82)
 const TARGET_COLOUR := Color(1.0, 0.55, 0.15)
 const FLIPPER_COLOUR := Color(0.95, 0.25, 0.3)
 const BALL_COLOUR := Color(0.92, 0.93, 0.95)
+## The art's table (prime-game-art pinball v6, #1702): one mesh per contract body, named as the
+## node it dresses (the flippers' pivots at their origins), and the drawn-only Playfield and Glass,
+## in the table's frame. Each body it names wears its mesh in place of the greybox's; without it
+## (CI's LFS stand-in) the greybox stands.
+const ART := "res://assets/environment/pinball/pinball_table.glb"
 
 ## The held state as the host told it; step() turns the flippers toward it.
 var left := false
 var right := false
 var ball := MeshInstance3D.new()
+## The table's art (null: ART, when its package is here; tests give their own) and whether the
+## table wears it.
+var art: PackedScene
+var dress := true
 
 ## The flippers' pivots (FLIPPERS' order), their rest transforms and their angles (radians).
 var _pivots: Array[Node3D] = []
 var _rest: Array[Transform3D] = []
 var _angles: Array[float] = []
 var _built := false
+## The greybox meshes drawn for each body (and the field, "Playfield"), by its name.
+var _greybox: Dictionary[StringName, Array] = {}
 
 
 func _init() -> void:
@@ -81,6 +92,7 @@ func build() -> bool:
 		var box := at * mesh.mesh.get_aabb()
 		field = box if first else field.merge(box)
 		first = false
+		_greybox_of(owner_body.name).append(mesh)
 		if sign_of != 0.0:
 			_add_flipper(owner_body, shape, mesh, source)
 		else:
@@ -91,6 +103,7 @@ func build() -> bool:
 		push_error("pinball: the table scene has not both flippers")
 		return false
 	_add_field(field)
+	_dress()
 	_built = true
 	return true
 
@@ -162,6 +175,48 @@ func _add_field(field: AABB) -> void:
 	var centre := field.get_center()
 	mesh.position = Vector3(centre.x, -FIELD_M / 2.0, centre.z)
 	add_child(mesh)
+	_greybox_of(&"Playfield").append(mesh)
+
+
+## The art's meshes in place of the greybox's (ART): each art mesh at its place in the table's
+## frame, a flipper's under its pivot so it turns with it; the greybox meshes of each body it names
+## freed. Without the art (or with CI's stand-in, which has no Playfield) nothing changes.
+func _dress() -> void:
+	if not dress:
+		return
+	var packed := art
+	if packed == null:
+		if not ResourceLoader.exists(ART):
+			return
+		packed = load(ART) as PackedScene
+	var dressed := packed.instantiate() as Node3D if packed != null else null
+	if dressed == null or dressed.find_child("Playfield", true, false) == null:
+		if dressed != null:
+			dressed.free()
+		return
+	for node: Node in dressed.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		var at := _in_scene(mesh, dressed)
+		mesh.get_parent().remove_child(mesh)
+		mesh.owner = null
+		for greybox: Variant in _greybox.get(mesh.name, []):
+			(greybox as Node).free()
+		_greybox.erase(mesh.name)
+		var index := FLIPPERS.keys().find(mesh.name)
+		if index >= 0:
+			mesh.transform = _rest[index].affine_inverse() * at
+			_pivots[index].add_child(mesh)
+		else:
+			mesh.transform = at
+			add_child(mesh)
+	dressed.free()
+
+
+## The greybox meshes recorded for the body `body_name`.
+func _greybox_of(body_name: StringName) -> Array:
+	if not _greybox.has(body_name):
+		_greybox[body_name] = []
+	return _greybox[body_name]
 
 
 ## A mesh of `shape`'s size (a box or a cylinder), coloured by what its body is; null for another

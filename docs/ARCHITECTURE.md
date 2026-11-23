@@ -5662,8 +5662,10 @@ The client half of the lobby's pinball (§7.1.22, §9.5.28; GDD §3 "The pinball
 after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the frame's render tick) holds four parts.
 - **The places.** Marker3Ds found by group in the level (`TABLE_GROUP` `pinball_table`: the table scene's origin and
   axes, its -Z up the table; `CLOSE_UP_GROUP` `pinball_closeup`: the close-up camera's pose; `DISPLAY_GROUP`
-  `pinball_display`: the display, its text facing +Z). The lobby has them as placeholders under its `Pinball` node
-  (`TableMount`, `CloseUp`, `Display`; approved on the engineer's M8 review, #1095 c7021998428 answers 6 and 8, after
+  `pinball_display`: the display, its text facing +Z). The lobby and the dead's hall have them under their `Pinball` node at
+  the art cabinet's own markers (#1702: prime-game-art pinball v6, its `TableMount` in the cabinet at the playfield,
+  tilted 6.5 degrees, `CloseUp` pitched 37 degrees, `Display` on the backbox's screen); before the art they were the
+  greybox's placeholders (`TableMount`, `CloseUp`, `Display`; approved on the engineer's M8 review, #1095 c7021998428 answers 6 and 8, after
   `Display` moved up (1.55 to 1.72 m over the floor) and 0.1 m back, so the score line clears
   the table's back rail from a standing eye, and `CloseUp` 0.38 m back and pitched 42 degrees down (was 55), so the display's
   top line is in the close-up's frame, about 1.8 m from the table's mount; the editor may still move them). Over the
@@ -5671,7 +5673,11 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
   draws no table, shows no close-up, or no display; `ItemWorld.set_level` hands the level over.
 - **The table.** `PinballTableView` reads the table scene by its own `levels/` path (`SCENE`; never
   `PinballTable.SCENE`, client/ names no server/ path) once and draws one plain mesh per collision shape, with no
-  physics body in the client's tree (a collider would stop the own player's rays and body). The flippers turn toward
+  physics body in the client's tree (a collider would stop the own player's rays and body). With the art's table
+  (`ART`, `assets/environment/pinball/pinball_table.glb`, #1702) each body it names (and the `Playfield`) wears its art
+  mesh in place of the greybox's, at its place in the table's frame, a flipper's under its pivot; the `Glass` is drawn
+  only; without it (CI's stand-in) the greybox stands. The cabinet (`pinball.glb`) is the level's `Pinball/Look` over a
+  0.9 x 1.9 x 1.73 m box, the play spot 0.575 m in front of it (z 2.0). The flippers turn toward
   `PinballState`'s `left` and `right` on receipt at the host's swing and speed (`SWING_DEG` 50, `SPEED_DEG_S` 1500,
   `BALL_RADIUS_M` 0.03: the view's own copies of `PinballTableSpec`'s shipped values, a test fails when they part).
   The ball is drawn where `PinballBallTrack` (pure) puts it at `AvatarViews.drawn_at`, the remote bodies' render tick:

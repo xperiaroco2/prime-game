@@ -2,13 +2,16 @@ extends GdUnitTestSuite
 ## The pinball's table as the client draws it (#1400, ARCHITECTURE §4.7.63): a mesh per collision
 ## shape of the host's table scene and no physics body anywhere in the drawn tree; the flippers
 ## turn toward the held state at the host's speed up to its swing, each its own way; the ball shows
-## where it is put; the look numbers are the host's spec's.
+## where it is put; the look numbers are the host's spec's; the art's meshes in place of the
+## greybox's, the flippers' under their pivots (#1702).
 
 var _table: PinballTableView
 
 
 func before_test() -> void:
 	_table = auto_free(PinballTableView.new())
+	# The greybox contract, whether the LFS art is here or not; the art: its own test.
+	_table.dress = false
 	assert_bool(_table.build()).is_true()
 
 
@@ -84,3 +87,48 @@ func test_the_look_numbers_are_the_host_s_spec() -> void:
 
 func test_the_table_scene_is_the_host_s() -> void:
 	assert_str(PinballTableView.SCENE).is_equal(PinballTable.SCENE)
+
+
+## #1702: the art's table (one mesh per body it names, the Playfield) is drawn in place of the
+## greybox's: each art mesh at its place in the table's frame, a flipper's under its pivot (so it
+## turns with it), the greybox meshes of each named body freed, the others kept.
+func test_the_art_s_meshes_replace_the_greybox_s() -> void:
+	var table: PinballTableView = auto_free(PinballTableView.new())
+	table.art = _art(
+		{
+			&"WallLeft": Vector3(-0.3, 0.02, 0.1),
+			&"FlipperLeft": Vector3(-0.1, 0.01, 0.5),
+			&"Playfield": Vector3(0, -0.005, 0),
+		}
+	)
+	assert_bool(table.build()).is_true()
+	assert_int(table.find_children("WallLeft*", "MeshInstance3D", false, false).size()).is_equal(1)
+	var wall := table.get_node(^"WallLeft") as MeshInstance3D
+	assert_object(wall.mesh as SphereMesh).is_not_null()
+	assert_vector(wall.position).is_equal_approx(Vector3(-0.3, 0.02, 0.1), Vector3.ONE * 1e-5)
+	var pivot := table.get_node(NodePath(&"FlipperLeft")) as Node3D
+	var flipper := pivot.get_node(^"FlipperLeft") as MeshInstance3D
+	assert_object(flipper).is_not_null()
+	assert_object(pivot.get_node_or_null(^"Mesh")).is_null()
+	assert_vector((pivot.transform * flipper.transform).origin).is_equal_approx(
+		Vector3(-0.1, 0.01, 0.5), Vector3.ONE * 1e-5
+	)
+	assert_object((table.get_node(^"Playfield") as MeshInstance3D).mesh as SphereMesh).is_not_null()
+	# A body the art does not name keeps its greybox mesh.
+	assert_object(table.get_node_or_null(^"WallRight")).is_not_null()
+
+
+## An art scene of a SphereMesh per name at its place.
+func _art(places: Dictionary[StringName, Vector3]) -> PackedScene:
+	var root := Node3D.new()
+	for part: StringName in places:
+		var mesh := MeshInstance3D.new()
+		mesh.name = part
+		mesh.mesh = SphereMesh.new()
+		mesh.position = places[part]
+		root.add_child(mesh)
+		mesh.owner = root
+	var scene := PackedScene.new()
+	scene.pack(root)
+	root.free()
+	return scene
