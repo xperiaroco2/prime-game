@@ -31,7 +31,7 @@
 # 5 minutes: run it with `--seconds 600`.
 players 2
 windows 2
-map res://levels/estate/estate.tscn
+map res://levels/clearing/clearing.tscn
 setting dissidents 0
 setting match_duration 3
 route to_mirror -15,5.5

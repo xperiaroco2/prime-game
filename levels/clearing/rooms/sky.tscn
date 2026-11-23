@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://q7b210hn7acv"]
+
+[sub_resource type="Environment" id="Environment_fog"]
+background_mode = 1
+background_color = Color(0.42, 0.45, 0.5, 1)
+fog_enabled = true
+fog_light_color = Color(0.42, 0.45, 0.5, 1)
+fog_density = 0.035
+
+[node name="Sky" type="WorldEnvironment" unique_id=1352676022]
+environment = SubResource("Environment_fog")

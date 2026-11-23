@@ -10041,12 +10041,18 @@ levels/
                                    round_player, package, knife, circle, respawn and zone markers
   tutorial/tutorial.tscn           the tutorial's map: it only places its one room (#600)
   tutorial/rooms/tutorial_room.tscn   the tutorial room: a greybox with its players' and items' markers
-  estate/estate.tscn               the forest estate's box greybox (#1158): base_mode's player map (#1496)
-                                   (#1374); it only places its pieces
+  estate/estate.tscn               the forest estate's box greybox (#1158): base_mode's player map (#1496) until M8
+                                   hid it (#1687); its files stay, no mode plays it (#1374); it only places its pieces
   estate/rooms/*.tscn              one box piece per lot (house, bonfire, summer_kitchen, pantry, greenhouse, garage,
                                    gazebo, well, ship, fallen_trunk, gate) and the map-wide plot, creek, paths, trees and
                                    markers (the base mode's spawn markers, #1374) and passages (§5b's tunnel, sewer
                                    and ducts, #1373)
+  clearing/clearing.tscn           the M8 round's map (#1687): the estate's `Ship` piece at (116, 0, 72), the dead's
+                                   hall, and its own pieces in `clearing/rooms/`: `Markers` (the estate's round and
+                                   respawn markers), `Ground` (200 m, the garden floor), `Boundary` (an invisible ring
+                                   of walls, 35 m inside, 12 m high), `Sky` (a WorldEnvironment: fog 0.035 into a grey
+                                   background); base_mode's one player map; the ship's engine plays here and on the
+                                   estate; the size and the fog are placeholders
   stations/switch.tscn, generator.tscn   the Generator's devices with their use spots (#799), in House's basement
   stations/camera.tscn, photo_spot.tscn, film_box.tscn, printer.tscn, photo_board.tscn   the photo task's stations
                                    (#783), in House's photo zone, storage, study and darkroom
@@ -10080,7 +10086,7 @@ levels/
   §2.3). Boxes only: layer-1 `StaticBody3D` boxes with `levels/kit/`'s role materials on the 1 m grid, stairs as
   ramps; the house's links of §5 with the bookcase stair and the chimney (down only); §6's stations, §5c's six
   cameras and each lot's door openings as markers (`StationMarkers`, `CameraMarkers`, `Doors`), no station scene.
-  The base mode's one player map and default since the M8 slice (#1496; a test bench from #1374, beside the greybox
+  The base mode's one player map and default from the M8 slice until M8 hid it (#1496, #1687; a test bench from #1374, beside the greybox
   in `bench_maps`, until then; the House the bench now, #767): its map-wide `Markers` piece holds the round spawns and the respawns
   (together on the skat's clearing before the ramp's foot, estate-map.md §5a, #1492), knives and the greybox Delivery by colours' packages and circles (`colour_delivery` listed
   the estate as its stand-in task until the M8 slice made the ship's engine its one task, #1496) and the ship's `Engine` the ship's engine's markers and

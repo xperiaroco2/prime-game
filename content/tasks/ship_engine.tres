@@ -54,5 +54,5 @@ stage_seconds = 30.0
 id = &"engine"
 display_name = "Ship's engine"
 description = "Press start on the console in the ship's hall, then fix each problem before its timer runs out."
-maps = PackedStringArray("res://levels/estate/estate.tscn")
+maps = PackedStringArray("res://levels/clearing/clearing.tscn")
 subtasks_setting = &"engine_stages"

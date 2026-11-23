@@ -18,7 +18,7 @@ const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const GREYBOX := "res://levels/greybox/greybox.tscn"
 const HOUSE := "res://levels/house/house.tscn"
 ## The estate (#1374): the map players play, the M8 slice's (#1496).
-const ESTATE := "res://levels/estate/estate.tscn"
+const CLEARING := "res://levels/clearing/clearing.tscn"
 
 
 func test_every_mode_in_content_passes_the_mode_check() -> void:
@@ -108,8 +108,8 @@ func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
 
 func test_players_always_play_the_estate_and_the_greybox_is_a_test_bench() -> void:
 	# #767 (the engineer's option (a)): the flat greybox stays one of the base mode's maps for the
-	# bot scenarios and the information-leak test, as its test bench; the lobby offers the estate
-	# alone (the M8 slice, #1496), every match starts on it, and every base-mode scenario plays the
+	# bot scenarios and the information-leak test, as its test bench; the lobby offers the clearing
+	# alone (#1687; the estate in the M8 slice, #1496), each match starts there, each scenario plays the
 	# greybox (§9.7), but those that play the House's stations one storey at a time (#1197, the
 	# engineer's answer on the issue): the House is no flat level the fake world must describe.
 	var mode := _base_mode()
@@ -117,11 +117,11 @@ func test_players_always_play_the_estate_and_the_greybox_is_a_test_bench() -> vo
 	# greybox and the House's scenarios still play it.
 	assert_array(Array(mode.bench_maps)).contains_exactly([GREYBOX, HOUSE])
 	assert_str(mode.bench_maps[0]).is_equal(GREYBOX)
-	assert_array(Array(mode.player_maps())).contains_exactly([ESTATE])
-	assert_str(mode.default_map()).is_equal(ESTATE)
+	assert_array(Array(mode.player_maps())).contains_exactly([CLEARING])
+	assert_str(mode.default_map()).is_equal(CLEARING)
 	assert_bool(ScenarioLevels.of(mode).has(GREYBOX)).is_true()
 	assert_bool(ScenarioLevels.of(mode).has(HOUSE)).is_false()
-	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly([HOUSE, ESTATE])
+	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly([HOUSE, CLEARING])
 	for file: String in ScenarioLevels.scenario_paths():
 		var scenario := load(file) as BotScenario
 		if scenario == null or scenario.mode == null:
@@ -140,7 +140,7 @@ func test_a_scenario_on_the_house_plays_its_storeys_and_a_flat_map_one_floor() -
 	# floor (test_the_scenarios_levels_are_flat). The estate joins them with the ship's deck (#1498):
 	# a station marker on the deck must stand on the fake's deck, else no bot reaches it.
 	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly(
-		[ScenarioLevels.HOUSE, ScenarioLevels.ESTATE]
+		[ScenarioLevels.HOUSE, ScenarioLevels.CLEARING]
 	)
 	var layouts := _layouts_for(_base_mode())
 	for map: String in ScenarioLevels.STOREYED_MAPS:
@@ -153,12 +153,12 @@ func test_a_scenario_on_the_house_plays_its_storeys_and_a_flat_map_one_floor() -
 					if is_equal_approx(at.y, storey):
 						on_it += 1
 			assert_int(on_it).override_failure_message("%s storey %s" % [map, storey]).is_greater(0)
-	for at: Vector3 in layouts[ScenarioLevels.ESTATE].positions(&"engine_console"):
+	for at: Vector3 in layouts[ScenarioLevels.CLEARING].positions(&"engine_console"):
 		assert_float(at.y).is_equal_approx(ScenarioLevels.ESTATE_STOREYS[1], 0.02)
 	assert_array(ScenarioLevels.storeys_of(ScenarioLevels.HOUSE)).is_equal(
 		ScenarioLevels.HOUSE_STOREYS
 	)
-	assert_array(ScenarioLevels.storeys_of(ScenarioLevels.ESTATE)).is_equal(
+	assert_array(ScenarioLevels.storeys_of(ScenarioLevels.CLEARING)).is_equal(
 		ScenarioLevels.ESTATE_STOREYS
 	)
 	assert_array(ScenarioLevels.storeys_of("res://levels/no_such_map.tscn")).is_empty()

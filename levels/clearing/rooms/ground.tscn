@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://j3b7vrr35705"]
+
+[ext_resource type="Material" uid="uid://d1t1jgv22rrqu" path="res://levels/kit/greybox_floor_garden.tres" id="1_garden"]
+
+[sub_resource type="BoxShape3D" id="Shape_ground"]
+size = Vector3(200, 1, 200)
+
+[sub_resource type="BoxMesh" id="Mesh_ground"]
+material = ExtResource("1_garden")
+size = Vector3(200, 1, 200)
+
+[node name="Ground" type="StaticBody3D" unique_id=846678007]
+
+[node name="Shape" type="CollisionShape3D" parent="." unique_id=1279124806]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("Shape_ground")
+
+[node name="Mesh" type="MeshInstance3D" parent="." unique_id=1022418098]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+mesh = SubResource("Mesh_ground")

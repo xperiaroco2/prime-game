@@ -1,14 +1,15 @@
 extends GdUnitTestSuite
-## A human match always loads the estate (the M8 slice, #1496; #767; the map pick of #627): a host
+## A human match always loads the clearing (#1687; the estate in the M8 slice, #1496; #767; the
+## map pick of #627): a host
 ## and a client, two Game roots over a LoopbackHub on a simulated clock (as game_loop_test.gd, each
-## in its own SubViewport world). Both lobbies start on the estate, the mode's default map and its
+## in its own SubViewport world). Both lobbies start on the clearing, the mode's default map and its
 ## only player map (the greybox and the House, test benches, are never a match's default), a
-## guest's pick is refused, and the match then loads the estate on both machines. The host's pick
+## guest's pick is refused, and the match then loads the clearing on both machines. The host's pick
 ## reaches both models and both load it, as a bot scenario's setup relies on to play the greybox.
 
 const GAME := preload("res://client/app/game.tscn")
 const PORT := 7420
-const ESTATE := "res://levels/estate/estate.tscn"
+const CLEARING := "res://levels/clearing/clearing.tscn"
 const GREYBOX := "res://levels/greybox/greybox.tscn"
 ## The simulated clock moves this much per physics frame: five host ticks.
 const STEP_USEC := 250000
@@ -25,27 +26,27 @@ func before_test() -> void:
 	_now = 1000000
 
 
-func test_a_human_match_loads_the_estate_on_every_machine() -> void:
+func test_a_human_match_loads_the_clearing_on_every_machine() -> void:
 	var host := _game(["--host", "--local", "--no-replay", "--port=%d" % PORT])
 	var guest := _game(["--join=127.0.0.1", "--port=%d" % PORT])
 	var games: Array[Game] = [host, guest]
 	assert_bool(await _until(_all_on.bind(games, S.LOBBY, 2))).is_true()
 	assert_bool(host.mode.maps.has(GREYBOX)).is_true()
-	assert_str(host.mode.default_map()).is_equal(ESTATE)
+	assert_str(host.mode.default_map()).is_equal(CLEARING)
 	for game: Game in games:
-		assert_str(game.client().model.map).is_equal(ESTATE)
-	# A guest's pick is refused by the host: the map stays the estate.
+		assert_str(game.client().model.map).is_equal(CLEARING)
+	# A guest's pick is refused by the host: the map stays the clearing.
 	guest.change_map(GREYBOX)
 	host.change_setting(&"match_duration", 1)
 	assert_bool(await _until(_setting_is.bind(games, &"match_duration", 1))).is_true()
 	for game: Game in games:
-		assert_str(game.client().model.map).is_equal(ESTATE)
-	# The host's pick reaches everyone (#627), and back to the estate.
+		assert_str(game.client().model.map).is_equal(CLEARING)
+	# The host's pick reaches everyone (#627), and back to the clearing.
 	host.change_map(GREYBOX)
 	assert_bool(await _until(_map_is.bind(games, GREYBOX))).is_true()
-	host.change_map(ESTATE)
-	assert_bool(await _until(_map_is.bind(games, ESTATE))).is_true()
-	await _play_and_leave(host, guest, ESTATE)
+	host.change_map(CLEARING)
+	assert_bool(await _until(_map_is.bind(games, CLEARING))).is_true()
+	await _play_and_leave(host, guest, CLEARING)
 
 
 func test_the_host_s_map_pick_is_loaded_by_everyone() -> void:
