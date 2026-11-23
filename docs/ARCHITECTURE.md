@@ -2929,7 +2929,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   frame. `CircleViews` finds a station kind's size in the task types' `station_kinds()` (Delivery's `circle`, Delivery
   by meaning's drop-offs) and draws the circles in their colours; nothing of the client draws through walls since the
   destination marker (D10 (b)) went with D3a (#829, Delivery by meaning DD4 (a)): a carried item says where it goes by
-  what it is. Since #801 it draws only Delivery's circles and the fallback cylinder of a kind no type holds and the mode does not place itself (#1703: the lobby's tap, pinball, mirror and booth, placed by StationTicks, get none; their look is the level's art)
+  what it is. Since #801 it draws only Delivery's circles and the fallback cylinder of a kind no type holds and the
+  mode does not place itself (#1703: the lobby's tap, pinball, mirror and booth, placed by StationTicks, get none;
+  their look is the level's art)
   (`CircleViews.draws`, §4.7.54): a zone is `ZoneViews`' (§4.7.51), the Generator's stations are their level
   scenes, and each task type's view is its `TaskClient`'s (§4.7.59).
   Delivery by meaning's looks (DE11 of its ADR, #830; greybox placeholders until the art): `CircleViews.is_drop_off`
@@ -5256,7 +5258,8 @@ unchanged.
   wins, an item on a tie. `ItemInteractions` then casts the host's StationInSight (camera to the lifted floor point,
   world layer) and E sends `Interact(station, item -1)`. The HUD names the station by `ContentNames.station`
   (`station.<id>` once the UI deck has it, else the kind id), never a switch's state.
-- **The scenes.** `CircleViews` draws only Delivery's circles (and the fallback cylinder of a kind no type holds and the mode does not place itself, #1703).
+- **The scenes.** `CircleViews` draws only Delivery's circles (and the fallback cylinder of a kind no type holds
+  and the mode does not place itself, #1703).
   `StationViews` (in `ItemWorld`; `Game` hands it the level) binds each placed generator or switch to the level's
   scene of its kind whose `UseSpot` is nearest (within 0.5 m) and drives the level-piece ADR's named parts: a
   switch's `Active/On` or `Active/Off`; a scene no station binds while the Generator is dealt shows `Fixed`; the

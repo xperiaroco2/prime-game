@@ -21,3 +21,9 @@ func test_the_lobby_stations_get_no_cylinder() -> void:
 func test_a_kind_the_mode_does_not_name_keeps_the_fallback() -> void:
 	var mode := load(BASE_MODE) as GameMode
 	assert_bool(CircleViews.draws(mode, &"elsewhere")).is_true()
+
+
+## The booth, hidden from the shipped mode until M9 (#1680), gets none either when it returns.
+func test_the_booth_gets_no_cylinder_when_it_returns() -> void:
+	var mode := load(FixtureBaseModeWithBooth.PATH) as GameMode
+	assert_bool(CircleViews.draws(mode, &"booth")).is_false()

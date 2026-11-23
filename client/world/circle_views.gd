@@ -3,10 +3,10 @@ extends Node3D
 ## The stations of the own ClientModel in 3D (ARCHITECTURE §4.7, M4-8; the M4 ADR's D7 (a), D10
 ## (b)): each delivery circle a translucent cylinder of its station kind's radius and height (the
 ## client's own copy of the mode) in StationPlaced's colour, dimmed once PackageDelivered names it.
-## A station kind the mode does not name gets a cylinder of the fallback size (one its own phases
-## place is the level's art, #1703). A zone (a ZoneTask's
-## station kind) is ZoneViews', not drawn here, and so is every other task type's station (`draws`;
-## a Generator's generator and switch are the level's station scenes, StationViews, #801).
+## A station kind the mode names nowhere (no task type, StationTicks or PlaceToggles) gets a
+## cylinder of the fallback size. A zone (a ZoneTask's station kind) is ZoneViews', not drawn
+## here, and so is every other task type's station (`draws`; a Generator's generator and switch
+## are the level's station scenes, StationViews, #801).
 ##
 ## A drop-off of Delivery by meaning (DE11 of the delivery-by-meaning ADR, #830), told from a circle
 ## by which of the client's own Delivery types lists its kind (`is_drop_off`): an open tube of its
@@ -25,6 +25,9 @@ const FALLBACK_RADIUS := 1.0
 const FALLBACK_HEIGHT := 0.2
 ## A drop-off's one neutral colour: never a circle palette's or StationPlaced's.
 const DROP_OFF_COLOUR := Color(0.8, 0.8, 0.8)
+
+## The station kind ids each mode names, by the mode's instance id (_named).
+static var _named_by_mode: Dictionary[int, Dictionary] = {}
 
 var model: ClientModel
 ## The client's own copy of the mode: the station kinds' sizes.
@@ -73,13 +76,13 @@ static func is_drop_off(game_mode: GameMode, kind_id: StringName) -> bool:
 
 ## Whether a station of `kind_id` is drawn here (#801's G6: only Delivery's circles): a kind of a
 ## task type whose TaskClient draws it as a circle (Delivery's and Delivery by meaning's, #1260),
-## or one no task type of the mode holds (the fallback cylinder). A zone is ZoneViews'; a
-## Generator's generator and switch are the level's station scenes (StationViews); every other
-## task type's stations are its own view's. A kind the mode's own phases place (StationTicks: the
-## lobby's tap, pinball, mirror and booth, #1703) is the level's art: never drawn. A world toggle's
-## kind (#1295) is never drawn: its
-## look is the level's own (the bookcase, a cover, the breaker), and a cylinder would mark a
-## secret passage.
+## or one the mode names nowhere (the fallback cylinder). A zone is ZoneViews'; a Generator's
+## generator and switch are the level's station scenes (StationViews); every other task type's
+## stations are its own view's. A kind the mode's own phases place (StationTicks: the lobby's
+## tap, pinball and mirror; the booth, once M9 brings it back; #1703) is the level's art, its aim
+## chip names it. A world toggle's kind (#1295) is never drawn: its look is the level's own (the
+## bookcase, a cover, the breaker), and a cylinder would mark a secret passage; it is checked
+## first, even over a task type that holds it.
 static func draws(game_mode: GameMode, kind_id: StringName) -> bool:
 	if game_mode == null:
 		return true
@@ -99,12 +102,20 @@ static func draws(game_mode: GameMode, kind_id: StringName) -> bool:
 			held = true
 	if held:
 		return false
-	# A kind the mode places itself (StationTicks: the lobby's tap, pinball, mirror and booth) is the
-	# level's own art, its aim chip names it: no greybox cylinder over it (#1703).
-	for kind: StationKind in Stations.kinds_in(game_mode):
-		if kind != null and kind.id == kind_id:
-			return false
-	return true
+	return not _named(game_mode).has(kind_id)
+
+
+## The station kind ids `game_mode` names (Stations.kinds_in), read once per mode: `draws` runs
+## for every station every frame (#1530's lesson on per-station `station_kinds` walks).
+static func _named(game_mode: GameMode) -> Dictionary:
+	var key := game_mode.get_instance_id()
+	if not _named_by_mode.has(key):
+		var ids: Dictionary[StringName, bool] = {}
+		for kind: StationKind in Stations.kinds_in(game_mode):
+			if kind != null:
+				ids[kind.id] = true
+		_named_by_mode[key] = ids
+	return _named_by_mode[key]
 
 
 func _process(_delta: float) -> void:
