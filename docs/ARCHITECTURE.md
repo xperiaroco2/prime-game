@@ -10725,10 +10725,11 @@ assets/
   `nodes/apply_root_scale=true` (1 unit = 1 m, the contract's axes) and `animation/import=true`. A character adds
   the art repo's two options (its `docs/godot.md`): `animation/fps=30`, the rate an animation set (the MVP set,
   `mvp.toml` fps = 30) is baked at, which the GLB's `.export.json` records (at another rate Godot resamples every
-  track; a GLB of the pack's own 24 fps clips would need 24, and the contract changed first) and
+  track; a character baked at another rate has a row of its own under `character.rows`, the alien's 24, #1690) and
   `optimizer/enabled=false` on the AnimationPlayer node (`_subresources={"nodes": {"PATH:AnimationPlayer":
   {"optimizer/enabled": false}}}`; the optimizer moved joints up to 16.7 mm). Loop modes come from the clip names: Godot 4.7.2 imports a clip named `<Name>_Loop` as `<Name>`
-  with `LOOP_LINEAR`, so no per-clip setting is needed. An image keeps its folder's compression: `compress/mode=2`
+  with `LOOP_LINEAR`, so no per-clip setting is needed. An image keeps its folder's compression (or its path's mode in
+  `texture_compress_exceptions`, #1690): `compress/mode=2`
   (VRAM Compressed, for 3D) under `characters/`, `environment/` and `body/`, `0` (Lossless) under `ui/`. A body GLB
   (`body/<id>/`, #1587) keeps the animation optimizer off as a character does.
 - **The colliders** (#523, the LFS ADR's amendment of 2026-10-14): an environment GLB's import-hint colliders
@@ -10779,10 +10780,11 @@ assets/
 #605; alone: `tools\run.cmd test tests/unit/tools/asset_import_test.gd`):
 - every GLB under `res://` (not `addons/`, `.godot/`, `tools/out/`, `tests/scratch/`) has a committed `.import`
   with §11.2's options and loads headless as a `PackedScene` that instantiates;
-- a GLB under `assets/characters/` also has exactly one `Skeleton3D` holding every bone of the contract and one
+- a GLB under `assets/characters/` also has exactly one `Skeleton3D` holding every bone of the contract (of its own
+  row under `character.rows` when it has one, #1690) and one
   `AnimationPlayer` holding every clip, each looping exactly as listed;
 - every image under `assets/` (png, jpg, jpeg, webp, tga, bmp, exr, hdr: the texture formats `.gitattributes`
-  routes through LFS) keeps its folder's `compress/mode`.
+  routes through LFS) keeps its folder's `compress/mode`, or its path's in `texture_compress_exceptions`.
 
 Each problem is one line that starts with the asset's path and names what is missing, for instance
 `res://assets/characters/fixture/fixture.glb: lacks 1 contract clips: Crouch_Fwd (it has: Carry_Upper, ...)`. Broken

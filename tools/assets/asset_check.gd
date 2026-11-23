@@ -82,8 +82,11 @@ static func is_character(path: String, contract: Dictionary) -> bool:
 static func character_role(path: String, contract: Dictionary) -> Dictionary:
 	var role := _dict(contract, "character")
 	var rows := _dict(role, "rows")
-	var id := path.get_base_dir().get_file()
-	return _dict(rows, id) if rows.has(id) else role
+	var folder := str(_dict(contract, "folders").get("characters", ""))
+	if folder.is_empty() or not path.begins_with(folder):
+		return role
+	var id := path.trim_prefix(folder).get_slice("/", 0)
+	return _dict(rows, id) if not id.begins_with("_") and rows.has(id) else role
 
 
 ## A body GLB's contract row (assets/body/<id>/, keyed by <id>), or {} for any other path.

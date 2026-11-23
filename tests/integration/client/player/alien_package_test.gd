@@ -11,6 +11,7 @@ const GLB := "res://assets/characters/alien_chameleon/alien_chameleon.glb"
 const LOOK := "res://assets/characters/alien_chameleon/look/alien_chameleon_look.json"
 const DRESS := "res://assets/characters/alien_chameleon/look/alien_dress.gd"
 const RAGDOLL := "res://assets/characters/alien_chameleon/alien_chameleon.ragdoll.json"
+const AlienStatic := preload("res://assets/characters/alien_chameleon/look/alien_static.gd")
 ## The package's clips (HANDOFF, package.json), as Godot imports them; the hits and the jump's
 ## start and landing play once.
 const CLIPS: Array[String] = [
@@ -69,21 +70,50 @@ func test_the_look_dresses_the_model_in_a_player_s_colour() -> void:
 	var dress := load(DRESS) as GDScript
 	var materials: Array = dress.call(&"dress_from", model, LOOK)
 	assert_int(materials.size()).is_equal(2)
+	var shaders: Array[ShaderMaterial] = []
 	for material: Variant in materials:
 		assert_object(material as ShaderMaterial).is_not_null()
+		shaders.append(material as ShaderMaterial)
+	# A player's colour (the art's set_skin through its colour slots) reaches every material.
+	var colour := Color("e98a8c")
+	AlienStatic.set_skin(shaders, colour)
+	for material: ShaderMaterial in shaders:
+		assert_that(material.get_shader_parameter(&"skin_color")).is_equal(colour)
 
 
-func test_the_ragdoll_data_names_its_bodies() -> void:
+## The package against the contract's own row for it (tools/assets/asset_contract.json, #1690):
+## fps, the AnimationPlayer's options, the bones, the clips and their loops.
+func test_the_package_passes_its_contract_row() -> void:
 	if _model() == null:
 		return
+	var problems := Check.check_glb(GLB, Check.load_contract())
+	assert_array(Array(problems)).override_failure_message("\n".join(problems)).is_empty()
+
+
+## The ragdoll's data is text (no Git LFS): its 16 bodies stand on the contract row's bones, with 15
+## joints, on the ragdoll's collision layer; with the art, on the GLB's skeleton too.
+func test_the_ragdoll_data_stands_on_the_rig_s_bones() -> void:
 	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(RAGDOLL))
 	assert_bool(data is Dictionary).is_true()
-	var bones: Variant = (data as Dictionary).get("bones")
-	assert_bool(bones is Array or bones is Dictionary).is_true()
-	(
-		assert_int((bones as Array).size() if bones is Array else (bones as Dictionary).size())
-		. is_equal(16)
-	)
+	var ragdoll := data as Dictionary
+	assert_bool(CharacterSet.valid_ragdoll(ragdoll)).is_true()
+	var row := Check.character_role(GLB, Check.load_contract())
+	var bodies := ragdoll["bones"] as Array
+	assert_int(bodies.size()).is_equal(16)
+	var joints := 0
+	for body: Variant in bodies:
+		var bone := str((body as Dictionary)["bone"])
+		assert_array(row["bones"] as Array).override_failure_message(bone).contains([bone])
+		if (body as Dictionary).get("parent") != null:
+			joints += 1
+	assert_int(joints).is_equal(15)
+	var model := _model()
+	if model == null:
+		return
+	var skeleton := model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	for body: Variant in bodies:
+		var bone := str((body as Dictionary)["bone"])
+		assert_int(skeleton.find_bone(bone)).override_failure_message(bone).is_not_equal(-1)
 
 
 ## The package's model in the tree, or null (after the skip check) without the art.

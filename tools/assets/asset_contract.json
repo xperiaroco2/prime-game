@@ -41,7 +41,7 @@
   "character": {
     "_about": "A GLB under assets/characters/. The bones are the art export's rig as measured (art docs/animations.md: CharacterArmature, 62 Ultimate Modular bones plus Toe.L and Toe.R); the contract v2 may replace them. The clips are the art MVP set's names (art tools/blender/anim_sets/mvp.toml) as Godot 4.7.2 imports them (a _Loop suffix dropped, the clip looping): the clips the avatar maps (client/player/avatar_clips.gd, #522; the knockdown is a ragdoll, art #115, so Knockdown, Crawl and Getup_Fours went); the GLB carries more (jump, turn, raise, talk, push, knife), unchecked until a mapping uses them.",
     "params": {
-      "_about": "animation/fps is the rate the GLB was baked at, which its .export.json records (art docs/godot.md): 30 for an animation set such as the MVP set (mvp.toml fps = 30). A GLB of the pack's own 24 fps clips needs this changed first.",
+      "_about": "animation/fps is the rate the GLB was baked at, which its .export.json records (art docs/godot.md): 30 for an animation set such as the MVP set (mvp.toml fps = 30). A character baked at another rate (the alien, 24 fps) sets it in its own row under rows.",
       "animation/fps": 30
     },
     "player_options": {
