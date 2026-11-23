@@ -325,9 +325,7 @@ func _show_self(delta: float) -> void:
 	state.drawn_move = pose.velocity
 	state.carrying = _carries_two_handed(own)
 	state.was_back = _last_plan != null and _last_plan.back
-	var walk := rules.walk_speed_mps if rules != null else 0.0
-	var sprint := rules.sprint_speed_mps if rules != null else 0.0
-	_last_plan = AvatarClips.plan(state, walk, sprint)
+	_last_plan = AvatarClips.plan_by(state, rules, self_body.extra_clips())
 	self_body.apply_plan(_last_plan)
 
 

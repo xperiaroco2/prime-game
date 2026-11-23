@@ -5074,7 +5074,7 @@ pick of 2026-11-23, confirmed 2026-11-24); `assets/characters/slice_m1/` before 
   beyond its scene, one per character (`alien()`, `slice_m1()`): its GLB, ragdoll and look files; the bones it hangs
   things on, as a map (the carry layer's root, the sockets: bone, point, fitted carrying); each move clip's own
   ground speed at rate 1 where it differs from `AvatarClips`' (the alien: `Jog_Fwd` 4.74, the strafes 3.17 and 3.26,
-  `Jog_Bwd` 2.0, `Crouch_Fwd` 2.07, `Sprint_Fwd` 7.0 m/s); and its scale (the alien 0.94: its eyes from 1.702 m to the
+  `Jog_Bwd` 2.0, `Crouch_Fwd` 2.07, `Crouch_Run` 2.89, `Walk` 0.9, `Sprint_Fwd` 7.0 m/s); and its scale (the alien 0.94: its eyes from 1.702 m to the
   game's 1.6, its top 1.82 m, about 2 cm over the 1.8 m capsule; the GLB imports at `nodes/root_scale` 0.94 with
   `apply_root_scale`, so the meshes, skeleton and clips are drawn at that size and no physics body runs under a
   scaled node; `CharacterSet.scaled_ragdoll` scales the ragdoll data's offsets, sizes, radii, heights and joint
@@ -5099,7 +5099,7 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   `RemotePlayerBody.body_yaw`, #1334), its public `crouched` and `posed` bits
   (#790), whether its hand item (`ClientModel.hand_item`, from events it already received) is two-handed, and its
   life (knocked down, or a dead player's body). The rates are the drawn speed over the clip's ground speed at rate 1
-  (the art's table: `Jog_*` and `Strafe_*` 4.5 m/s, `Sprint_Fwd` 7.0, `Crouch_Fwd` 0.75), clamped to 0.25..4.0 (a
+  (the art's table: `Jog_*` and `Strafe_*` 4.5 m/s, `Sprint_Fwd` 7.0, `Crouch_Fwd` 0.75, `Walk` 2.0 / 2.398, `Crouch_Run` 2.8), clamped to 0.25..4.0 (a
   placeholder, "not a decision"). Checked in this order:
 
   | State | Base clip | Rate |
@@ -5108,9 +5108,11 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   | posed (#1296, §7.1.19: the public `posed` bit), at any drawn speed | `SEATED`, which is `Idle` until the art set has a seated clip (blocked on art); `Crouch_Idle` if also crouched | 1 |
   | drawn speed under 0.5 m/s (`FootstepCadence.MIN_SPEED_MPS`), crouched | `Crouch_Idle` | 1 |
   | drawn speed under 0.5 m/s, standing (sneaking too) | `Idle` | 1 |
-  | moving, crouched (any heading) | `Crouch_Fwd` | speed / 0.75 |
+  | moving, crouched (any heading), past halfway from `crouch_speed_mps` to `crouch_fast_speed_mps`, the character with `Crouch_Run` (#1334) | `Crouch_Run` | speed / 2.8 |
+  | moving, crouched (any heading), else | `Crouch_Fwd` | speed / 0.75 |
   | moving in the back family (`Locomotion.family_of`: past 110° off the body's forward; back to the front below 90°) | `Jog_Bwd` (slot `Back`) | speed / 4.5 |
   | moving more to a side than ahead | `Strafe_Left`, `Strafe_Right` (slot `Front`) | speed / 4.5 |
+  | moving ahead at most `WALK_UP_TO_MPS` (2.0 m/s, the engineer's list of 2026-10-26), the character with `Walk` (#1334) | `Walk` (a slot of its own: the slots' cross-fade is the blend into the jog) | speed / (2.0 / 2.398) |
   | moving ahead, at most halfway from the walk to the sprint speed (`PlayerRules`) | `Jog_Fwd` (slot `Front`) | speed / 4.5 |
   | moving ahead, faster | `Sprint_Fwd` | speed / 7.0 |
 
@@ -5130,8 +5132,10 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   family switch at 100° off forward with a ±10° dead zone each way (`family_of(heading, was_back)`). `speed_cap`:
   the back family (its diagonals too) at most `PlayerRules.back_speed_mps`, any move's sideways part at most
   `side_speed_mps` (0: none). `CONTACTS`: the table's cycle and foot contacts per clip at rate 1 (§4.7.43).
-  The alien (#1693) has the four diagonals, `Walk` and `Crouch_Run`; not built: the walk under 2 m/s, `Crouch_Run`,
-  and the table's rates (AvatarClips keeps slice_m1's speeds; the profile corrects them per clip, below).
+  The alien (#1693) has the four diagonals, `Walk` and `Crouch_Run` (`AvatarClips.EXTRA_CLIPS`: a plan names them
+  only for a character that has them, its rig's or set's `extra_clips()`; the rig's `Walk` and `Crouch_Run` slots
+  play `Jog_Fwd` and `Crouch_Fwd` on one without them). AvatarClips keeps slice_m1's speeds; the profile corrects
+  them per clip (below).
 - `client/player/character/CharacterSet`: the injected character (the GLB's scene and its ragdoll data), null for the
   placeholder capsule. It is a set only when the instantiated scene is the character (one `Skeleton3D` with the bones
   its profile names, one `AnimationPlayer` with every base clip, `AvatarClips.base_clips()`; Locomotion's optional

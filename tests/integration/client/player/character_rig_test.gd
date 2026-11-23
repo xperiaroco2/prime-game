@@ -321,6 +321,38 @@ func test_a_diagonal_clip_the_character_has_becomes_a_point() -> void:
 		assert_float(got).override_failure_message(String(clip)).is_equal_approx(want, 0.01)
 
 
+## #1334: Walk and Crouch_Run are slots of their own where the character has them; where it lacks
+## them their slots play Jog_Fwd and Crouch_Fwd, and the rig names none to the plan.
+func test_walk_and_crouch_run_play_where_the_character_has_them() -> void:
+	var clips := Fixture.eight_way_clips()
+	clips.append_array(AvatarClips.EXTRA_CLIPS)
+	var rig := _rig_of(clips)
+	assert_array(rig.extra_clips()).contains_exactly(AvatarClips.EXTRA_CLIPS)
+	var without := _rig_of(Fixture.eight_way_clips())
+	assert_array(without.extra_clips()).is_empty()
+	var stand_in := {
+		AvatarClips.WALK: AvatarClips.JOG_FWD, AvatarClips.CROUCH_RUN: AvatarClips.CROUCH_FWD
+	}
+	for clip: StringName in AvatarClips.EXTRA_CLIPS:
+		rig.apply(_plan(clip))
+		without.apply(_plan(clip))
+		_run(rig, 0.5)
+		_run(without, 0.5)
+		assert_str(String(rig.base_slot())).is_equal(String(clip))
+		var want := Fixture.base_angle(clip)
+		(
+			assert_float(_angle(rig, &"UpperLeg.L"))
+			. override_failure_message(String(clip))
+			. is_equal_approx(want, 0.01)
+		)
+		var instead := Fixture.base_angle(stand_in[clip] as StringName)
+		(
+			assert_float(_angle(without, &"UpperLeg.L"))
+			. override_failure_message(String(clip))
+			. is_equal_approx(instead, 0.01)
+		)
+
+
 func test_the_families_cross_fade_never_blend() -> void:
 	var rig := _rig()
 	_moving(rig, 0.0)

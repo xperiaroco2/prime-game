@@ -8,13 +8,15 @@ extends Node3D
 ##   of the pick-up or put-down clip) -> output; the carry and the shot only with their clips
 ##   (#1693)
 ##
-## A slot is a clip (Idle, Sprint_Fwd, Crouch_Idle, Crouch_Fwd) or a move family of Locomotion
-## (Front, Back, #1334): an AnimationNodeBlendSpace2D of the family's points whose clip the
-## character has, at the plan's direction, its clips kept in step (SYNC_MODE_CYCLIC_MUTABLE: the
-## art MVP set's clips differ in length); a family with fewer than three such points plays its
-## main clip (Jog_Fwd, Jog_Bwd) alone. The two families are never blended into each other: the
-## Transition cross-fades between them as between any two slots. A rig made `with_look` also has a
-## HeadLook on its skeleton (when it has the Neck and Head bones), turned by set_look().
+## A slot is a clip (Idle, Sprint_Fwd, Crouch_Idle, Crouch_Fwd, and Walk and Crouch_Run, #1334,
+## Jog_Fwd and Crouch_Fwd standing in for them where the character lacks them) or a move family
+## of Locomotion (Front, Back, #1334): an AnimationNodeBlendSpace2D of the family's points whose
+## clip the character has, at the plan's direction, its clips kept in step
+## (SYNC_MODE_CYCLIC_MUTABLE: the art MVP set's clips differ in length); a family with fewer than
+## three such points plays its main clip (Jog_Fwd, Jog_Bwd) alone. The two families are never
+## blended into each other: the Transition cross-fades between them as between any two slots. A rig
+## made `with_look` also has a HeadLook on its skeleton (when it has the Neck and Head bones),
+## turned by set_look().
 ##
 ## The tree runs in the physics callback (PHYSICS); the skeleton applies the pose in its deferred
 ## update, so a socket (and an item view on it) may show the previous step's bone pose: a one-step
@@ -34,6 +36,8 @@ const SLOTS: Array[StringName] = [
 	AvatarClips.SPRINT_FWD,
 	AvatarClips.CROUCH_IDLE,
 	AvatarClips.CROUCH_FWD,
+	AvatarClips.WALK,
+	AvatarClips.CROUCH_RUN,
 ]
 const CARRY_FADE_S := 0.2
 const SHOT_FADE_S := 0.15
@@ -70,6 +74,8 @@ var _albedo: Array[Color] = []
 var _skins: Array[ShaderMaterial] = []
 var _has_carry := false
 var _has_shot := false
+## AvatarClips.EXTRA_CLIPS the character has (read once).
+var _extras: Array[StringName] = []
 
 
 ## A rig of `character`'s scene, standing in its idle clip; `with_look`: with a HeadLook (a living
@@ -89,6 +95,9 @@ static func make(character: CharacterSet, with_look := false) -> CharacterRig:
 	rig._has_carry = rig.player.has_animation(AvatarClips.CARRY_UPPER)
 	for clip: StringName in AvatarClips.shot_clips():
 		rig._has_shot = rig._has_shot or rig.player.has_animation(clip)
+	for clip: StringName in AvatarClips.EXTRA_CLIPS:
+		if rig.player.has_animation(clip):
+			rig._extras.append(clip)
 	rig._build_tree()
 	rig._add_sockets()
 	rig._own_materials()
@@ -140,6 +149,11 @@ func base_clip() -> StringName:
 ## footsteps' clip mode times the contacts by it, #1334).
 func cycle_of(clip: StringName) -> float:
 	return player.get_animation(clip).length if player.has_animation(clip) else 0.0
+
+
+## AvatarClips.EXTRA_CLIPS this character has (AvatarClips.plan()'s `extras`).
+func extra_clips() -> Array[StringName]:
+	return _extras
 
 
 ## The Transition's input playing (a clip, or Locomotion.FRONT or BACK).
@@ -295,6 +309,10 @@ func _build_tree() -> void:
 
 ## `slot`'s node: its clip, or its family's blend space (or main clip, below three points).
 func _slot_node(slot: StringName) -> AnimationRootNode:
+	if slot == AvatarClips.WALK and not player.has_animation(slot):
+		return _clip_node(AvatarClips.JOG_FWD)
+	if slot == AvatarClips.CROUCH_RUN and not player.has_animation(slot):
+		return _clip_node(AvatarClips.CROUCH_FWD)
 	if slot != Locomotion.FRONT and slot != Locomotion.BACK:
 		return _clip_node(slot)
 	var points: Array[Dictionary] = []

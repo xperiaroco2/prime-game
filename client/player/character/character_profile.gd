@@ -106,6 +106,8 @@ static func alien() -> CharacterProfile:
 		&"Jog_Bwd_Left": 2.0,
 		&"Jog_Bwd_Right": 2.0,
 		&"Crouch_Fwd": 2.07,
+		&"Crouch_Run": 2.89,
+		&"Walk": 0.9,
 		&"Sprint_Fwd": 7.0,
 	}
 	for clip: StringName in measured:

@@ -87,6 +87,15 @@ func cycle_of(clip: StringName) -> float:
 	return cycles.get(clip, 0.0)
 
 
+## AvatarClips.EXTRA_CLIPS this character has, as CharacterRig.extra_clips has them (#1334).
+func extra_clips() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for clip: StringName in AvatarClips.EXTRA_CLIPS:
+		if cycles.has(clip):
+			out.append(clip)
+	return out
+
+
 ## The bones `data`'s bodies name that `skeleton` lacks: the builder would skip each, and without
 ## the parentless one the ragdoll never falls.
 static func missing_bones(skeleton: Skeleton3D, data: Dictionary) -> PackedStringArray:

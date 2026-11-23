@@ -11,10 +11,12 @@ extends RefCounted
 ## Checked in this order:
 ## knocked down or a dead body -> RAGDOLL; posed (#1296) -> SEATED (Crouch_Idle if crouched), still
 ## whatever the drawn move; slower than MIN_SPEED_MPS -> Crouch_Idle or Idle;
-## crouched -> Crouch_Fwd (the only crouched move clip, whatever the heading); in Locomotion's back
-## family (beyond about 100 degrees off the body's forward, with its dead zone, #1334) -> Jog_Bwd;
-## more to a side than ahead -> Strafe_Left or Strafe_Right; ahead at most halfway from the walk to
-## the sprint speed -> Jog_Fwd, faster -> Sprint_Fwd. That clip is the plan's `base`, the nearest
+## crouched -> Crouch_Fwd, past halfway from the crouch's speed to the fast crouch's Crouch_Run
+## where the character has it (#1334; whatever the heading); in Locomotion's back family (beyond
+## about 100 degrees off the body's forward, with its dead zone, #1334) -> Jog_Bwd; more to a side
+## than ahead -> Strafe_Left or Strafe_Right; ahead up to WALK_UP_TO_MPS -> Walk where the character
+## has it; ahead at most halfway from the walk to the sprint speed -> Jog_Fwd, faster ->
+## Sprint_Fwd. That clip is the plan's `base`, the nearest
 ## point of the art MVP set; the rig plays a family's move as a blend of its points at the plan's
 ## `blend` (the direction) and switches families by the plan's `slot`. A move clip
 ## plays at the drawn speed over its ground speed at rate 1 (the art's "play at speed /
@@ -34,6 +36,11 @@ const STRAFE_RIGHT := &"Strafe_Right"
 const SPRINT_FWD := &"Sprint_Fwd"
 const CROUCH_IDLE := &"Crouch_Idle"
 const CROUCH_FWD := &"Crouch_Fwd"
+## The optional move clips (#1334, the art's table): a slow forward move's and the fast crouch's;
+## a character without them plays Jog_Fwd and Crouch_Fwd there (EXTRA_CLIPS).
+const WALK := &"Walk"
+const CROUCH_RUN := &"Crouch_Run"
+const EXTRA_CLIPS: Array[StringName] = [WALK, CROUCH_RUN]
 ## The seated watcher's clip (#1296; GDD §12): Idle until the art set has a seated clip, which no
 ## character has yet (blocked on art). Not a decision.
 const SEATED := IDLE
@@ -50,6 +57,14 @@ const MIN_SPEED_MPS := FootstepCadence.MIN_SPEED_MPS
 const JOG_MPS := 4.5
 const SPRINT_MPS := 7.0
 const CROUCH_MPS := 0.75
+## Walk's and Crouch_Run's ground speeds at rate 1 (the table: Walk at rate 2.398 at 2.0 m/s,
+## Crouch_Run at rate 1 at 2.8 m/s).
+const WALK_MPS := 2.0 / 2.398
+const CROUCH_RUN_MPS := 2.8
+## A forward move plays Walk up to this drawn speed, then the front family (the table's "Walk up
+## to about 2 m/s, then a blend into the jog", the engineer's list of 2026-10-26): the slots'
+## cross-fade is the blend. Client feel, not a game number: the host checks no clip.
+const WALK_UP_TO_MPS := 2.0
 ## The rate clamp: a placeholder, "not a decision" (wide enough for the fast crouch over 0.75 m/s).
 const MIN_RATE := 0.25
 const MAX_RATE := 4.0
@@ -94,8 +109,17 @@ class Plan:
 	var back := false
 
 
-## The plan for `state`, with the mode's walk and sprint speeds (the client's PlayerRules).
-static func plan(state: State, walk_mps: float, sprint_mps: float) -> Plan:
+## The plan for `state`, with the mode's walk and sprint speeds and its crouch's and fast crouch's
+## (the client's PlayerRules); `extras`: the EXTRA_CLIPS the drawn character has (CharacterSet's or
+## CharacterRig's extra_clips()), none: Jog_Fwd and Crouch_Fwd stand in for them.
+static func plan(
+	state: State,
+	walk_mps: float,
+	sprint_mps: float,
+	crouch_mps := 0.0,
+	crouch_fast_mps := 0.0,
+	extras: Array[StringName] = [],
+) -> Plan:
 	var out := Plan.new()
 	if state.downed or state.dead_body:
 		out.base = RAGDOLL
@@ -113,9 +137,14 @@ static func plan(state: State, walk_mps: float, sprint_mps: float) -> Plan:
 		out.slot = out.base
 		return out
 	if state.crouched:
-		out.base = CROUCH_FWD
+		var run := extras.has(CROUCH_RUN) and crouch_fast_mps > crouch_mps
+		if run and speed > (crouch_mps + crouch_fast_mps) * 0.5:
+			out.base = CROUCH_RUN
+			out.rate = _rate(speed, CROUCH_RUN_MPS)
+		else:
+			out.base = CROUCH_FWD
+			out.rate = _rate(speed, CROUCH_MPS)
 		out.slot = out.base
-		out.rate = _rate(speed, CROUCH_MPS)
 		return out
 	var heading := Locomotion.heading_of(flat, state.yaw)
 	out.blend = Locomotion.blend_position(heading)
@@ -131,15 +160,33 @@ static func plan(state: State, walk_mps: float, sprint_mps: float) -> Plan:
 		out.base = SPRINT_FWD
 		out.slot = out.base
 		out.rate = _rate(speed, SPRINT_MPS)
+	elif speed <= WALK_UP_TO_MPS and extras.has(WALK):
+		out.base = WALK
+		out.slot = out.base
+		out.rate = _rate(speed, WALK_MPS)
 	else:
 		out.base = JOG_FWD
 		out.rate = _rate(speed, JOG_MPS)
 	return out
 
 
+## plan() with `rules`' speeds (none: zero, as without a mode) for a character with `extras`.
+static func plan_by(state: State, rules: PlayerRules, extras: Array[StringName] = []) -> Plan:
+	if rules == null:
+		return plan(state, 0.0, 0.0, 0.0, 0.0, extras)
+	return plan(
+		state,
+		rules.walk_speed_mps,
+		rules.sprint_speed_mps,
+		rules.crouch_speed_mps,
+		rules.crouch_fast_speed_mps,
+		extras
+	)
+
+
 ## The ground speed at rate 1 the table's rates assume for the move clip `clip` (JOG_MPS,
-## SPRINT_MPS, CROUCH_MPS); 0 for a clip that does not move. A character measured otherwise plays it
-## faster or slower (CharacterRig.rate_factor, #1693).
+## SPRINT_MPS, CROUCH_MPS, WALK_MPS, CROUCH_RUN_MPS); 0 for a clip that does not move. A character
+## measured otherwise plays it faster or slower (CharacterRig.rate_factor, #1693).
 static func assumed_mps(clip: StringName) -> float:
 	match clip:
 		JOG_FWD, JOG_BWD, STRAFE_LEFT, STRAFE_RIGHT:
@@ -148,6 +195,10 @@ static func assumed_mps(clip: StringName) -> float:
 			return SPRINT_MPS
 		CROUCH_FWD:
 			return CROUCH_MPS
+		WALK:
+			return WALK_MPS
+		CROUCH_RUN:
+			return CROUCH_RUN_MPS
 	return 0.0
 
 
