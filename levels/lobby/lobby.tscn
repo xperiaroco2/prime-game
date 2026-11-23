@@ -1,18 +1,14 @@
 [gd_scene format=3 uid="uid://bcg1h5y3n86jg"]
 
-[ext_resource type="PackedScene" path="res://levels/lobby/lobby_hall.tscn" id="1_hall"]
+[ext_resource type="PackedScene" uid="uid://ce8fwjqhlos80" path="res://levels/lobby/lobby_hall.tscn" id="1_hall"]
 [ext_resource type="Script" uid="uid://dhb4r6d6y5bb1" path="res://levels/lobby/lobby_render.gd" id="2_render"]
-[ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="3_yellow"]
 [ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="4_green"]
-[ext_resource type="Material" uid="uid://ca6nmybnc2wyo" path="res://levels/kit/greybox_station_white.tres" id="5_white"]
 [ext_resource type="Material" uid="uid://c857ea2kxqs27" path="res://levels/kit/greybox_station_blue.tres" id="7_blue"]
 [ext_resource type="PackedScene" uid="uid://cdgdi26xsd1gj" path="res://levels/lobby/match_console.tscn" id="8_console"]
+[ext_resource type="PackedScene" uid="uid://dwowsc5qbhfu7" path="res://assets/environment/bar/bar.glb" id="9_bar"]
+[ext_resource type="PackedScene" uid="uid://b8xswy5mjbvwx" path="res://assets/environment/mirror/mirror.glb" id="10_mirror"]
 
 [sub_resource type="BoxShape3D" id="Shape_bar"]
-size = Vector3(1, 1.1, 6)
-
-[sub_resource type="BoxMesh" id="Mesh_bar"]
-material = ExtResource("3_yellow")
 size = Vector3(1, 1.1, 6)
 
 [sub_resource type="BoxShape3D" id="Shape_booth"]
@@ -30,11 +26,7 @@ material = ExtResource("7_blue")
 size = Vector3(2, 1.2, 1)
 
 [sub_resource type="BoxShape3D" id="Shape_mirror"]
-size = Vector3(0.2, 2.5, 2)
-
-[sub_resource type="BoxMesh" id="Mesh_mirror"]
-material = ExtResource("5_white")
-size = Vector3(0.2, 2.5, 2)
+size = Vector3(0.22, 2.67, 2.21)
 
 [node name="Lobby" type="Node3D" unique_id=1140489342]
 
@@ -51,9 +43,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0, -13)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.55, 3)
 shape = SubResource("Shape_bar")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bar" unique_id=480894597]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.55, 3)
-mesh = SubResource("Mesh_bar")
+[node name="Look" parent="Bar" unique_id=445664147 instance=ExtResource("9_bar")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.5, 0, 3)
 
 [node name="PhotoBooth" type="StaticBody3D" parent="." unique_id=1586480523]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0, -13)
@@ -95,15 +86,14 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -7, 0, 7.2)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 0, 7)
 
 [node name="Shape" type="CollisionShape3D" parent="Mirror" unique_id=181777792]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 1.25, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 1.335, 1)
 shape = SubResource("Shape_mirror")
 
-[node name="Mesh" type="MeshInstance3D" parent="Mirror" unique_id=283956455]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 1.25, 1)
-mesh = SubResource("Mesh_mirror")
+[node name="Look" parent="Mirror" unique_id=683864417 instance=ExtResource("10_mirror")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.14, 0, 1)
 
 [node name="Glass" type="Marker3D" parent="Mirror" unique_id=1739171299 groups=["mirror_glass"]]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.21, 1.25, 1)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.23, 1.25, 1)
 metadata/glass_size_m = Vector2(2, 2.5)
 
 [node name="LobbyPlayer01" type="Marker3D" parent="." unique_id=144394002 groups=["spawn_lobby_player"]]

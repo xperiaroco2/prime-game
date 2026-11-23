@@ -22,6 +22,11 @@ const BASE_MODE := "res://content/modes/base_mode.tres"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 ## The game's pieces of the hall, each a node of its own under the root.
 const PIECES: Array[String] = ["Bar", "PhotoBooth", "Pinball", "Mirror"]
+## The pieces whose look is the approved art (#1700), not the greybox box: the GLB each instances.
+const ART_LOOKS: Dictionary[String, String] = {
+	"Bar": "res://assets/environment/bar/bar.glb",
+	"Mirror": "res://assets/environment/mirror/mirror.glb",
+}
 ## The hall's floor plan inside its straight walls (x, z), the art's layouts/lobby/hall.toml
 ## (x0, x1, zN, zS); the window bows south of it to z 16.
 const INSIDE := Rect2(-20.0, -30.0, 40.0, 40.0)
@@ -160,6 +165,16 @@ func test_each_piece_is_a_separate_box_body_on_the_metre_grid() -> void:
 		assert_float(origin.y).override_failure_message(piece_name).is_equal(0.0)
 		assert_bool(piece.transform.basis.is_equal_approx(Basis.IDENTITY)).is_true()
 		var shapes := piece.find_children("*", "CollisionShape3D", true, false)
+		if ART_LOOKS.has(piece_name):
+			# #1700: the approved art is the look, placed by its HANDOFF, and its collider the
+			# HANDOFF's box (the mirror's, from 1 cm off the wall to the glass); one box body still.
+			assert_int(shapes.size()).override_failure_message(piece_name).is_equal(1)
+			var look := piece.get_node_or_null(^"Look")
+			assert_object(look).override_failure_message(piece_name).is_not_null()
+			if look != null:
+				assert_str(look.scene_file_path).is_equal(ART_LOOKS[piece_name])
+			assert_object((shapes[0] as CollisionShape3D).shape as BoxShape3D).is_not_null()
+			continue
 		var meshes := piece.find_children("*", "MeshInstance3D", true, false)
 		assert_int(shapes.size()).override_failure_message(piece_name).is_equal(1)
 		assert_int(meshes.size()).override_failure_message(piece_name).is_equal(1)
