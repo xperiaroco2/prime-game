@@ -77,6 +77,18 @@ static func is_character(path: String, contract: Dictionary) -> bool:
 	return not folder.is_empty() and path.begins_with(folder)
 
 
+## A character GLB's contract row: its own under `character.rows`, keyed by the <id> of
+## assets/characters/<id>/ (#1690: the alien's), else the shared `character` row.
+static func character_role(path: String, contract: Dictionary) -> Dictionary:
+	var role := _dict(contract, "character")
+	var rows := _dict(role, "rows")
+	var folder := str(_dict(contract, "folders").get("characters", ""))
+	if folder.is_empty() or not path.begins_with(folder):
+		return role
+	var id := path.trim_prefix(folder).get_slice("/", 0)
+	return _dict(rows, id) if not id.begins_with("_") and rows.has(id) else role
+
+
 ## A body GLB's contract row (assets/body/<id>/, keyed by <id>), or {} for any other path.
 static func body_row(path: String, contract: Dictionary) -> Dictionary:
 	var folder := str(_dict(contract, "folders").get("body", ""))
@@ -138,7 +150,7 @@ static func check_glb_params(
 	path: String, params: Dictionary, contract: Dictionary, character: bool
 ) -> PackedStringArray:
 	var want := _dict(contract, "glb_params").duplicate()
-	var role := _dict(contract, "character")
+	var role := character_role(path, contract)
 	if character:
 		want.merge(_dict(role, "params"), true)
 	var problems := PackedStringArray()
@@ -186,7 +198,7 @@ static func _check_player_options(
 ## A character scene: one Skeleton3D with every contract bone, one AnimationPlayer with every
 ## contract clip, each looping exactly when the contract says so.
 static func check_character(path: String, root: Node, contract: Dictionary) -> PackedStringArray:
-	var role := _dict(contract, "character")
+	var role := character_role(path, contract)
 	var problems := PackedStringArray()
 	var skeletons := root.find_children("*", "Skeleton3D", true, false)
 	if skeletons.size() != 1:
@@ -254,21 +266,25 @@ static func check_clips(path: String, player: AnimationPlayer, clips: Array) -> 
 	return problems
 
 
-## An image under a folder of `texture_compress_mode` keeps that compress/mode.
+## An image under a folder of `texture_compress_mode` keeps that compress/mode, or the mode its
+## path has in `texture_compress_exceptions` (#1690: a shader's data image, lossless).
 static func check_texture(path: String, params: Variant, contract: Dictionary) -> PackedStringArray:
 	var modes := _dict(contract, "texture_compress_mode")
+	var exceptions := _dict(contract, "texture_compress_exceptions")
 	for folder: String in modes:
 		if folder.begins_with("_") or not path.begins_with(folder):
 			continue
 		if params == null:
 			return PackedStringArray(["%s: no committed .import file" % path])
+		var want: Variant = exceptions[path] if exceptions.has(path) else modes[folder]
+		var why := path if exceptions.has(path) else folder
 		var have: Variant = (params as Dictionary).get("compress/mode")
-		if have == null or not _same(have, modes[folder]):
+		if have == null or not _same(have, want):
 			return PackedStringArray(
 				[
 					(
 						"%s: .import compress/mode=%s, want %s for %s"
-						% [path, _show(have), _show(modes[folder]), folder]
+						% [path, _show(have), _show(want), why]
 					)
 				]
 			)

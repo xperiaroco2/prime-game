@@ -20,6 +20,10 @@
     "res://assets/body/": 2,
     "res://assets/ui/": 0
   },
+  "texture_compress_exceptions": {
+    "_about": "An image whose compress/mode differs from its folder's, by its path (#1690): data a shader reads, not colour, that VRAM compression would spoil. The art package's HANDOFF.md names each.",
+    "res://assets/characters/alien_chameleon/look/alien_chameleon_mask.png": 0
+  },
   "body": {
     "_about": "A GLB under assets/body/<id>/ (a first-person viewmodel, #1587), its row keyed by <id>: the clips the game plays (their art names as Godot 4.7.2 imports them, a _Loop suffix dropped and looping) and the nodes it hangs things on. The art package's HANDOFF.md is the source.",
     "fp_hands": {
@@ -37,7 +41,7 @@
   "character": {
     "_about": "A GLB under assets/characters/. The bones are the art export's rig as measured (art docs/animations.md: CharacterArmature, 62 Ultimate Modular bones plus Toe.L and Toe.R); the contract v2 may replace them. The clips are the art MVP set's names (art tools/blender/anim_sets/mvp.toml) as Godot 4.7.2 imports them (a _Loop suffix dropped, the clip looping): the clips the avatar maps (client/player/avatar_clips.gd, #522; the knockdown is a ragdoll, art #115, so Knockdown, Crawl and Getup_Fours went); the GLB carries more (jump, turn, raise, talk, push, knife), unchecked until a mapping uses them.",
     "params": {
-      "_about": "animation/fps is the rate the GLB was baked at, which its .export.json records (art docs/godot.md): 30 for an animation set such as the MVP set (mvp.toml fps = 30). A GLB of the pack's own 24 fps clips needs this changed first.",
+      "_about": "animation/fps is the rate the GLB was baked at, which its .export.json records (art docs/godot.md): 30 for an animation set such as the MVP set (mvp.toml fps = 30). A character baked at another rate (the alien, 24 fps) sets it in its own row under rows.",
       "animation/fps": 30
     },
     "player_options": {
@@ -76,6 +80,46 @@
       {"name": "Putdown_One", "loop": false},
       {"name": "Pickup_Package", "loop": false},
       {"name": "Putdown_Package", "loop": false}
-    ]
+    ],
+    "rows": {
+      "_about": "A character whose package differs from the shared row above (#1690), keyed by assets/characters/<id>/: its own params, player_options, bones and clips replace the shared ones. The art package's HANDOFF.md and package.json are the source.",
+      "alien_chameleon": {
+        "params": {
+          "_about": "The alien's GLB is baked at 24 fps (its HANDOFF, art#398).",
+          "animation/fps": 24
+        },
+        "player_options": {
+          "node": "AnimationPlayer",
+          "optimizer/enabled": false
+        },
+        "bones": [
+          "Root", "Hips", "Spine", "Chest", "UpperChest", "Neck", "Head",
+          "LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand",
+          "RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand",
+          "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftToes",
+          "RightUpperLeg", "RightLowerLeg", "RightFoot", "RightToes"
+        ],
+        "clips": [
+          {"name": "Idle", "loop": true},
+          {"name": "Walk", "loop": true},
+          {"name": "Jog_Fwd", "loop": true},
+          {"name": "Jog_Fwd_Left", "loop": true},
+          {"name": "Jog_Fwd_Right", "loop": true},
+          {"name": "Jog_Bwd", "loop": true},
+          {"name": "Jog_Bwd_Left", "loop": true},
+          {"name": "Jog_Bwd_Right", "loop": true},
+          {"name": "Strafe_Left", "loop": true},
+          {"name": "Strafe_Right", "loop": true},
+          {"name": "Sprint_Fwd", "loop": true},
+          {"name": "Crouch_Idle", "loop": true},
+          {"name": "Crouch_Fwd", "loop": true},
+          {"name": "Crouch_Run", "loop": true},
+          {"name": "Jump_Start", "loop": false},
+          {"name": "Jump_Air", "loop": true},
+          {"name": "Jump_Land", "loop": false},
+          {"name": "Talk_Upper", "loop": true}
+        ]
+      }
+    }
   }
 }
