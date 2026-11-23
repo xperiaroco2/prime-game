@@ -10802,3 +10802,13 @@ v2, the engineer's "as recommended" of 2026-10-14 on #522); the art contract v2 
 until a mapping plays them. The first character is `assets/characters/slice_m1/` (prime-game-art `45f73ac`, PR
 art#182): the GLB, its 11 textures as the importer extracts them (`compress/mode=2`) and `slice_m1.ragdoll.json`
 (text, not LFS), which the game builds the ragdoll's bones from (§4.7.53).
+A character whose package differs has a row of its own under `character.rows`, keyed by the `<id>` of
+`assets/characters/<id>/`, whose `params`, `player_options`, `bones` and `clips` replace the shared row's
+(`AssetCheck.character_role`, #1690). The base alien `assets/characters/alien_chameleon/` (prime-game-art `009f2b95`,
+PR art#398, M8's base alien) has one: `animation/fps` 24, the humanoid bones the sockets and the ragdoll use (`Hips`
+to `UpperChest`, `Neck`, `Head`, the arms, hands, legs, feet and toes, `Left*`/`Right*`), its 18 clips (the walk, the
+eight-direction jogs, the sprint, the crouches, the jump, the talk). Its look's mask is data a shader reads: the
+contract's `texture_compress_exceptions` keeps it lossless (`compress/mode=0`) under a folder that wants 2. Its look
+scripts carry casts the art's lack, so they pass `check` (`docs/credits/alien_chameleon.md`). Nothing plays it until
+the swap of `slice_m1` (its own PR); `tests/integration/client/player/alien_package_test.gd` checks it on the art in
+the nightly `lfs` job.

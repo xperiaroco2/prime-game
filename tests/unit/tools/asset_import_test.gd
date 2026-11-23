@@ -77,6 +77,34 @@ func test_a_character_is_a_glb_under_the_characters_folder() -> void:
 	assert_bool(Check.is_character(FIXTURE, {})).is_false()
 
 
+## #1690: a character with a row of its own (the alien's) is checked against that row, every other
+## against the shared one.
+func test_a_character_with_its_own_row_takes_that_row() -> void:
+	var alien := "res://assets/characters/alien_chameleon/alien_chameleon.glb"
+	var row := Check.character_role(alien, _contract)
+	assert_int(row["params"]["animation/fps"] as int).is_equal(24)
+	assert_array(row["bones"] as Array).contains(["RightHand", "UpperChest"])
+	assert_object(Check.character_role(FIXTURE, _contract)).is_same(_contract["character"])
+	var params := _character_params()
+	params["animation/fps"] = 24
+	assert_array(Check.check_glb_params(alien, params, _contract, true)).is_empty()
+	assert_array(Check.check_glb_params(FIXTURE, params, _contract, true)).is_equal(
+		[FIXTURE + ": .import animation/fps=24, want 30"]
+	)
+
+
+## #1690: an image named in texture_compress_exceptions keeps its own mode (the alien's look mask,
+## lossless), every other its folder's.
+func test_an_excepted_image_keeps_its_own_compression() -> void:
+	var mask := "res://assets/characters/alien_chameleon/look/alien_chameleon_mask.png"
+	assert_array(Check.check_texture(mask, {"compress/mode": 0}, _contract)).is_empty()
+	assert_array(Check.check_texture(mask, {"compress/mode": 2}, _contract)).is_equal(
+		[mask + ": .import compress/mode=2, want 0 for " + mask]
+	)
+	var other := "res://assets/characters/alien_chameleon/other.png"
+	assert_array(Check.check_texture(other, {"compress/mode": 2}, _contract)).is_empty()
+
+
 func test_a_whole_character_passes() -> void:
 	assert_array(Check.check_character(FIXTURE, _character(), _contract)).is_empty()
 

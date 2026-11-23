@@ -80,8 +80,9 @@ func test_the_ragdoll_data_names_its_bodies() -> void:
 	assert_bool(data is Dictionary).is_true()
 	var bones: Variant = (data as Dictionary).get("bones")
 	assert_bool(bones is Array or bones is Dictionary).is_true()
-	assert_int((bones as Array).size() if bones is Array else (bones as Dictionary).size()).is_equal(
-		16
+	(
+		assert_int((bones as Array).size() if bones is Array else (bones as Dictionary).size())
+		. is_equal(16)
 	)
 
 

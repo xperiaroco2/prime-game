@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ct4q5wv7b7r65"
-path="res://.godot/imported/alien_chameleon_chameleon_mask.png-3778b2db3dd733d50f2e3c918a59e934.ctex"
+path.s3tc="res://.godot/imported/alien_chameleon_chameleon_mask.png-3778b2db3dd733d50f2e3c918a59e934.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "8d7837aa1c94b7d81e12b66b4d41cb31"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/characters/alien_chameleon/alien_chameleon_chameleon_mask.png"
-dest_files=["res://.godot/imported/alien_chameleon_chameleon_mask.png-3778b2db3dd733d50f2e3c918a59e934.ctex"]
+dest_files=["res://.godot/imported/alien_chameleon_chameleon_mask.png-3778b2db3dd733d50f2e3c918a59e934.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
