@@ -4540,8 +4540,8 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
     step falls where the playing clip's phase (advanced by the plan's rate over the length) crosses one of the
     clip's foot contacts (`Locomotion.CONTACTS`, the art table's contact times over its cycle), so at rate r the
     steps fall the contacts' times / r apart; the phase restarts with the rig's slot (a family or clip change),
-    on a placement and on a reset, and holds while standing. A backstop (`STEP_BACKSTOP`, 1.6, a placeholder;
-    #1334's netcode review): with no contact crossed for 1.6 of the longest contact gap of the clips played since
+    on a placement and on a reset, and holds while standing. A backstop (`STEP_BACKSTOP`, 2.0, a placeholder;
+    #1334's netcode review): with no contact crossed for 2 of the longest contact gap of the clips played since
     the last step, a step falls all the same, so a slot flipped faster than a step (a speed tapped across Walk's
     edge, the fast crouch's halfway or the sprint's) never silences a walker. A remote player's plan is `AvatarViews.plan_of`
     (drawn before `WorldSounds`, priority -80) and its length the rig's clip (`CharacterRig.cycle_of`, slice_m1's
@@ -5116,7 +5116,7 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   | moving in the back family (`Locomotion.family_of`: past 110° off the body's forward; back to the front below 90°) | `Jog_Bwd` (slot `Back`) | speed / 4.5 |
   | moving more to a side than ahead | `Strafe_Left`, `Strafe_Right` (slot `Front`) | speed / 4.5 |
   | moving ahead, faster than halfway from the walk to the sprint speed (`PlayerRules`) | `Sprint_Fwd` | speed / 7.0 |
-  | moving ahead within `WALK_MAX_DEG` (22.5°) of forward, at most `WALK_UP_TO_MPS` (2.0 m/s, the engineer's list of 2026-10-26; a dead zone: entered up to 2.25, kept up to 2.5 while the last plan walked, `State.was_walk`), the character with `Walk` (#1334) | `Walk` (a slot of its own: the slots' cross-fade is the blend into the jog) | speed / (2.0 / 2.398) |
+  | moving ahead within `WALK_MAX_DEG` (22.5°) of forward (kept to `WALK_KEEP_DEG`, 35°, while the last plan walked), at most `WALK_UP_TO_MPS` (2.0 m/s, the engineer's list of 2026-10-26; a dead zone: entered up to 2.25, kept up to 2.5 while the last plan walked, `State.was_walk`), the character with `Walk` (#1334) | `Walk` (a slot of its own: the slots' cross-fade is the blend into the jog) | speed / (2.0 / 2.398) |
   | moving ahead, else | `Jog_Fwd` (slot `Front`) | speed / 4.5 |
 
   Holding a two-handed item adds the `Carry_Upper` layer over any base (carry idle = `Idle` + `Carry_Upper`, carry

@@ -232,7 +232,7 @@ func test_a_plan_without_contacts_or_cycle_falls_back_to_the_speed() -> void:
 
 ## A slot flipping faster than half a cycle (#1334's netcode review: a speed tapped across Walk's
 ## 2.0 m/s or the fast crouch's halfway, or the jog's sprint edge) restarts the phase each time and
-## would reach no contact: STEP_BACKSTOP steps it all the same (at least one step per 1.6 of the
+## would reach no contact: STEP_BACKSTOP steps it all the same (at least one step per 2 of the
 ## jog's 0.687 s gap at 3 m/s), so a flipping walker is never silent.
 func test_a_slot_flipping_faster_than_a_step_still_steps() -> void:
 	var flips: Array[Array] = [
@@ -261,6 +261,29 @@ func test_a_slot_flipping_faster_than_a_step_still_steps() -> void:
 				count += 1
 		var name := String((flip[0] as AvatarClips.Plan).base)
 		assert_int(count).override_failure_message(name).is_greater_equal(2)
+
+
+## One honest slot change late in a step (the jog to the sprint at the base mode's 5.75 m/s edge,
+## 0.3 s after a step) steps once, at the sprint's first contact: the backstop never doubles it.
+func test_one_slot_change_late_in_a_step_steps_once_at_the_new_contact() -> void:
+	var cadence := FootstepCadence.new()
+	var speed := 5.75
+	var jog := _plan(&"Jog_Fwd", &"Front", speed / AvatarClips.JOG_MPS)
+	var stepped := false
+	for i: int in roundi(1.0 / FRAME):
+		if cadence.advance(_move(speed), FRAME, WALK, SPRINT, jog, 0.917):
+			stepped = true
+			break
+	assert_bool(stepped).is_true()
+	for i: int in roundi(0.3 / FRAME):
+		assert_bool(cadence.advance(_move(speed), FRAME, WALK, SPRINT, jog, 0.917)).is_false()
+	var sprint := _plan(&"Sprint_Fwd", &"Sprint_Fwd", speed / AvatarClips.SPRINT_MPS)
+	var times: Array[float] = []
+	for i: int in roundi(0.6 / FRAME):
+		if cadence.advance(_move(speed), FRAME, WALK, SPRINT, sprint, 0.667):
+			times.append((i + 1) * FRAME)
+	assert_int(times.size()).is_equal(1)
+	assert_float(times[0]).is_equal_approx(0.375 / sprint.rate, FRAME)
 
 
 ## The times (seconds from the start) of the steps `seconds` of moving at 4 m/s play in the clip

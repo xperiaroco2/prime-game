@@ -74,6 +74,10 @@ const WALK_KEEP_SLACK_MPS := 0.5
 ## Walk is one straight-ahead clip: only a move this near forward plays it (Jog_Fwd's share of the
 ## front blend), a wider diagonal keeps the family's blend, so the body never slides sideways.
 const WALK_MAX_DEG := 22.5
+## The cone's dead zone (#1334's second review): a move that walked keeps Walk up to this far off
+## forward, so a heading's jitter or a slow turn through WALK_MAX_DEG never flips the slot. Client
+## feel, a placeholder, "not a decision".
+const WALK_KEEP_DEG := 35.0
 ## The rate clamp: a placeholder, "not a decision" (wide enough for the fast crouch over 0.75 m/s).
 const MIN_RATE := 0.25
 const MAX_RATE := 4.0
@@ -243,10 +247,11 @@ static func _rate(speed: float, natural: float) -> float:
 	return clampf(speed / natural, MIN_RATE, MAX_RATE)
 
 
-## Whether a front move at `speed` and `heading` plays Walk: near forward, up to the Walk edge and
+## Whether a front move at `speed` and `heading` plays Walk: near forward (WALK_MAX_DEG, kept to
+## WALK_KEEP_DEG while the last plan walked), up to the Walk edge and
 ## its dead zone (WALK_KEEP_SLACK_MPS while the last plan walked, else WALK_ENTER_SLACK_MPS).
 static func _walks(state: State, speed: float, heading: float) -> bool:
-	if absf(rad_to_deg(heading)) > WALK_MAX_DEG:
+	if absf(rad_to_deg(heading)) > (WALK_KEEP_DEG if state.was_walk else WALK_MAX_DEG):
 		return false
 	var slack := WALK_KEEP_SLACK_MPS if state.was_walk else WALK_ENTER_SLACK_MPS
 	return speed <= WALK_UP_TO_MPS + slack

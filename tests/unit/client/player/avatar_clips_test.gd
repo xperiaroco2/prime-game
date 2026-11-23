@@ -319,3 +319,21 @@ func test_only_a_move_near_forward_walks() -> void:
 	var wide := AvatarClips.plan(_moving(1.5, deg_to_rad(35.0)), WALK, SPRINT, 2.0, 2.8, extras)
 	assert_str(String(wide.base)).is_equal("Jog_Fwd")
 	assert_str(String(wide.slot)).is_equal("Front")
+
+
+## #1334's second review: the cone has a dead zone too, so a walk whose heading jitters or turns
+## slowly past WALK_MAX_DEG keeps Walk up to WALK_KEEP_DEG, and leaves it beyond.
+func test_the_walk_cone_keeps_its_dead_zone() -> void:
+	var extras: Array[StringName] = [AvatarClips.WALK]
+	var kept := _moving(1.5, deg_to_rad(30.0))
+	kept.was_walk = true
+	assert_str(String(AvatarClips.plan(kept, WALK, SPRINT, 2.0, 2.8, extras).slot)).is_equal("Walk")
+	var fresh := _moving(1.5, deg_to_rad(30.0))
+	assert_str(String(AvatarClips.plan(fresh, WALK, SPRINT, 2.0, 2.8, extras).slot)).is_equal(
+		"Front"
+	)
+	var gone := _moving(1.5, deg_to_rad(AvatarClips.WALK_KEEP_DEG + 1.0))
+	gone.was_walk = true
+	assert_str(String(AvatarClips.plan(gone, WALK, SPRINT, 2.0, 2.8, extras).slot)).is_equal(
+		"Front"
+	)

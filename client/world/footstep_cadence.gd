@@ -54,7 +54,7 @@ const SNEAK_SPEED_MARGIN_MPS := 0.2
 ## contact was crossed: a slot that flips faster than a step (a speed tapped across a clip's edge)
 ## restarts the phase each time, and would silence the walker. Client feel, a placeholder, "not a
 ## decision".
-const STEP_BACKSTOP := 1.6
+const STEP_BACKSTOP := 2.0
 
 ## How far through the present step, 0 to 1.
 var progress := START
