@@ -110,6 +110,36 @@ func test_the_local_player_steps_at_its_character_s_clip_length() -> void:
 		)
 
 
+## #1693: a character whose back jog is measured slower (its profile's clip_mps) plays it faster
+## (CharacterProfile.rate_factor), and its steps keep to the drawn contacts: here twice as often as
+## the table's rate would time them.
+func test_the_steps_follow_the_character_s_own_clip_speed() -> void:
+	_views.character = CharacterSet.from_scene(Fixture.scene(), Fixture.ragdoll())
+	var own := CharacterProfile.slice_m1()
+	own.clip_mps[AvatarClips.JOG_BWD] = AvatarClips.JOG_MPS / 2.0
+	own.clip_mps[&"Jog_Bwd_Left"] = AvatarClips.JOG_MPS / 2.0
+	own.clip_mps[&"Jog_Bwd_Right"] = AvatarClips.JOG_MPS / 2.0
+	_views.character.profile = own
+	var cycle := _views.character.cycle_of(AvatarClips.JOG_BWD)
+	var player := _world.add_player(Vector3(0, 0, 0))
+	_sounds.player = player
+	await _world.frames(10)
+	player.move_input = Vector2(0, -1)
+	var frames: Array[int] = []
+	for i: int in 240:
+		var before := _sounds.steps()
+		await _world.frames(1)
+		if _sounds.steps() > before:
+			frames.append(i)
+	player.move_input = Vector2.ZERO
+	var rate := FixtureModes.player_rules().walk_speed_mps / AvatarClips.JOG_MPS * 2.0
+	assert_int(frames.size()).is_greater(5)
+	for i: int in range(2, frames.size()):
+		assert_float((frames[i] - frames[i - 1]) / 60.0).is_equal_approx(
+			0.5 * cycle / rate, 2.5 / 60.0
+		)
+
+
 func test_a_claimed_run_standing_still_makes_no_step() -> void:
 	await _walk(Vector3(3, 0, -2), Vector3.ZERO, Vector3.LEFT * 7.0, 120)
 	assert_object(_views.body_of(PEER)).is_not_null()

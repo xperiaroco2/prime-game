@@ -516,17 +516,19 @@ func _cycle_of(peer: int, plan: AvatarClips.Plan) -> float:
 	if plan == null:
 		return 0.0
 	var body := avatars.body_of(peer) if peer != 0 and avatars != null else null
-	var character: CharacterSet = null
+	var cycle := 0.0
+	var profile: CharacterProfile = null
 	if body != null and body.character() != null:
-		character = body.character()
+		cycle = body.character().cycle_of(plan.base)
+		profile = body.character().profile
 	elif peer == 0 and avatars != null and avatars.character != null:
-		character = avatars.character
-	if character == null:
+		cycle = avatars.character.cycle_of(plan.base)
+		profile = avatars.character.profile
+	else:
 		return Locomotion.cycle_s(plan.base)
-	var cycle := character.cycle_of(plan.base)
-	if character.profile == null:
+	if profile == null:
 		return cycle
-	return cycle / character.profile.rate_factor(plan.base, plan.slot, plan.blend)
+	return cycle / profile.rate_factor(plan.base, plan.slot, plan.blend)
 
 
 ## The movement numbers of `peer`'s steps (0: the own player): the client's own copy of the mode's.
