@@ -220,3 +220,120 @@ func test_the_plan_carries_the_direction_and_the_slot() -> void:
 	crouched.crouched = true
 	assert_str(String(_plan(crouched).slot)).is_equal("Crouch_Fwd")
 	assert_that(_plan(crouched).blend).is_equal(Vector2.ZERO)
+
+
+## #1334 (the art's table): a forward move up to WALK_UP_TO_MPS (and its dead zone) plays Walk on a
+## character that has it, at its own ground speed, in a slot of its own; faster, or on a character
+## without it, Jog_Fwd. A slow sideways or backward move keeps its family's clip.
+func test_a_slow_forward_move_walks_where_the_character_has_walk() -> void:
+	var extras: Array[StringName] = [AvatarClips.WALK]
+	var slow := AvatarClips.plan(_moving(1.5), WALK, SPRINT, 2.0, 2.8, extras)
+	assert_str(String(slow.base)).is_equal("Walk")
+	assert_str(String(slow.slot)).is_equal("Walk")
+	assert_float(slow.rate).is_equal_approx(1.5 / AvatarClips.WALK_MPS, 0.0001)
+	var edge := AvatarClips.plan(
+		_moving(AvatarClips.WALK_UP_TO_MPS), WALK, SPRINT, 2.0, 2.8, extras
+	)
+	assert_str(String(edge.base)).is_equal("Walk")
+	var past := AvatarClips.WALK_UP_TO_MPS + AvatarClips.WALK_ENTER_SLACK_MPS + 0.01
+	(
+		assert_str(String(AvatarClips.plan(_moving(past), WALK, SPRINT, 2.0, 2.8, extras).base))
+		. is_equal("Jog_Fwd")
+	)
+	assert_str(String(_plan(_moving(1.5)).base)).is_equal("Jog_Fwd")
+	var side := AvatarClips.plan(_moving(1.5, PI * 0.5), WALK, SPRINT, 2.0, 2.8, extras)
+	assert_str(String(side.base)).is_equal("Strafe_Left")
+	var back := AvatarClips.plan(_moving(1.5, PI), WALK, SPRINT, 2.0, 2.8, extras)
+	assert_str(String(back.base)).is_equal("Jog_Bwd")
+
+
+## #1334: crouched past halfway from the crouch's speed to the fast crouch's is Crouch_Run on a
+## character that has it, at its own ground speed; slower, or without it, Crouch_Fwd.
+func test_a_fast_crouch_runs_where_the_character_has_crouch_run() -> void:
+	var extras: Array[StringName] = [AvatarClips.CROUCH_RUN]
+	var cases: Dictionary[float, String] = {
+		2.0: "Crouch_Fwd", 2.39: "Crouch_Fwd", 2.41: "Crouch_Run"
+	}
+	for speed: float in cases:
+		var state := _moving(speed)
+		state.crouched = true
+		var plan := AvatarClips.plan(state, WALK, SPRINT, 2.0, 2.8, extras)
+		assert_str(String(plan.base)).override_failure_message(str(speed)).is_equal(cases[speed])
+		assert_str(String(plan.slot)).is_equal(cases[speed])
+	var fast := _moving(2.8)
+	fast.crouched = true
+	var run := AvatarClips.plan(fast, WALK, SPRINT, 2.0, 2.8, extras)
+	assert_float(run.rate).is_equal_approx(2.8 / AvatarClips.CROUCH_RUN_MPS, 0.0001)
+	assert_str(String(AvatarClips.plan(fast, WALK, SPRINT, 2.0, 2.8).base)).is_equal("Crouch_Fwd")
+	assert_str(String(_plan(fast).base)).is_equal("Crouch_Fwd")
+
+
+## plan_by() reads the mode's speeds; without a mode it plans as plan() with zeros.
+func test_plan_by_takes_the_rules_speeds() -> void:
+	var rules := PlayerRules.new()
+	rules.walk_speed_mps = WALK
+	rules.sprint_speed_mps = SPRINT
+	rules.crouch_speed_mps = 2.0
+	rules.crouch_fast_speed_mps = 2.8
+	var extras: Array[StringName] = [AvatarClips.CROUCH_RUN]
+	var state := _moving(2.6)
+	state.crouched = true
+	assert_str(String(AvatarClips.plan_by(state, rules, extras).base)).is_equal("Crouch_Run")
+	assert_str(String(AvatarClips.plan_by(state, null, extras).base)).is_equal("Crouch_Fwd")
+	assert_str(String(AvatarClips.plan_by(_moving(5.0), rules).base)).is_equal("Jog_Fwd")
+	assert_float(AvatarClips.assumed_mps(AvatarClips.WALK)).is_equal(AvatarClips.WALK_MPS)
+	assert_float(AvatarClips.assumed_mps(AvatarClips.CROUCH_RUN)).is_equal(
+		AvatarClips.CROUCH_RUN_MPS
+	)
+
+
+## #1334's review: the Walk edge has a dead zone, so a sneak's jittering 2.0 m/s keeps Walk and a
+## jog slowing through it does not flip back and forth; past the keeping edge it leaves.
+func test_the_walk_edge_keeps_its_dead_zone() -> void:
+	var extras: Array[StringName] = [AvatarClips.WALK]
+	var was_walk := false
+	for speed: float in [1.95, 2.05, 2.1, 1.98, 2.2, 2.45]:
+		var state := _moving(speed)
+		state.was_walk = was_walk
+		var plan := AvatarClips.plan(state, WALK, SPRINT, 2.0, 2.8, extras)
+		assert_str(String(plan.slot)).override_failure_message(str(speed)).is_equal("Walk")
+		was_walk = plan.slot == AvatarClips.WALK
+	var leaving := _moving(AvatarClips.WALK_UP_TO_MPS + AvatarClips.WALK_KEEP_SLACK_MPS + 0.01)
+	leaving.was_walk = true
+	assert_str(String(AvatarClips.plan(leaving, WALK, SPRINT, 2.0, 2.8, extras).slot)).is_equal(
+		"Front"
+	)
+	# Not walking, a jog slowing to 2.4 m/s stays in the front family until the entering edge.
+	var slowing := _moving(2.4)
+	assert_str(String(AvatarClips.plan(slowing, WALK, SPRINT, 2.0, 2.8, extras).slot)).is_equal(
+		"Front"
+	)
+
+
+## #1334's review: Walk is one straight-ahead clip, so only a move near forward walks; a wider
+## diagonal keeps the front family's blend (its diagonal points), never a sideways slide.
+func test_only_a_move_near_forward_walks() -> void:
+	var extras: Array[StringName] = [AvatarClips.WALK]
+	var near := AvatarClips.plan(_moving(1.5, deg_to_rad(15.0)), WALK, SPRINT, 2.0, 2.8, extras)
+	assert_str(String(near.slot)).is_equal("Walk")
+	var wide := AvatarClips.plan(_moving(1.5, deg_to_rad(35.0)), WALK, SPRINT, 2.0, 2.8, extras)
+	assert_str(String(wide.base)).is_equal("Jog_Fwd")
+	assert_str(String(wide.slot)).is_equal("Front")
+
+
+## #1334's second review: the cone has a dead zone too, so a walk whose heading jitters or turns
+## slowly past WALK_MAX_DEG keeps Walk up to WALK_KEEP_DEG, and leaves it beyond.
+func test_the_walk_cone_keeps_its_dead_zone() -> void:
+	var extras: Array[StringName] = [AvatarClips.WALK]
+	var kept := _moving(1.5, deg_to_rad(30.0))
+	kept.was_walk = true
+	assert_str(String(AvatarClips.plan(kept, WALK, SPRINT, 2.0, 2.8, extras).slot)).is_equal("Walk")
+	var fresh := _moving(1.5, deg_to_rad(30.0))
+	assert_str(String(AvatarClips.plan(fresh, WALK, SPRINT, 2.0, 2.8, extras).slot)).is_equal(
+		"Front"
+	)
+	var gone := _moving(1.5, deg_to_rad(AvatarClips.WALK_KEEP_DEG + 1.0))
+	gone.was_walk = true
+	assert_str(String(AvatarClips.plan(gone, WALK, SPRINT, 2.0, 2.8, extras).slot)).is_equal(
+		"Front"
+	)

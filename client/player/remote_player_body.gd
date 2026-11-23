@@ -134,6 +134,12 @@ func character() -> CharacterRig:
 	return _rig
 
 
+## AvatarClips.EXTRA_CLIPS the character has (AvatarClips.plan()'s `extras`); none without one.
+func extra_clips() -> Array[StringName]:
+	var none: Array[StringName] = []
+	return _rig.extra_clips() if _rig != null else none
+
+
 ## Plays AvatarClips' `plan` on the character; nothing without one.
 func apply_plan(plan: AvatarClips.Plan) -> void:
 	if _rig != null:

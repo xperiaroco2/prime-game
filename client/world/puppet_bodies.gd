@@ -43,9 +43,7 @@ static func make(
 		state.yaw = pose.yaw
 		state.crouched = crouched
 		state.posed = row.get("posed", false) as bool
-		var walk := rules.walk_speed_mps if rules != null else 0.0
-		var sprint := rules.sprint_speed_mps if rules != null else 0.0
-		body.apply_plan(AvatarClips.plan(state, walk, sprint))
+		body.apply_plan(AvatarClips.plan_by(state, rules, body.extra_clips()))
 		# Drawn this frame, before any physics step would run the tree: posed now, or the art's
 		# arms-out rest (and the sockets' items with it) would be the picture.
 		body.character().pose_now()

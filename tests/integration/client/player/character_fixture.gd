@@ -46,12 +46,13 @@ const SHOT_S := 0.5
 const ALBEDO := Color(0.8, 0.6, 0.4)
 
 
-## The angle a base clip (or one of Locomotion's optional points, #1334) turns UpperLeg.L to.
+## The angle a base clip (or one of Locomotion's optional points, or AvatarClips' extra clips,
+## #1334) turns UpperLeg.L to.
 static func base_angle(clip: StringName) -> float:
-	var at := AvatarClips.base_clips().find(clip)
-	if at < 0:
-		at = AvatarClips.base_clips().size() + Locomotion.optional_clips().find(clip)
-	return 0.1 * (at + 1)
+	var order := AvatarClips.base_clips()
+	order.append_array(Locomotion.optional_clips())
+	order.append_array(AvatarClips.EXTRA_CLIPS)
+	return 0.1 * (order.find(clip) + 1)
 
 
 ## Every clip AvatarClips plays plus Locomotion's optional points (the alien set's diagonals).

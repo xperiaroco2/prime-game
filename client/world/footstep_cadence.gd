@@ -23,7 +23,8 @@ extends RefCounted
 ## a step falls when the clip's phase crosses one of its foot contacts (Locomotion.contacts, the
 ## issue's table as fractions of the cycle): the phase runs at the plan's rate over the cycle, and
 ## starts at 0 when the plan's slot changes (the rig's Transition starts the new input) and on a
-## placement. A plan whose clip has no contacts, or no cycle, falls back to the speed's interval.
+## placement; a step falls anyway once no contact was crossed for STEP_BACKSTOP of the played clips'
+## longest gap. A plan whose clip has no contacts, or no cycle, falls back to the speed's interval.
 ## Both modes keep step_speed_mps, quiet_of() and silent_of() on the measured speed.
 
 ## Below this horizontal speed a player stands. A placeholder, "not a decision".
@@ -48,6 +49,12 @@ const QUIET_STEP_RANGE_M := 6.0
 ## crouch_speed_mps be heard. An engine tolerance, kept as built: the engineer's answer 1a on
 ## PR #1007 (comment 6166558510).
 const SNEAK_SPEED_MARGIN_MPS := 0.2
+## The clip mode's backstop (#1334's netcode review): a step falls once the moving time since the
+## last reaches this many of the longest gap between contacts of the clips played since, though no
+## contact was crossed: a slot that flips faster than a step (a speed tapped across a clip's edge)
+## restarts the phase each time, and would silence the walker. Client feel, a placeholder, "not a
+## decision".
+const STEP_BACKSTOP := 2.0
 
 ## How far through the present step, 0 to 1.
 var progress := START
@@ -61,6 +68,8 @@ var _walked_s := 0.0
 ## The clip mode's phase through the clip's cycle, 0 to 1, and the slot it runs in.
 var _phase := 0.0
 var _slot := &""
+## The longest gap between contacts, in seconds, of the clips played since the last step.
+var _gap_s := 0.0
 
 
 ## The time between two steps at `speed_mps` for a mode that walks at `walk_mps` and sprints at
@@ -141,6 +150,7 @@ func reset() -> void:
 	progress = START
 	_walked_m = 0.0
 	_walked_s = 0.0
+	_gap_s = 0.0
 	_phase = 0.0
 	_slot = &""
 
@@ -160,7 +170,18 @@ func _advance_clip(
 	for contact: float in contacts:
 		if (from < contact and contact <= to) or (from < contact + 1.0 and contact + 1.0 <= to):
 			return _step()
+	_gap_s = maxf(_gap_s, _longest_gap(contacts) / cycles_per_s)
+	if _walked_s >= STEP_BACKSTOP * _gap_s:
+		return _step()
 	return false
+
+
+## The longest stretch of the cycle between two of `contacts` (fractions, in order), round the end.
+static func _longest_gap(contacts: PackedFloat32Array) -> float:
+	var longest := 1.0 - contacts[contacts.size() - 1] + contacts[0]
+	for i: int in range(1, contacts.size()):
+		longest = maxf(longest, contacts[i] - contacts[i - 1])
+	return longest
 
 
 ## A step fell: its speed is the distance walked since the last over the time spent moving.
@@ -168,4 +189,5 @@ func _step() -> bool:
 	step_speed_mps = _walked_m / _walked_s
 	_walked_m = 0.0
 	_walked_s = 0.0
+	_gap_s = 0.0
 	return true

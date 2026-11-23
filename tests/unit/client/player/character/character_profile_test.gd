@@ -59,3 +59,8 @@ func test_a_move_s_speed_lies_between_its_family_points_and_never_jumps() -> voi
 	# Out of a family: the clip's own; and the factor is the assumed speed over it.
 	var crouch := alien.rate_factor(AvatarClips.CROUCH_FWD, AvatarClips.CROUCH_FWD, Vector2.ZERO)
 	assert_float(crouch).is_equal_approx(0.75 / (2.07 * 0.94), 1e-5)
+	# Walk and Crouch_Run (#1334) at the package's measured 0.9 and 2.89, drawn at its scale.
+	var walk := alien.rate_factor(AvatarClips.WALK, AvatarClips.WALK, Vector2.ZERO)
+	assert_float(walk).is_equal_approx(AvatarClips.WALK_MPS / (0.9 * 0.94), 1e-5)
+	var run := alien.rate_factor(AvatarClips.CROUCH_RUN, AvatarClips.CROUCH_RUN, Vector2.ZERO)
+	assert_float(run).is_equal_approx(2.8 / (2.89 * 0.94), 1e-5)

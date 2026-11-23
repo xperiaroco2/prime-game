@@ -75,7 +75,7 @@ func _add_runner(at: Vector3, colour: int, heading: float, label: String) -> voi
 	state.yaw = body.body_yaw
 	var local := Vector3(-sin(heading), 0.0, -cos(heading))
 	state.drawn_move = Basis(Vector3.UP, body.body_yaw) * local * JOG_MPS
-	var plan := AvatarClips.plan(state, _rules.walk_speed_mps, _rules.sprint_speed_mps)
+	var plan := AvatarClips.plan_by(state, _rules, body.extra_clips())
 	_runners.append(body)
 	_plans.append(plan)
 
@@ -87,7 +87,7 @@ func _add_looker(at: Vector3, colour: int, yaw_off: float, pitch: float, label: 
 	_set_pose(body, at, PI + yaw_off, pitch)
 	var state := AvatarClips.State.new()
 	state.yaw = body.body_yaw
-	body.apply_plan(AvatarClips.plan(state, _rules.walk_speed_mps, _rules.sprint_speed_mps))
+	body.apply_plan(AvatarClips.plan_by(state, _rules, body.extra_clips()))
 
 
 func _add_body(at: Vector3, colour: int, label: String) -> RemotePlayerBody:

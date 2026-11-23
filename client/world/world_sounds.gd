@@ -502,9 +502,14 @@ func _plan_of(peer: int, moved: Vector3, delta: float, rules: PlayerRules) -> Av
 	state.yaw = _own_body_yaw
 	state.crouched = player.is_crouched()
 	state.was_back = _own_plan != null and _own_plan.back
+	state.was_walk = _own_plan != null and _own_plan.slot == AvatarClips.WALK
 	if delta > 0.0 and Vector2(moved.x, moved.z).length() <= SnapshotBuffer.SNAP_SPEED_MPS * delta:
 		state.drawn_move = moved / delta
-	_own_plan = AvatarClips.plan(state, rules.walk_speed_mps, rules.sprint_speed_mps)
+	# The clips the others' clients draw it with (the character set's), so it hears its steps so.
+	var extras: Array[StringName] = []
+	if avatars != null and avatars.character != null:
+		extras = avatars.character.extra_clips()
+	_own_plan = AvatarClips.plan_by(state, rules, extras)
 	return _own_plan
 
 
