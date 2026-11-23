@@ -197,9 +197,41 @@ func test_the_mode_check_refuses_a_half_set_hall() -> void:
 	assert_array(Array(respawn.check(GameMode.new()))).is_empty()
 
 
-func _duel(seed_value: int = 7) -> Match:
+## M8's return (#1683, the base mode prints nobody): with no print the dead come back from the hall
+## at once at the deadline: no PrintStarted, Respawned to everyone, then the player's own
+## Correction to a respawn marker; out of the hall, invulnerable, and what it held in the hall left
+## on the hall's floor.
+func test_with_no_print_the_dead_return_from_the_hall_at_once() -> void:
+	var mode := FixtureHallModes.mode()
+	FixtureCombatModes.life_ticks(mode).respawn.print_s = 0.0
+	var game := _duel(7, mode)
+	var dead := _in_hall(game, P2)
+	assert_bool(dead.in_hall).is_true()
+	var tool := FixtureItemModes.lay(game, &"tool", dead.position)
+	FixtureItemModes.pick_up(game, P2, tool)
+	assert_array(Array(dead.carried_items())).has_size(1)
+	var hall_floor := dead.position
+	var own_seen := game.view_of(P2).events.size()
+	FixtureModes.run_ticks(game, dead.life_deadline - game.ticked_through())
+	assert_int(dead.life).is_equal(PlayerState.Life.ALIVE)
+	assert_bool(dead.in_hall).is_false()
+	assert_bool(FixtureModes.RESPAWNS.has(dead.position)).is_true()
+	assert_int(dead.invulnerable_until).is_greater(game.ticked_through())
+	assert_array(Array(dead.carried_items())).is_empty()
+	assert_int(tool.where).is_equal(ItemState.Where.GROUND)
+	assert_vector(tool.position).is_equal(hall_floor)
+	for peer: int in [P1, P2, P3, P4]:
+		assert_array(FixtureCombatModes.received(game, peer, &"PrintStarted")).is_empty()
+		assert_array(FixtureCombatModes.received(game, peer, &"Respawned")).has_size(1)
+	var own := FixtureItemModes.names_after(game, P2, own_seen)
+	assert_array(own).contains([&"Respawned", &"Correction"])
+	assert_int(own.find(&"Respawned")).is_less(own.rfind(&"Correction"))
+	assert_array(Array(game.diagnostics)).is_empty()
+
+
+func _duel(seed_value: int = 7, mode: GameMode = null) -> Match:
 	var game := FixtureCombatModes.in_round(
-		FixtureHallModes.mode(), [P1, P2, P3, P4], null, seed_value
+		mode if mode != null else FixtureHallModes.mode(), [P1, P2, P3, P4], null, seed_value
 	)
 	FixtureCombatModes.arm(game, P1, Vector3.ZERO)
 	FixtureItemModes.stand(game, P2, KILLED_AT)

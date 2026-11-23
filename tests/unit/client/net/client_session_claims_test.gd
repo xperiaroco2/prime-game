@@ -412,3 +412,23 @@ func test_the_halls_corrections_count_as_placements_and_a_prints_respawned_as_no
 	session._count_correction(Vector3.ZERO, Vector3.ZERO)
 	assert_int(session.corrections).is_equal(refused + 1)
 	assert_int(session.placements).is_equal(before + 2)
+
+
+## M8 returns the dead from the hall with no print (#1683): the Respawned right after the hall's
+## Died is a placement, so its Correction is counted as one, not as a refused claim.
+func test_a_return_from_the_hall_with_no_print_counts_its_correction_as_a_placement() -> void:
+	_harness.mode.find_phase(&"round").accepts.append(
+		AcceptSpec.of(Intents.MOVE_CLAIM, AcceptSpec.From.DEAD)
+	)
+	_harness.welcome(&"round")
+	var session := _harness.session
+	var own := session.model.own_peer
+	var position := {"peer": own, "position": Vector3.ZERO}
+	var before := session.placements
+	session.event_received.emit(&"Died", position)
+	session._count_correction(Vector3.ZERO, Vector3.ZERO)
+	session.event_received.emit(&"Respawned", position)
+	var refused := session.corrections
+	session._count_correction(Vector3.ZERO, Vector3.ZERO)
+	assert_int(session.placements).is_equal(before + 2)
+	assert_int(session.corrections).is_equal(refused)
