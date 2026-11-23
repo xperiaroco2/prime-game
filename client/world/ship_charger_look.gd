@@ -27,12 +27,12 @@ const STATES: Dictionary[String, Array] = {
 	"charging": [3.2, 2.4, 1.2, 0.5],
 	"charged": [3.0, 1.6, 2.6, 0.25],
 }
-const BRONZE := Color(0.5, 0.38, 0.24)
-const BRONZE_EDGE := Color(1.0, 0.9, 0.7)
-const BRONZE2 := Color(0.42, 0.31, 0.2)
+const BRONZE := Color(0.547, 0.575, 0.593)
+const BRONZE_EDGE := Color(0.854, 0.876, 0.896)
+const BRONZE2 := Color(0.496, 0.522, 0.542)
 ## The pedestal's darker, rougher bronze: these over the socket's finish.
 const BRONZE2_FINISH: Dictionary[String, float] = {
-	"metallic": 0.72,
+	"metallic": 0.82,
 	"roughness": 0.4,
 	"wear": 1.0,
 	"lift": 0.04,

@@ -17,11 +17,11 @@ const BAY := preload("res://assets/environment/crystal_socket/socket_bay.gdshade
 const CYAN := Color(0.0, 0.62, 1.0)
 const AMBER := Color(1.0, 0.5, 0.0)
 const RED := Color(1.0, 0.05, 0.02)
-const BRONZE := Color(0.5, 0.38, 0.24)
-const BRONZE_EDGE := Color(1.0, 0.9, 0.7)
+const BRONZE := Color(0.547, 0.575, 0.593)
+const BRONZE_EDGE := Color(0.854, 0.876, 0.896)
 ## The stations' bronze finish on the shared metal shader (the board and the charger match it).
 const BRONZE_FINISH: Dictionary[String, float] = {
-	"metallic": 0.75,
+	"metallic": 0.85,
 	"roughness": 0.3,
 	"wear": 1.4,
 	"lift": 0.08,

@@ -526,7 +526,7 @@ is the package's. The art track takes the casts back into its package.
   `approved_by` is still empty; the engineer picked v8 on prime-game-art#370 ("Так, зливай"), approved the M8 slice (the lobby and the ship):
   https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184, and asked for v9's console and boards
   after he played the slice: https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6573041745.
-- **Updated:** the package v11 (`ship/v5/export/v11`: the console's metal cold steel), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+- **Updated:** the package v12 (`ship/v5/export/v12`, xperiaroco2/prime-game-art#408: the rest of the bronze cold steel), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
   2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
@@ -578,6 +578,8 @@ is the package's. The art track takes the casts back into its package.
   object's SHA-256. A station on the estate's art ship (#1535). The art manifest's `approved_by` is still empty; the
   engineer approved the M8 slice (the lobby and the ship):
   https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184.
+- **Updated:** the cold-steel build `steel` (xperiaroco2/prime-game-art#408), from prime-game-art `main`; approved by the
+  engineer (relayed by the director, 2026-11-23), in the game since #1700; the game's look port takes its steel colours.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false
@@ -592,6 +594,8 @@ is the package's. The art track takes the casts back into its package.
   (art #263, `main` at `06a42b8e`); the GLB is the package's `export/crystal_charger.glb`, matching its Git LFS
   object's SHA-256. A station on the estate's art ship (#1535). Approved by the engineer in the art manifest
   (`approved_by` xperiaroco2, 2026-10-29, xperiaroco2/prime-game-art#351).
+- **Updated:** the cold-steel build `steel` (xperiaroco2/prime-game-art#408), from prime-game-art `main`; approved by the
+  engineer (relayed by the director, 2026-11-23), in the game since #1700; the game's look port takes its steel colours.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false
@@ -607,6 +611,8 @@ is the package's. The art track takes the casts back into its package.
   object's SHA-256. A station on the estate's art ship (#1535). The art manifest's `approved_by` is still empty; the
   engineer approved the M8 slice (the lobby and the ship):
   https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184.
+- **Updated:** the cold-steel build `steel` (xperiaroco2/prime-game-art#408), from prime-game-art `main`; approved by the
+  engineer (relayed by the director, 2026-11-23), in the game since #1700; the game's look port takes its steel colours.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false

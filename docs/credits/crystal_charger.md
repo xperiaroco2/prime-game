@@ -7,6 +7,8 @@
   (art #263, `main` at `06a42b8e`); the GLB is the package's `export/crystal_charger.glb`, matching its Git LFS
   object's SHA-256. A station on the estate's art ship (#1535). Approved by the engineer in the art manifest
   (`approved_by` xperiaroco2, 2026-10-29, xperiaroco2/prime-game-art#351).
+- **Updated:** the cold-steel build `steel` (xperiaroco2/prime-game-art#408), from prime-game-art `main`; approved by the
+  engineer (relayed by the director, 2026-11-23), in the game since #1700; the game's look port takes its steel colours.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false

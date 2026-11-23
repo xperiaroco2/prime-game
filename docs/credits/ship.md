@@ -16,7 +16,7 @@
   `approved_by` is still empty; the engineer picked v8 on prime-game-art#370 ("Так, зливай"), approved the M8 slice (the lobby and the ship):
   https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184, and asked for v9's console and boards
   after he played the slice: https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6573041745.
-- **Updated:** the package v11 (`ship/v5/export/v11`: the console's metal cold steel), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+- **Updated:** the package v12 (`ship/v5/export/v12`, xperiaroco2/prime-game-art#408: the rest of the bronze cold steel), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
   2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)

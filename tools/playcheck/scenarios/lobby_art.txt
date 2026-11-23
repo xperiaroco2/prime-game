@@ -1,0 +1,42 @@
+# The lobby's approved art pieces (#1700) in the game's real window, one framed shot each from the
+# player's eye: the hall from the first spawn (x -9, z 2.5, facing the window), the match console with
+# its screen up close, the bar with its tap, and the mirror (the style frame) with the player's own
+# reflection from its middle place. The ship's start console and crystal: ship_engine.txt.
+players 1
+windows 1
+route to_bar -11,-4 -15,-10
+route to_mirror -14,8 -17.6,8
+
+window 1
+wait phase lobby
+# An off-screen window lacks the focus, so the lobby captures the pointer only as the Esc menu
+# closes (#517).
+press ui_cancel
+wait esc open
+press ui_cancel
+wait esc closed
+wait pointer captured
+frames 30
+shot hall_from_spawn
+# The match console with its screen, ahead on the left: a step towards it.
+hold move_forward
+seconds 0.35
+release move_forward
+frames 20
+shot match_console
+# The bar and its tap from 8 m off: the walk stops at the first waypoint, the eye at the tap.
+aim station tap via to_bar
+hold move_forward
+seconds 1.6
+release move_forward
+frames 30
+shot bar_tap
+aim off
+# The mirror from its middle place: the player's own reflection in the frame.
+aim station mirror via to_mirror
+hold move_forward
+seconds 4
+release move_forward
+frames 30
+shot mirror_reflection
+aim off
