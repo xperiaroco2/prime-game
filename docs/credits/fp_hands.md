@@ -12,6 +12,8 @@
   as Godot's importer extracts them. Concept A, the engineer's pick of 2026-11-10 (#1587). **Approved** as they are
   for the M8 demo: the manifest's `approved_by` xperiaroco2, `approved_at` 2026-11-20, `approval_pr`
   https://github.com/xperiaroco2/prime-game-art/pull/387; the polish is art #388.
+- **Updated:** run `mug4`: `MugSocket` and the clips `Mug_Idle` and `Mug_Run` (art#392), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+  2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false

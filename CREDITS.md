@@ -409,6 +409,19 @@ casts on the values they read from JSON and dictionaries (14 lines, for the game
 preloads made absolute (the shaders stay in the package's `look/`) and their comments re-wrapped for `lint`; the logic
 is the package's. The art track takes the casts back into its package.
 
+## The beer mug, held as `mug` and `mug_empty` (art#392) (prime-game-art)
+
+- **Files:** `assets/environment/mug/**`
+- **Author:** the prime-game art track (own work: built from code in headless Blender; no part generated or
+  downloaded)
+- **Source:** the art manifest `assets/prop/mug/manifest.toml` in xperiaroco2/prime-game-art (`main` at
+  `37fd1767`, build lobby/furniture/mug3); the GLB is the package's `export/mug.glb`, matching its Git LFS object. Approved by the
+  engineer (relayed by the director, 2026-11-23); in the game since #1700.
+- **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
+  file, so all rights reserved)
+- **AI generated:** false
+- **Public repo OK:** true (own work)
+
 ## The first-person hands (prime-game-art)
 
 - **Files:** `assets/body/fp_hands/**`
@@ -423,6 +436,8 @@ is the package's. The art track takes the casts back into its package.
   as Godot's importer extracts them. Concept A, the engineer's pick of 2026-11-10 (#1587). **Approved** as they are
   for the M8 demo: the manifest's `approved_by` xperiaroco2, `approved_at` 2026-11-20, `approval_pr`
   https://github.com/xperiaroco2/prime-game-art/pull/387; the polish is art #388.
+- **Updated:** run `mug4`: `MugSocket` and the clips `Mug_Idle` and `Mug_Run` (art#392), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+  2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false
@@ -446,11 +461,52 @@ is the package's. The art track takes the casts back into its package.
   clouds (Reto Stockli), NASA Earth Observatory / Goddard Space Flight Center, from eoimages.gsfc.nasa.gov (records
   144898, 73909, 57747; downloaded 2026-10-30; the art's `sources/nasa_earth_lobby.toml`), scaled by the art's
   `lobby --earth-tex`. Credit line: "Earth imagery: NASA".
+- **Updated:** the hall v21 (`lobby/hall/v21/export`: steel trims, strips R, the ship v11), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+  2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved); the Earth's textures: NASA public domain imagery (NASA-PD,
   https://www.nasa.gov/nasa-brand-center/images-and-media/; no NASA logos or insignia, no implied endorsement)
 - **AI generated:** false
 - **Public repo OK:** true (own work and NASA public domain)
+
+## The lobby's bar (prime-game-art)
+
+- **Files:** `assets/environment/bar/**`
+- **Author:** the prime-game art track (own work: built from code in headless Blender; no part generated or
+  downloaded)
+- **Source:** the art manifest `assets/prop/bar/manifest.toml` in xperiaroco2/prime-game-art (`main` at
+  `37fd1767`, build v6); the GLB is the package's `export/bar.glb`, matching its Git LFS object. Approved by the
+  engineer (relayed by the director, 2026-11-23); in the game since #1700.
+- **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
+  file, so all rights reserved)
+- **AI generated:** false
+- **Public repo OK:** true (own work)
+
+## The lobby's match console (prime-game-art)
+
+- **Files:** `assets/environment/match_console/**`
+- **Author:** the prime-game art track (own work: built from code in headless Blender; no part generated or
+  downloaded)
+- **Source:** the art manifest `assets/prop/match_console/manifest.toml` in xperiaroco2/prime-game-art (`main` at
+  `37fd1767`, build v6); the GLB is the package's `export/match_console.glb`, matching its Git LFS object. Approved by the
+  engineer (relayed by the director, 2026-11-23); in the game since #1700.
+- **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
+  file, so all rights reserved)
+- **AI generated:** false
+- **Public repo OK:** true (own work)
+
+## The lobby's mirror (style frame) (prime-game-art)
+
+- **Files:** `assets/environment/mirror/**`
+- **Author:** the prime-game art track (own work: built from code in headless Blender; no part generated or
+  downloaded)
+- **Source:** the art manifest `assets/prop/mirror/manifest.toml` in xperiaroco2/prime-game-art (`main` at
+  `37fd1767`, build v6); the GLB is the package's `export/mirror.glb`, matching its Git LFS object. Approved by the
+  engineer (relayed by the director, 2026-11-23); in the game since #1700.
+- **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
+  file, so all rights reserved)
+- **AI generated:** false
+- **Public repo OK:** true (own work)
 
 ## The ship (prime-game-art)
 
@@ -470,6 +526,8 @@ is the package's. The art track takes the casts back into its package.
   `approved_by` is still empty; the engineer picked v8 on prime-game-art#370 ("Так, зливай"), approved the M8 slice (the lobby and the ship):
   https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184, and asked for v9's console and boards
   after he played the slice: https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6573041745.
+- **Updated:** the package v11 (`ship/v5/export/v11`: the console's metal cold steel), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+  2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false
@@ -485,6 +543,8 @@ is the package's. The art track takes the casts back into its package.
   object's SHA-256, and the three shaders its `export/*.gdshader`. The crystal drawn in the ship's sockets and
   chargers (#1556). Approved by the engineer in the art manifest (`approved_by` xperiaroco2, 2026-10-24,
   xperiaroco2/prime-game-art#316).
+- **Updated:** the cold-steel build `steel` (its `crystal_metal.gdshader` defaults steel), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+  2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false
@@ -501,6 +561,8 @@ is the package's. The art track takes the casts back into its package.
   SHA-256. A station on the estate's art ship (#1535), at the hall's centre since the ship package v9
   (xperiaroco2/prime-game-art#376). Approved by the engineer in the art manifest (`approved_by` xperiaroco2,
   2026-10-26, xperiaroco2/prime-game-art#325).
+- **Updated:** the cold-steel build `steel` (its `console_metal.gdshader` defaults steel), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+  2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false

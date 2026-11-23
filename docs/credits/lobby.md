@@ -16,6 +16,8 @@
   clouds (Reto Stockli), NASA Earth Observatory / Goddard Space Flight Center, from eoimages.gsfc.nasa.gov (records
   144898, 73909, 57747; downloaded 2026-10-30; the art's `sources/nasa_earth_lobby.toml`), scaled by the art's
   `lobby --earth-tex`. Credit line: "Earth imagery: NASA".
+- **Updated:** the hall v21 (`lobby/hall/v21/export`: steel trims, strips R, the ship v11), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+  2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved); the Earth's textures: NASA public domain imagery (NASA-PD,
   https://www.nasa.gov/nasa-brand-center/images-and-media/; no NASA logos or insignia, no implied endorsement)
