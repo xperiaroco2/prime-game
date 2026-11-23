@@ -5950,7 +5950,7 @@ draws the hands. The view shows while the own player is living and the player ca
   package has the `RightHand` bone; without it the hand item draws the mug. The others see it at the holder's
   hand point by its grip (the placeholder's: `MugLooks.IN_HAND`, half its height, lower), so the hand closes round its middle. The art's mug model
   and a grip pose, if the art makes one, replace the placeholder, `MUG_AT` and `GRIP` (#1697, art#392's contract):
-  `MugLooks` builds `assets/props/mug/mug.glb` when it is here (its `Beer` hidden for `mug_empty`); a look's grip
+  `MugLooks` builds `assets/environment/mug/mug.glb` when it is here (its `Beer` hidden for `mug_empty`, its size `ART_SIZE`, in the game since #1700); a look's grip
   (`MugLooks.grip_of`) is its `Grip` (+Y up the handle, -Z to the mug's axis), else the placeholder's middle, and
   the others' hand point holds the mug by it; the hands seat it by its grip on the package's `MugSocket` and play
   `Mug_Idle` and `Mug_Run` with no fist held (through a hit `Mug_Idle`'s fist stands: `Punch` keys a closed one), each part on its own (the socket without the clips keeps `GRIP`; the

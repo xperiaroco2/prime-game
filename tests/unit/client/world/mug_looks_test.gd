@@ -41,7 +41,8 @@ func test_an_item_view_of_a_mug_is_the_mug_s_look_with_no_label() -> void:
 		assert_object(view.look().find_child("Mug", false, false)).is_not_null()
 		assert_object(view.look().find_child("Box", true, false)).is_null()
 		assert_int(view.find_children("*", "Label3D", true, false).size()).is_zero()
-		assert_vector(ItemView.size_of(kind)).is_equal(MugLooks.SIZE)
+		var size := MugLooks.ART_SIZE if MugLooks.has_art() else MugLooks.SIZE
+		assert_vector(ItemView.size_of(kind)).is_equal(size)
 
 
 ## #1697: the art's mug (a scene shaped as art#392's contract) is its look: the Beer shown for a
