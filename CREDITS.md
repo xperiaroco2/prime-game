@@ -188,11 +188,12 @@ asset.
 - **AI generated:** false
 - **Public repo OK:** true (CC0)
 
-The swing, pick-up and put-down sounds of #525 (Ogg Vorbis, stereo 48 kHz), renamed after the sound they play (the
-pack's name, then ours): `knifeSlice.ogg` `swing_1.ogg`, `knifeSlice2.ogg` `swing_2.ogg`, `handleSmallLeather.ogg`
-`pick_up_1.ogg`, `handleSmallLeather2.ogg` `pick_up_2.ogg`, `cloth3.ogg` `pick_up_3.ogg`, `dropLeather.ogg`
-`put_down_1.ogg`, `bookPlace1.ogg` `put_down_2.ogg`, `bookPlace3.ogg` `put_down_3.ogg`. No door sound: the game has
-no door (#525). Played by `SfxSet` (`client/audio/`); the engineer's verdicts go to `assets/audio/sfx-verdicts.json`.
+The pick-up and put-down sounds of #525 (Ogg Vorbis, stereo 48 kHz), renamed after the sound they play (the pack's
+name, then ours): `handleSmallLeather.ogg` `pick_up_1.ogg`, `handleSmallLeather2.ogg` `pick_up_2.ogg`, `cloth3.ogg`
+`pick_up_3.ogg`, `dropLeather.ogg` `put_down_1.ogg`, `bookPlace1.ogg` `put_down_2.ogg`, `bookPlace3.ogg`
+`put_down_3.ogg`. No door sound: the game has no door (#525). The swing's `knifeSlice.ogg` and `knifeSlice2.ogg`
+(`swing_1.ogg`, `swing_2.ogg`) were removed when the swing became the engineer's M8 pick (#1674, #1685). Played by
+`SfxSet` (`client/audio/`); the engineer's verdicts go to `assets/audio/sfx-verdicts.json`.
 
 ## Onest
 
