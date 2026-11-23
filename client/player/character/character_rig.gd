@@ -37,10 +37,10 @@ const SLOTS: Array[StringName] = [
 ]
 const CARRY_FADE_S := 0.2
 const SHOT_FADE_S := 0.15
-## The art's look scripts (its static skin, art#398): they dress a model from a look JSON and colour
-## its skin.
-const AlienDress := preload("res://assets/characters/alien_chameleon/look/alien_dress.gd")
-const AlienStatic := preload("res://assets/characters/alien_chameleon/look/alien_static.gd")
+## The client's port of the art's look scripts (its static skin, art#398): they dress a model from
+## a look JSON and colour its skin.
+const AlienDress := preload("res://client/player/character/alien_look/alien_dress.gd")
+const AlienStatic := preload("res://client/player/character/alien_look/alien_static.gd")
 
 ## The character's scene root, its skeleton, its player and the tree driving it.
 var model: Node3D
