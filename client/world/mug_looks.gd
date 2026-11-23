@@ -52,10 +52,11 @@ static func build(kind: StringName, model: PackedScene = null) -> Node3D:
 				beer.visible = kind != &"mug_empty"
 			# A mug lights nothing and sees nothing: an exported light would glow through walls
 			# with no shadow, and the item's layers never cover it.
-			for extra: Node in made.find_children("*", "Light3D", true, false):
-				extra.free()
-			for extra: Node in made.find_children("*", "Camera3D", true, false):
-				extra.free()
+			# One nested in another goes with it: freed twice it would error.
+			for type: String in ["Light3D", "Camera3D"]:
+				for extra: Node in made.find_children("*", type, true, false):
+					if is_instance_valid(extra):
+						extra.free()
 			return made
 		if node != null:
 			node.free()

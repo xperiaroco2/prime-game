@@ -88,9 +88,12 @@ func _art_mug() -> PackedScene:
 		mesh.mesh = BoxMesh.new()
 		root.add_child(mesh)
 		mesh.owner = root
-	for extra: Node3D in [OmniLight3D.new(), Camera3D.new()]:
-		root.add_child(extra)
+	# A light in a light and a camera in it: each goes with its parent, freed once.
+	var parent: Node3D = root
+	for extra: Node3D in [OmniLight3D.new(), OmniLight3D.new(), Camera3D.new()]:
+		parent.add_child(extra)
 		extra.owner = root
+		parent = extra
 	var grip := Marker3D.new()
 	grip.name = "Grip"
 	grip.transform = Transform3D(
