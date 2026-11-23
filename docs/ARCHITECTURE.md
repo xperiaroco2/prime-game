@@ -5708,11 +5708,12 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
   keys (`pinball.best`, `pinball.score`, `pinball.balls`; raw until the deck has them, asked on #150) with the number
   after them.
 - **Provisional, not a decision** (taste, the engineer's: taken under his standing word, #507): the keys Z and Slash,
-  the close-up's fov 50 and ease 0.6 s, the table's mount (the 1.3 m table overhangs the machine's 1 m box), the gap
-  and reconcile times, the table's and the display's Toy-style looks.
+  the close-up's fov 50 and ease 0.6 s, the gap and reconcile times, the display's Toy-style look; the greybox table's
+  looks (CI's, without the LFS art). The cabinet, the table's art and the markers are the approved art's (#1702; the
+  close-up 0.1 m nearer the player than its report, so the playfield's front edge is in its frame).
 - **Tests.** `tests/unit/client/world/pinball_ball_track_test.gd` (between samples, held past the newest, hidden only
   from its tick, the snap, a stale or repeated tick), `pinball_keys_test.gd` (seated only, a change, the gap, a tap,
-  the Esc menu and the focus release, reconcile), `pinball_table_view_test.gd` (meshes and no body, the flippers' turn,
+  the Esc menu and the focus release, reconcile), `pinball_table_view_test.gd` (meshes and no body, the art's meshes in place of the greybox's with no body, the flippers' turn,
   the ball, the constants against `PinballTableSpec` and `PinballTable.SCENE`), `pinball_display_test.gd` (the best,
   the colour by a unique name, a shared name, an owner gone, the game line), `pinball_close_up_test.gd` (`held`, the
   current camera, `cull_mask`, the ease, every exit and snap, a knockdown, the hall's frustum: the whole table and the

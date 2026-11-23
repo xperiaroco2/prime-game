@@ -189,16 +189,24 @@ func _dress() -> void:
 		if not ResourceLoader.exists(ART):
 			return
 		packed = load(ART) as PackedScene
-	var dressed := packed.instantiate() as Node3D if packed != null else null
+	if packed == null:
+		return
+	var made := packed.instantiate()
+	var dressed := made as Node3D
 	if dressed == null or dressed.find_child("Playfield", true, false) == null:
-		if dressed != null:
-			dressed.free()
+		if made != null:
+			made.free()
 		return
 	for node: Node in dressed.find_children("*", "MeshInstance3D", true, false):
 		var mesh := node as MeshInstance3D
 		var at := _in_scene(mesh, dressed)
 		mesh.get_parent().remove_child(mesh)
 		mesh.owner = null
+		# Only the look comes over: a collider or anything else under a mesh would be a body in the
+		# client's tree (an import suffix), stopping the own player's rays.
+		for child: Node in mesh.get_children():
+			if not child is VisualInstance3D:
+				child.free()
 		for greybox: Variant in _greybox.get(mesh.name, []):
 			(greybox as Node).free()
 		_greybox.erase(mesh.name)
@@ -210,6 +218,8 @@ func _dress() -> void:
 			mesh.transform = at
 			add_child(mesh)
 	dressed.free()
+	for body_name: StringName in _greybox:
+		push_warning("pinball: the table's art has no mesh for %s; its greybox stands" % body_name)
 
 
 ## The greybox meshes recorded for the body `body_name`.

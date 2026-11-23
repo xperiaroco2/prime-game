@@ -116,9 +116,17 @@ func test_the_art_s_meshes_replace_the_greybox_s() -> void:
 	assert_object((table.get_node(^"Playfield") as MeshInstance3D).mesh as SphereMesh).is_not_null()
 	# A body the art does not name keeps its greybox mesh.
 	assert_object(table.get_node_or_null(^"WallRight")).is_not_null()
+	# A collider under an art mesh (an import suffix) never comes into the drawn tree.
+	assert_array(table.find_children("*", "CollisionObject3D", true, false)).is_empty()
+	# The art flipper turns with its pivot.
+	var before := (pivot.transform * flipper.transform).basis
+	table.left = true
+	table.step(1.0)
+	assert_bool((pivot.transform * flipper.transform).basis.is_equal_approx(before)).is_false()
 
 
-## An art scene of a SphereMesh per name at its place.
+## An art scene of a SphereMesh per name at its place (WallLeft's with a StaticBody3D under it, as
+## an import suffix would make).
 func _art(places: Dictionary[StringName, Vector3]) -> PackedScene:
 	var root := Node3D.new()
 	for part: StringName in places:
@@ -128,6 +136,11 @@ func _art(places: Dictionary[StringName, Vector3]) -> PackedScene:
 		mesh.position = places[part]
 		root.add_child(mesh)
 		mesh.owner = root
+		if part == &"WallLeft":
+			var body := StaticBody3D.new()
+			body.name = "WallLeftCol"
+			mesh.add_child(body)
+			body.owner = root
 	var scene := PackedScene.new()
 	scene.pack(root)
 	root.free()
