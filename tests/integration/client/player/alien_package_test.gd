@@ -9,9 +9,9 @@ extends GdUnitTestSuite
 const Check := preload("res://tools/assets/asset_check.gd")
 const GLB := "res://assets/characters/alien_chameleon/alien_chameleon.glb"
 const LOOK := "res://assets/characters/alien_chameleon/look/alien_chameleon_look.json"
-const DRESS := "res://assets/characters/alien_chameleon/look/alien_dress.gd"
+const DRESS := "res://client/player/character/alien_look/alien_dress.gd"
 const RAGDOLL := "res://assets/characters/alien_chameleon/alien_chameleon.ragdoll.json"
-const AlienStatic := preload("res://assets/characters/alien_chameleon/look/alien_static.gd")
+const AlienStatic := preload("res://client/player/character/alien_look/alien_static.gd")
 ## The package's clips (HANDOFF, package.json), as Godot imports them; the hits and the jump's
 ## start and landing play once.
 const CLIPS: Array[String] = [

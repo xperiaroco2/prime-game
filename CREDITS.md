@@ -403,9 +403,11 @@ clips, as Godot imports them (the `_Loop` suffix dropped):
 | `Jog_Bwd`, `Jog_Bwd_Left`, `Jog_Bwd_Right` | The 100STYLE Dataset (`Neutral_BR`), fitted by the art track | CC BY 4.0 | false |
 | `Crouch_Fwd`, `Crouch_Run` | Meshy text to motion (the art manifest: task ids lost with D:, art's `docs/research/2026-11-18-d-loss.md`) | owned output (Meshy paid plan) | true |
 
-**Changed here:** the two look scripts, `look/alien_dress.gd` and `look/alien_static.gd`, carry `as` casts on the
-values they read from JSON and dictionaries (14 lines), so they pass the game's warnings-as-errors typing (`check`);
-nothing else differs from the package. The art track takes the casts back into its package.
+**Changed here:** the package's two look scripts, `look/alien_dress.gd` and `look/alien_static.gd`, are not in
+`assets/` (data only, ARCHITECTURE §11.1): the client ports them to `client/player/character/alien_look/`, with `as`
+casts on the values they read from JSON and dictionaries (14 lines, for the game's warnings-as-errors typing), their
+preloads made absolute (the shaders stay in the package's `look/`) and their comments re-wrapped for `lint`; the logic
+is the package's. The art track takes the casts back into its package.
 
 ## The first-person hands (prime-game-art)
 

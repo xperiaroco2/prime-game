@@ -1,10 +1,10 @@
 extends GdUnitTestSuite
-## The alien look's colour slots (assets/characters/alien_chameleon/look/alien_static.gd, #1690):
-## the art's script with the game's casts (its credits entry) picks a player's colours as the art's
+## The alien look's colour slots (client/player/character/alien_look/alien_static.gd, #1690):
+## the client's port of the art's script (its credits entry) picks a player's colours as the art's
 ## slot_colours does: a skin as "#rrggbb", Color or [r, g, b], a lip colour picked or following
 ## the skin, the detail's switch as a bool or a number. Text, not Git LFS: it runs on CI.
 
-const AlienStatic := preload("res://assets/characters/alien_chameleon/look/alien_static.gd")
+const AlienStatic := preload("res://client/player/character/alien_look/alien_static.gd")
 const BASES := {
 	"skin": Color(0.3, 0.6, 0.4),
 	"lips": Color(0.5, 0.2, 0.2),

@@ -10811,6 +10811,7 @@ PR art#398, M8's base alien) has one: `animation/fps` 24, the humanoid bones the
 to `UpperChest`, `Neck`, `Head`, the arms, hands, legs, feet and toes, `Left*`/`Right*`), its 18 clips (the walk, the
 eight-direction jogs, the sprint, the crouches, the jump, the talk). Its look's mask is data a shader reads: the
 contract's `texture_compress_exceptions` keeps it lossless (`compress/mode=0`) under a folder that wants 2. Its look
-scripts carry casts the art's lack, so they pass `check` (`docs/credits/alien_chameleon.md`). Nothing plays it until
+scripts are not data: the client ports them to `client/player/character/alien_look/` (casts, absolute preloads,
+wrapped comments; `docs/credits/alien_chameleon.md`), the shaders, JSON and mask staying here. Nothing plays it until
 the swap of `slice_m1` (its own PR); `tests/integration/client/player/alien_package_test.gd` checks it on the art in
 the nightly `lfs` job.
