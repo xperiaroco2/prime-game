@@ -5067,8 +5067,28 @@ TE5 (a)). The wire is unchanged.
   a wall, and the own predicted knife held at a wall a step ahead.
 
 #### 4.7.53 The animated character (#522)
-The art character (`assets/characters/slice_m1/`, §11.3) on the avatars, its clips from a pure mapping, and the
-knocked-down body as its skeleton's ragdoll. Not built: the cast (heads, hair, faces, art#42) and which parts take the
+The art character on the avatars, its clips from a pure mapping, and the knocked-down body as its skeleton's ragdoll.
+**The character is the base alien since #1693** (`assets/characters/alien_chameleon/`, art#398, §11.3; the engineer's
+pick of 2026-11-24); `assets/characters/slice_m1/` before it stays for its files and the tests' fixture.
+- **`CharacterProfile`** (`client/player/character/character_profile.gd`, #1693): what the game needs of a character
+  beyond its scene, one per character (`alien()`, `slice_m1()`): its GLB, ragdoll and look files; the bones it hangs
+  things on, as a map (the carry layer's root, the sockets: bone, point, fitted carrying); each move clip's own
+  ground speed at rate 1 where it differs from `AvatarClips`' (the alien: `Jog_Fwd` 4.74, the strafes 3.17 and 3.26,
+  `Jog_Bwd` 2.0, `Crouch_Fwd` 2.07, `Sprint_Fwd` 7.0 m/s); and its scale (the alien 0.94: its eyes from 1.702 m to the
+  game's 1.6, its top 1.82 m under the 1.8 m capsule; the GLB imports at `nodes/root_scale` 0.94 with
+  `apply_root_scale`, so the meshes, skeleton and clips are drawn at that size and no physics body runs under a
+  scaled node; `CharacterSet.scaled_ragdoll` scales the ragdoll data's offsets, sizes, radii, heights and joint
+  anchors with it; the art's socket points are scaled in the profile). `CharacterSet.load_default()` loads the
+  alien's (`default_profile()`); `from_scene` without a profile takes the first of `profiles()` (the alien, then
+  slice_m1) whose bones the scene has, so the fixture with slice_m1's bone names keeps its own.
+- The alien has no `Carry_Upper`, `Pickup_*` or `Putdown_*` clips (the engineer: none in M8): a character needs the
+  base clips only (`AvatarClips.base_clips()`); `CharacterRig` builds the carry layer and the one-shot only where the
+  character has their clips, else its base plays alone, carrying or not (the carry socket is fitted on the idle
+  clip). The rig plays each clip at `plan.rate` times `rate_factor(base)`: `AvatarClips.assumed_mps` over the
+  profile's speed, so the alien's back jog steps 2.25 times faster than the table's rate, nothing slides. Its look
+  (`look/alien_dress.gd`: the static skin's `ShaderMaterial`s, its own per rig) takes the body colour through the
+  look (`AlienStatic.set_skin`; white keeps its own skin; a dead body grey). The first-person hands are not the
+  character (§4.7.69). Not built: the cast (heads, hair, faces, art#42) and which parts take the
 body colour (a follow-up of #522), and a mirror or shadow of the own living player.
 - `client/player/AvatarClips` (pure, `RefCounted`): the drawn state in, the clip out. The state is what the client may
   draw (invariants 2 and 7): a remote avatar's drawn move (its interpolated position's change over the drawn frame,
