@@ -59,9 +59,9 @@
   Kept for later: choosing the spot and the misprint debuff
   ([#1032 c6223852584](https://github.com/xperiaroco2/prime-game/issues/1032#issuecomment-6223852584)).
 - **The body stays** where the player died until the return: evidence for whoever finds it (kills are still not
-  revealed, §4). It disappears when the player is printed back (2026-10-31, the same comment).
+  revealed, §4). It disappears when the player returns (2026-10-31, the same comment).
 - **The return:** when the wait ends, the player just appears on the drawn respawn point, at once, and the
-  invulnerability follows (the engineer, 2026-11-23: "Дрон взагалі відміняємо… людина просто з'являється і все";
+  invulnerability follows (the engineer, 2026-11-23: "we drop the drone altogether… the person just appears, that's all";
   #1683). **The drone is deferred** to the backlog (#1684): a small drone hovering over the respawn point and
   "3D-printing" the player back in about 2 s, from the feet up, seen by everyone near, the player unable to move or be
   hit while printed (the engineer, 2026-10-15; the length 2026-10-31, the same comment). Its engine part (#1489) stays
