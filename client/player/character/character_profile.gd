@@ -1,15 +1,15 @@
 class_name CharacterProfile
 extends RefCounted
 ## What the game needs to know of one art character beyond its scene (#1693): its files, the bones
-## it hangs things on (a map, so a character with other bone names needs only a profile of its
-## own), the clips' ground speeds at rate 1 and the scale it is drawn at. CharacterSet carries
-## one; CharacterRig, RagdollView and the clips' rates read it. alien() is the shipped character
-## (M8's base alien, the chameleon of art#398, the engineer's pick of 2026-11-24); slice_m1()
-## the one
-## before it, kept for its files and the tests' fixture, whose bones carry its names.
+## it hangs things on (a map, so a character with other bone names needs only a profile of its own),
+## the clips' ground speeds at rate 1 and the scale it is drawn at. CharacterSet carries one;
+## CharacterRig, RagdollView and the clips' rates read it. alien() is the shipped character (M8's
+## base alien, the chameleon of art#398, the engineer's pick of 2026-11-23, confirmed on
+## 2026-11-24); slice_m1() the one before it, kept for its files and the tests' fixture, whose bones
+## carry its names.
 
-## The alien's size in the game: its eyes at 1.702 m and its top at 1.938 m as built, to the
-## game's 1.6 m eye (PlayerRules) and under its 1.8 m capsule (the art's swap note).
+## The alien's size in the game: its eyes at 1.702 m and its top at 1.938 m as built, to the game's
+## 1.6 m eye (PlayerRules), its top then 1.82 m, about the 1.8 m capsule (the art's swap note).
 const ALIEN_SCALE := 0.94
 
 ## The character's GLB, its ragdoll data and its look (the art's look JSON; empty: the GLB's own
@@ -45,6 +45,39 @@ func mps_of(clip: StringName, assumed: float) -> float:
 	return clip_mps.get(clip, assumed)
 
 
+## The ground speed at rate 1 of the move a plan draws (AvatarClips.Plan's base, slot and blend): in
+## a move family (Locomotion.FRONT, BACK) between the two family points nearest the blend's heading,
+## by how near each is, so the rate never jumps where the plan's base clip changes (the alien's
+## forward jog and strafe differ by half); else `base`'s own; 0 for a clip that does not move.
+func move_mps(base: StringName, slot: StringName, blend: Vector2) -> float:
+	var assumed := AvatarClips.assumed_mps(base)
+	if assumed <= 0.0:
+		return 0.0
+	if slot != Locomotion.FRONT and slot != Locomotion.BACK:
+		return mps_of(base, assumed)
+	var heading := rad_to_deg(atan2(-blend.x, blend.y))
+	var near: Array[Dictionary] = []
+	for point: Dictionary in Locomotion.points_of(slot):
+		var off := absf(wrapf(heading - (point["heading_deg"] as float), -180.0, 180.0))
+		near.append({"off": off, "mps": mps_of(point["clip"] as StringName, AvatarClips.JOG_MPS)})
+	near.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["off"] < b["off"])
+	if near.size() < 2 or (near[0]["off"] as float) < 0.001:
+		return near[0]["mps"] as float
+	var first := near[0]["off"] as float
+	var t := first / (first + (near[1]["off"] as float))
+	return lerpf(near[0]["mps"] as float, near[1]["mps"] as float, t)
+
+
+## How much faster than AvatarClips' rate the plan's clips play on this character: the speed
+## AvatarClips assumes for `base` over move_mps, so each step covers the ground the move does
+## (#1693). CharacterRig plays the tree at it and the footsteps time the contacts by it.
+func rate_factor(base: StringName, slot: StringName, blend: Vector2) -> float:
+	var assumed := AvatarClips.assumed_mps(base)
+	if assumed <= 0.0:
+		return 1.0
+	return assumed / maxf(move_mps(base, slot, blend), 0.01)
+
+
 ## The shipped character: the base alien (art#398's HANDOFF and swap note). Its sockets: the Hand in
 ## the curled fingers (it has no grip pose), the Belt on the hip, the Carry in front of the chest
 ## (fitted on the idle clip: no carry clip); the art measured them on the GLB at its own size, so
@@ -61,14 +94,22 @@ static func alien() -> CharacterProfile:
 		&"Belt": [&"Hips", Vector3(0.1810, 0.0455, -0.0533) * ALIEN_SCALE, false],
 		&"Carry": [&"UpperChest", Vector3(0.0147, -0.3519, 0.4038) * ALIEN_SCALE, true],
 	}
-	out.clip_mps = {
+	# The package's measured speeds (package.json's clip_rows) at the GLB's own size: the import's
+	# 0.94 shortens every stride with it.
+	var measured: Dictionary[StringName, float] = {
 		&"Jog_Fwd": 4.74,
+		&"Jog_Fwd_Left": 3.8,
+		&"Jog_Fwd_Right": 3.88,
 		&"Strafe_Left": 3.17,
 		&"Strafe_Right": 3.26,
 		&"Jog_Bwd": 2.0,
+		&"Jog_Bwd_Left": 2.0,
+		&"Jog_Bwd_Right": 2.0,
 		&"Crouch_Fwd": 2.07,
 		&"Sprint_Fwd": 7.0,
 	}
+	for clip: StringName in measured:
+		out.clip_mps[clip] = measured[clip] * ALIEN_SCALE
 	return out
 
 

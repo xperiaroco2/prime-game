@@ -9,7 +9,9 @@ extends GdUnitTestSuite
 
 const Check := preload("res://tools/assets/asset_check.gd")
 const STEP := 1.0 / 60.0
-## How far a socket may sit from the art's landmark it is measured against, in metres.
+## How far a socket may sit from the art's landmark it is measured against, in metres: the alien's
+## hand sits 4.7 cm from its middle knuckle (in its curled fingers: it has no grip pose), so 6 cm,
+## not slice_m1's 4 (#1693).
 const NEAR := 0.06
 
 
@@ -54,8 +56,8 @@ func test_the_carry_socket_is_in_front_of_the_chest_between_the_hands() -> void:
 	assert_float(carry.y).is_less(chest.y)
 
 
-## Drawn at the profile's scale, the alien stands under the game's capsule with its head where the
-## game's eye is (PlayerRules: the eye 1.6 m, the capsule 1.8 m).
+## Drawn at the profile's scale, the alien stands about as tall as the game's capsule (its top 1.82
+## m) with its head where the game's eye is (PlayerRules: the eye 1.6 m, the capsule 1.8 m).
 func test_the_alien_stands_at_the_game_s_size() -> void:
 	var rig := await _rig()
 	if rig == null:
@@ -68,8 +70,8 @@ func test_the_alien_stands_at_the_game_s_size() -> void:
 	assert_float(_bone_in_rig(rig, &"Head").origin.y).is_between(1.3, 1.6)
 
 
-## The look's skin takes a player's colour (CharacterRig.set_tint through the look); white keeps
-## the look's own.
+## The look's skin takes a player's colour (CharacterRig.set_tint through the look); white keeps the
+## look's own.
 func test_the_look_takes_the_player_s_colour() -> void:
 	var rig := await _rig()
 	if rig == null:

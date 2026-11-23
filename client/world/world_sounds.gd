@@ -508,18 +508,25 @@ func _plan_of(peer: int, moved: Vector3, delta: float, rules: PlayerRules) -> Av
 	return _own_plan
 
 
-## The cycle of `plan`'s base clip in seconds: `peer`'s character's own length when it has one,
-## the own player's the character set's (what the others' clients draw it with, so it hears its
-## steps at their pace), else Locomotion's table; 0 without a plan.
+## The cycle of `plan`'s base clip in seconds as drawn: `peer`'s character's own length when it has
+## one, the own player's the character set's (what the others' clients draw it with, so it hears
+## its steps at their pace), over its profile's rate_factor (the rig plays the clip that much
+## faster, #1693: the steps fall on the drawn contacts); else Locomotion's table; 0 without a plan.
 func _cycle_of(peer: int, plan: AvatarClips.Plan) -> float:
 	if plan == null:
 		return 0.0
 	var body := avatars.body_of(peer) if peer != 0 and avatars != null else null
+	var character: CharacterSet = null
 	if body != null and body.character() != null:
-		return body.character().cycle_of(plan.base)
-	if peer == 0 and avatars != null and avatars.character != null:
-		return avatars.character.cycle_of(plan.base)
-	return Locomotion.cycle_s(plan.base)
+		character = body.character()
+	elif peer == 0 and avatars != null and avatars.character != null:
+		character = avatars.character
+	if character == null:
+		return Locomotion.cycle_s(plan.base)
+	var cycle := character.cycle_of(plan.base)
+	if character.profile == null:
+		return cycle
+	return cycle / character.profile.rate_factor(plan.base, plan.slot, plan.blend)
 
 
 ## The movement numbers of `peer`'s steps (0: the own player): the client's own copy of the mode's.

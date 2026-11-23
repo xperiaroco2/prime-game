@@ -5069,13 +5069,13 @@ TE5 (a)). The wire is unchanged.
 #### 4.7.53 The animated character (#522)
 The art character on the avatars, its clips from a pure mapping, and the knocked-down body as its skeleton's ragdoll.
 **The character is the base alien since #1693** (`assets/characters/alien_chameleon/`, art#398, §11.3; the engineer's
-pick of 2026-11-24); `assets/characters/slice_m1/` before it stays for its files and the tests' fixture.
+pick of 2026-11-23, confirmed 2026-11-24); `assets/characters/slice_m1/` before it stays for its files and the tests' fixture.
 - **`CharacterProfile`** (`client/player/character/character_profile.gd`, #1693): what the game needs of a character
   beyond its scene, one per character (`alien()`, `slice_m1()`): its GLB, ragdoll and look files; the bones it hangs
   things on, as a map (the carry layer's root, the sockets: bone, point, fitted carrying); each move clip's own
   ground speed at rate 1 where it differs from `AvatarClips`' (the alien: `Jog_Fwd` 4.74, the strafes 3.17 and 3.26,
   `Jog_Bwd` 2.0, `Crouch_Fwd` 2.07, `Sprint_Fwd` 7.0 m/s); and its scale (the alien 0.94: its eyes from 1.702 m to the
-  game's 1.6, its top 1.82 m under the 1.8 m capsule; the GLB imports at `nodes/root_scale` 0.94 with
+  game's 1.6, its top 1.82 m, about 2 cm over the 1.8 m capsule; the GLB imports at `nodes/root_scale` 0.94 with
   `apply_root_scale`, so the meshes, skeleton and clips are drawn at that size and no physics body runs under a
   scaled node; `CharacterSet.scaled_ragdoll` scales the ragdoll data's offsets, sizes, radii, heights and joint
   anchors with it; the art's socket points are scaled in the profile). `CharacterSet.load_default()` loads the
@@ -5084,10 +5084,13 @@ pick of 2026-11-24); `assets/characters/slice_m1/` before it stays for its files
 - The alien has no `Carry_Upper`, `Pickup_*` or `Putdown_*` clips (the engineer: none in M8): a character needs the
   base clips only (`AvatarClips.base_clips()`); `CharacterRig` builds the carry layer and the one-shot only where the
   character has their clips, else its base plays alone, carrying or not (the carry socket is fitted on the idle
-  clip). The rig plays each clip at `plan.rate` times `rate_factor(base)`: `AvatarClips.assumed_mps` over the
-  profile's speed, so the alien's back jog steps 2.25 times faster than the table's rate, nothing slides. Its look
-  (`look/alien_dress.gd`: the static skin's `ShaderMaterial`s, its own per rig) takes the body colour through the
-  look (`AlienStatic.set_skin`; white keeps its own skin; a dead body grey). The first-person hands are not the
+  clip). The rig plays each clip at `plan.rate` times the profile's `rate_factor`: `AvatarClips.assumed_mps` over
+  the move's speed as drawn (`move_mps`: in a family, between the two points nearest the blend's heading, so it
+  never jumps where the base clip changes; the measured speeds times 0.94), within the rate clamp: the alien's back
+  jog plays about 2.4 times the table's rate, nothing slides; the footsteps time its contacts by the same factor
+  (`WorldSounds._cycle_of`). Its look
+  (the client's port `alien_look/alien_dress.gd`: the static skin's `ShaderMaterial`s, its own per rig) takes the body colour through the
+  look (`AlienStatic.set_skin`; white puts back its own skin; a dead body grey). The first-person hands are not the
   character (§4.7.69). Not built: the cast (heads, hair, faces, art#42) and which parts take the
 body colour (a follow-up of #522), and a mirror or shadow of the own living player.
 - `client/player/AvatarClips` (pure, `RefCounted`): the drawn state in, the clip out. The state is what the client may
@@ -5127,27 +5130,27 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   family switch at 100° off forward with a ±10° dead zone each way (`family_of(heading, was_back)`). `speed_cap`:
   the back family (its diagonals too) at most `PlayerRules.back_speed_mps`, any move's sideways part at most
   `side_speed_mps` (0: none). `CONTACTS`: the table's cycle and foot contacts per clip at rate 1 (§4.7.43).
-  Blocked on the alien GLBs (not built): `Walk` (to 2 m/s), the four diagonals' clips, `Crouch_Run` and the table's
-  rates and ground speeds (AvatarClips keeps slice_m1's).
+  The alien (#1693) has the four diagonals, `Walk` and `Crouch_Run`; not built: the walk under 2 m/s, `Crouch_Run`,
+  and the table's rates (AvatarClips keeps slice_m1's speeds; the profile corrects them per clip, below).
 - `client/player/character/CharacterSet`: the injected character (the GLB's scene and its ragdoll data), null for the
   placeholder capsule. It is a set only when the instantiated scene is the character (one `Skeleton3D` with the bones
-  the rig names, one `AnimationPlayer` with every required clip, `AvatarClips.all_clips()`; Locomotion's optional
+  its profile names, one `AnimationPlayer` with every base clip, `AvatarClips.base_clips()`; Locomotion's optional
   points never), never judged from the GLB's bytes: CI's empty LFS
   stand-in and a missing file give null silently, so no test needs LFS content.
 - `client/player/character/CharacterRig`: one avatar's instance of the set, turned to face -Z, on an `AnimationTree`
   in the physics step (a Transition of slots cross-faded: a clip, or a move family as an `AnimationNodeBlendSpace2D`
   of its points whose clip the character has, at the plan's `blend`, its clips kept in step; a family with fewer
   than three such points, slice_m1's back, plays its main clip alone; then a time scale, the carry layer filtered
-  to `Torso` and every bone below it, a one-shot), with no root motion (the clips are in place; the body's code moves
+  to the profile's carry root and every bone below it, a one-shot; both only with their clips), with no root motion (the clips are in place; the body's code moves
   the body, the collision capsule is unchanged) and no physical bones while living. Sockets
-  (`BoneAttachment3D`s on `Wrist.R`, `Hips`, `Chest`) hold
+  (`BoneAttachment3D`s on the profile's bones: the alien's `RightHand`, `Hips`, `UpperChest`; slice_m1's `Wrist.R`, `Hips`, `Chest`) hold
   the hand, belt and carry points, each a point in its bone's own frame measured on the art from close-up shots (#1050):
   the hand's at the right palm (a one-handed item's bottom in the fist), the belt's on the outside of the left hip at
   the waist, the carry's the bottom of a two-handed item held between both palms in front of the chest. Each socket
   stands upright in the rig at the pose its item shows in, never the rest pose (the art's arms-out bind pose, which
   the clips lower): the hand and belt at the idle clip's first frame, the carry with `Carry_Upper`'s first frame on
   the carry layer's bones (the art's carry leans the chest forward, so a socket fitted at idle tipped the package).
-  A `shot` close-up: `client/dev/sockets_preview.tscn` (needs the LFS art). A tint multiplies each surface's own
+  A `shot` close-up: `client/dev/sockets_preview.tscn` (needs the LFS art). A tint multiplies each surface's own (a look's skin through the look)
   albedo: the body colour of #551 (§4.7.50) stays on the character.
 - `client/player/character/HeadLook` (#1334): a `SkeletonModifier3D` on the living rig's skeleton (`make(set,
   true)`, only with the `Neck` and `Head` bones; a ragdoll's and a picture's rig have none) that turns `Neck` and
@@ -5183,7 +5186,7 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
 - The ragdoll on the skeleton (KE7, §4.7.9): `RagdollView.setup` with the set (and its ragdoll data) gives the
   knocked-down player, the own one too, a fresh rig of its own, `top_level`, whose skeleton gets the art's bodies and
   joints (`client/player/character/ragdoll_builder.gd`, the art's reference builder from prime-game-art 45f73ac,
-  typed for the project's warnings; the game builds them at spawn from `slice_m1.ragdoll.json`: 16 bodies, 15 joints,
+  typed for the project's warnings; the game builds them at spawn from the profile's ragdoll data, scaled with it (the alien's: 16 bodies, 15 joints,
   70 kg). The view stays as the anchor: frozen, with no mesh, no shape and no layer (never hidden through `visible`,
   which `SightHider` owns; hiding the view hides its rig), following the pelvis. The bones are on the `downed` layer
   with the world mask, never sleep, and are the only ray target: `RagdollView.of_collider` names a hit bone's view,
@@ -5197,7 +5200,8 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   the capsule's low `FRICTION`, not the data's, so the floor does not hold a body off the point. `lie_at_rest` lays the rig on its back along the yaw's
   axis with its pelvis on the lying centre; `make_dead` greys the tint and puts every bone on no layer; the handover
   to `BodyViews` keeps it simulating, and `BodyViews.character` (set by `Game` with `AvatarViews.character`) dresses
-  a fresh body. The living rig has no physical bones. The export ships the data (`include_filter="*.ragdoll.json"`
+  a fresh body. The living rig has no physical bones. The export ships the data and the look's JSON
+  (`include_filter="*.ragdoll.json, *_look.json"`, #1693; `character_set_test` checks every profile's files
   in both presets: a `.json` is no resource).
 - `Game` loads the shipped set once, at the first session (`load_character`, on unless a test turns it off: every
   `Game` test does, so a checkout with the LFS art and CI without it run the same capsules).

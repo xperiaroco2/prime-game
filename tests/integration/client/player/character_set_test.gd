@@ -26,10 +26,14 @@ func test_a_missing_clip_or_bone_is_no_set() -> void:
 	assert_object(CharacterSet.from_scene(Fixture.scene(clips), {})).is_null()
 	var bones := Fixture.BONES.duplicate()
 	bones.erase(&"Wrist.R")
-	(
-		assert_object(CharacterSet.from_scene(Fixture.scene(AvatarClips.all_clips(), bones), {}))
-		. is_null()
-	)
+	# The fixture's own profile (slice_m1's names, #1693) names the bone it lacks.
+	var slice := CharacterProfile.slice_m1()
+	var without := Fixture.scene(AvatarClips.all_clips(), bones)
+	var bare := without.instantiate()
+	assert_array(Array(CharacterSet.problems_of(bare, slice))).contains_exactly(["no bone Wrist.R"])
+	bare.free()
+	assert_object(CharacterSet.from_scene(without, {}, slice)).is_null()
+	assert_object(CharacterSet.from_scene(without, {})).is_null()
 
 
 ## The LFS stand-in `check` imports in CI is a scene with no skeleton: no set, the placeholder.
@@ -139,3 +143,28 @@ func test_the_ragdoll_data_scales_with_the_profile() -> void:
 	assert_that((bodies[0] as Dictionary)["offset"]).is_equal(
 		(Fixture.ragdoll()["bones"] as Array)[0]["offset"]
 	)
+
+
+## #1693: every profile's JSON files (the ragdoll data, the look) are no resources, so each must
+## match an include_filter of every export preset, or the shipped game reads nothing there.
+func test_every_profile_s_json_files_ship_in_every_export() -> void:
+	var presets := ConfigFile.new()
+	assert_int(presets.load("res://export_presets.cfg")).is_equal(OK)
+	var sections := PackedStringArray()
+	for section: String in presets.get_sections():
+		if presets.has_section_key(section, "include_filter"):
+			sections.append(section)
+	assert_array(Array(sections)).is_not_empty()
+	for profile: CharacterProfile in CharacterSet.profiles():
+		for path: String in [profile.ragdoll, profile.look]:
+			if path.is_empty():
+				continue
+			for section: String in sections:
+				var shipped := false
+				for pattern: String in str(presets.get_value(section, "include_filter")).split(","):
+					shipped = shipped or path.get_file().matchn(pattern.strip_edges())
+				(
+					assert_bool(shipped)
+					. override_failure_message("%s in %s" % [path, section])
+					. is_true()
+				)

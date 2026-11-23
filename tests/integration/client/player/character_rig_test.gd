@@ -436,16 +436,19 @@ func test_without_the_carry_and_shot_clips_the_base_plays_alone() -> void:
 	assert_object(rig.socket(&"Carry")).is_not_null()
 
 
-## #1693: a clip measured at another speed plays at the rate the move needs on this character: the
-## slice character as AvatarClips assumes, the alien's back jog 2.25 times faster (2.0 m/s at rate
-## 1, not 4.5), its crouch walk slower.
-func test_the_rate_follows_each_clip_s_own_speed() -> void:
+## #1693: the tree plays at the rate the move needs on this character (the profile's rate_factor):
+## the slice character as AvatarClips assumes, the alien's back jog faster (its stride covers 2.0
+## m/s at its own size, 1.88 as drawn at 0.94, not 4.5), within AvatarClips' clamp.
+func test_the_tree_plays_at_the_profile_s_rate() -> void:
 	var rig := _rig()
 	rig.apply(_plan(AvatarClips.JOG_BWD, 1.0))
 	assert_float(rig.tree.get("parameters/rate/scale") as float).is_equal_approx(1.0, 0.0001)
 	rig.profile = CharacterProfile.alien()
-	assert_float(rig.rate_factor(AvatarClips.JOG_BWD)).is_equal_approx(2.25, 0.0001)
-	assert_float(rig.rate_factor(AvatarClips.CROUCH_FWD)).is_equal_approx(0.75 / 2.07, 0.0001)
-	assert_float(rig.rate_factor(AvatarClips.IDLE)).is_equal(1.0)
-	rig.apply(_plan(AvatarClips.JOG_BWD, 1.0))
-	assert_float(rig.tree.get("parameters/rate/scale") as float).is_equal_approx(2.25, 0.0001)
+	var plan := _plan(AvatarClips.JOG_BWD, 1.0)
+	plan.slot = Locomotion.BACK
+	plan.blend = Vector2(0.0, -1.0)
+	rig.apply(plan)
+	var want := 4.5 / (2.0 * CharacterProfile.ALIEN_SCALE)
+	assert_float(rig.tree.get("parameters/rate/scale") as float).is_equal_approx(want, 0.0001)
+	plan.rate = 3.0
+	assert_float(rig.rate_of(plan)).is_equal(AvatarClips.MAX_RATE)

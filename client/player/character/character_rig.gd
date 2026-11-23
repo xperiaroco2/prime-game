@@ -4,9 +4,9 @@ extends Node3D
 ## turned to face -Z (the art faces +Z), playing AvatarClips' plan on an AnimationTree:
 ##
 ##   base (a Transition of SLOTS, cross-faded) -> rate (TimeScale) -> carry (Blend2 with
-##   Carry_Upper, filtered to the profile's carry root and every bone below it) -> shot (a
-##   OneShot of
-##   the pick-up or put-down clip) -> output; the carry and the shot only with their clips (#1693)
+##   Carry_Upper, filtered to the profile's carry root and every bone below it) -> shot (a OneShot
+##   of the pick-up or put-down clip) -> output; the carry and the shot only with their clips
+##   (#1693)
 ##
 ## A slot is a clip (Idle, Sprint_Fwd, Crouch_Idle, Crouch_Fwd) or a move family of Locomotion
 ## (Front, Back, #1334): an AnimationNodeBlendSpace2D of the family's points whose clip the
@@ -37,13 +37,6 @@ const SLOTS: Array[StringName] = [
 ]
 const CARRY_FADE_S := 0.2
 const SHOT_FADE_S := 0.15
-## The one-shot clips: a character with none of them has no one-shot (#1693).
-const SHOT_CLIPS: Array[StringName] = [
-	AvatarClips.PICKUP_ONE,
-	AvatarClips.PUTDOWN_ONE,
-	AvatarClips.PICKUP_PACKAGE,
-	AvatarClips.PUTDOWN_PACKAGE,
-]
 ## The art's look scripts (its static skin, art#398): they dress a model from a look JSON and colour
 ## its skin.
 const AlienDress := preload("res://assets/characters/alien_chameleon/look/alien_dress.gd")
@@ -94,7 +87,7 @@ static func make(character: CharacterSet, with_look := false) -> CharacterRig:
 	rig.skeleton = rig.model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
 	rig.player = rig.model.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
 	rig._has_carry = rig.player.has_animation(AvatarClips.CARRY_UPPER)
-	for clip: StringName in SHOT_CLIPS:
+	for clip: StringName in AvatarClips.shot_clips():
 		rig._has_shot = rig._has_shot or rig.player.has_animation(clip)
 	rig._build_tree()
 	rig._add_sockets()
@@ -116,18 +109,15 @@ func apply(plan: AvatarClips.Plan) -> void:
 		tree.set("parameters/base/transition_request", String(plan.slot))
 	if _spaces.has(plan.slot):
 		tree.set("parameters/%s/blend_position" % plan.slot, plan.blend)
-	tree.set("parameters/rate/scale", plan.rate * rate_factor(plan.base))
+	tree.set("parameters/rate/scale", rate_of(plan))
 	_carry_target = 1.0 if plan.carry and _has_carry else 0.0
 
 
-## How much faster than AvatarClips' rate `clip` plays on this character: the speed AvatarClips
-## assumes for it over the character's own (its profile's clip_mps), so a clip measured slower
-## steps as often as the move needs (#1693: the alien's back jog covers 2.0 m/s at rate 1, not 4.5).
-func rate_factor(clip: StringName) -> float:
-	var assumed := AvatarClips.assumed_mps(clip)
-	if assumed <= 0.0:
-		return 1.0
-	return assumed / maxf(profile.mps_of(clip, assumed), 0.01)
+## The tree's rate for `plan` on this character: AvatarClips' rate times the profile's
+## rate_factor (#1693: each clip at the ground its stride covers), within AvatarClips' clamp.
+func rate_of(plan: AvatarClips.Plan) -> float:
+	var rate := plan.rate * profile.rate_factor(plan.base, plan.slot, plan.blend)
+	return clampf(rate, AvatarClips.MIN_RATE, AvatarClips.MAX_RATE)
 
 
 ## Plays `clip` once over the base and the carry layer, then fades back; nothing for a clip the
@@ -192,12 +182,16 @@ func socket(socket_name: StringName) -> Node3D:
 
 ## Tints every surface by `colour` (white: the art's own look). A character with a look (the
 ## alien's) takes it as its skin through the look (AlienStatic.set_skin), the rest of its paint
-## following it as the art's does; white leaves the look's own skin.
+## following it as the art's does; white puts back the look's own skin.
 func set_tint(colour: Color) -> void:
 	_tint = colour
 	for i: int in _materials.size():
 		_materials[i].albedo_color = _albedo[i] * colour
-	if not _skins.is_empty() and colour != Color.WHITE:
+	if _skins.is_empty():
+		return
+	if colour == Color.WHITE:
+		AlienStatic.set_colours(_skins, {})
+	else:
 		AlienStatic.set_skin(_skins, colour)
 
 
@@ -205,7 +199,7 @@ func tint() -> Color:
 	return _tint
 
 
-## The bones the carry layer moves: CARRY_ROOT and every bone below it.
+## The bones the carry layer moves: the profile's carry root and every bone below it.
 func carry_bones() -> PackedStringArray:
 	var out := PackedStringArray()
 	var root := skeleton.find_bone(profile.carry_root)
@@ -275,7 +269,7 @@ func _build_tree() -> void:
 		last = &"carry"
 	if _has_shot:
 		var shot_clip := AnimationNodeAnimation.new()
-		for clip: StringName in SHOT_CLIPS:
+		for clip: StringName in AvatarClips.shot_clips():
 			if player.has_animation(clip):
 				shot_clip.animation = clip
 				break
@@ -411,10 +405,7 @@ func _frame_of(node: Node3D) -> Transform3D:
 func _dress() -> void:
 	if profile.look.is_empty():
 		return
-	var made: Array = AlienDress.dress_from(model, profile.look)
-	for material: Variant in made:
-		if material is ShaderMaterial:
-			_skins.append(material as ShaderMaterial)
+	_skins = AlienDress.dress_from(model, profile.look)
 
 
 ## Gives each surface its own copy of its material, so one avatar's tint leaves the others'.
