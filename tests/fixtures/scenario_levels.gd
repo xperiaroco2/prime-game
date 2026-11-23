@@ -18,12 +18,15 @@ const SCENARIOS_DIRS: Array[String] = [
 ]
 const HOUSE := "res://levels/house/house.tscn"
 const ESTATE := "res://levels/estate/estate.tscn"
+## The M8 round's map (#1687): the estate's ship on its clearing, in the estate's coordinates.
+const CLEARING := "res://levels/clearing/clearing.tscn"
 ## The maps a scenario may name that are not flat (#1197): the House (#626), the map the station
-## tasks play on (TaskType.maps), and the estate (#1498), the ship's engine's, whose stations stand
-## on the ship's deck. The scenarios play them in a fake world with their storeys and stairs
-## (world_of(), #1209): the markers are read where the scene places them, never snapped (GE12), and
-## a bot reaches a station on another storey only by a walk over the stairs (the ship's ramp).
-const STOREYED_MAPS: Array[String] = [HOUSE, ESTATE]
+## tasks play on (TaskType.maps), and the clearing (#1687; the estate before, #1498) with the
+## engine's ship, whose stations stand on its deck. The scenarios play them in a fake world with
+## their storeys and stairs (world_of(), #1209): the markers are read where the scene places them,
+## never snapped (GE12), and a bot reaches a station on another storey only by a walk over the
+## stairs (the ship's ramp).
+const STOREYED_MAPS: Array[String] = [HOUSE, CLEARING]
 ## The House's storeys the fake world joins (house.tscn's levels): the basement, the ground floor
 ## and the second floor. The attic, which no task uses, is left out.
 const HOUSE_STOREYS: Array[float] = [-3.2, 0.0, 3.2]
@@ -62,8 +65,9 @@ static func world_of(scenario: BotScenario) -> WorldQuery:
 	match scenario.played_map():
 		HOUSE:
 			return StoreyedWorld.new(HOUSE, HOUSE_STOREYS, HOUSE_FLIGHTS, FLIGHT_WIDTH_M)
-		ESTATE:
-			return StoreyedWorld.new(ESTATE, ESTATE_STOREYS, ESTATE_FLIGHTS, ESTATE_RAMP_WIDTH_M)
+		ESTATE, CLEARING:
+			var map := scenario.played_map()
+			return StoreyedWorld.new(map, ESTATE_STOREYS, ESTATE_FLIGHTS, ESTATE_RAMP_WIDTH_M)
 	return FlatWorldQuery.new()
 
 
@@ -73,7 +77,7 @@ static func storeys_of(map: String) -> Array[float]:
 	match map:
 		HOUSE:
 			return HOUSE_STOREYS
-		ESTATE:
+		ESTATE, CLEARING:
 			return ESTATE_STOREYS
 	var none: Array[float] = []
 	return none

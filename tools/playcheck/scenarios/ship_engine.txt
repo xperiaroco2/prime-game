@@ -1,5 +1,5 @@
-# The ship's engine on the estate (#1462, part 3 of #1225) in the game's real window, its stations and
-# views as stand-ins. Window 1 hosts alone (the base mode plays with one) on the estate and walks from
+# The ship's engine on the M8 map (the clearing since #1687, the estate before; #1462, part 3 of #1225) in the game's real window, its stations and
+# views as stand-ins. Window 1 hosts alone (the base mode plays with one) on the clearing and walks from
 # the skat's clearing (its start markers, #1492) up the ship's ramp into its hall (`to_ship`: the
 # estate_walk_test's walks, found by trial), until the HUD names the console under the crosshair,
 # then steps back: the console's hologram over its pedestal, its three empty stage strips and the
@@ -8,7 +8,7 @@
 # or mark there shows the breakers' order). Back at the console, E starts the engine; the first
 # problem opens: a red lamp over its station (shot); nobody mends it, so its own deadline (its
 # kind's `seconds`) runs out and the engine blasts (shot).
-# The waypoints are x,z in metres on the estate's ground: a point before the ramp's foot, which
+# The waypoints are x,z in metres on the ground (the clearing keeps the estate's coordinates): a point before the ramp's foot, which
 # every start marker on the clearing reaches straight, then the ramp's walk (estate_walk_test walks
 # both: SHIP_ROUTE_START from each marker, and "ship, ramp to hall"); `to_breakers` is the third
 # waypoint of the walk "ship, hall to the east lens room", and `east` is near its second (no walk test
@@ -18,7 +18,7 @@
 # 0.2 m at 190).
 players 1
 windows 1
-map res://levels/estate/estate.tscn
+map res://levels/clearing/clearing.tscn
 route to_ship 116,58.5 116,64 116,69.4
 route east 117.4,69.6
 route to_breakers 119,71.1

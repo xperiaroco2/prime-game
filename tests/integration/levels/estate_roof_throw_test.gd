@@ -43,7 +43,11 @@ func after() -> void:
 func test_the_level_builds_and_the_base_mode_throws_on_it() -> void:
 	assert_array(Array(_world.errors)).is_empty()
 	assert_object(_throw).is_not_null()
-	assert_bool((load(BASE_MODE) as GameMode).maps.has(EstateDoc.MAP)).is_true()
+	# M8 hides the estate (#1687): the base mode plays the clearing, which places the estate's own
+	# ship piece, whose top this sweep covers; the rest waits for the estate's return.
+	var maps := (load(BASE_MODE) as GameMode).maps
+	assert_bool(maps.has(EstateDoc.MAP)).is_false()
+	assert_bool(maps.has("res://levels/clearing/clearing.tscn")).is_true()
 
 
 func test_every_top_is_found_above_reach_and_has_standable_spots() -> void:

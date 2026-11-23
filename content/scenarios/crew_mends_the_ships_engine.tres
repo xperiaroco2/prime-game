@@ -114,7 +114,7 @@ event = &"EngineBlast"
 [resource]
 script = ExtResource("3_scenario")
 mode = ExtResource("1_mode")
-map = "res://levels/estate/estate.tscn"
+map = "res://levels/clearing/clearing.tscn"
 session_seed = 149800000001
 bots = 4
 forced_roles = Dictionary[int, StringName]({

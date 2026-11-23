@@ -18,6 +18,7 @@ const BASE_MODE := "res://content/modes/base_mode.tres"
 const ZONE_TASK := "res://content/tasks/hold_the_zone.tres"
 const HOUSE := "res://levels/house/house.tscn"
 const ESTATE := "res://levels/estate/estate.tscn"
+const CLEARING := "res://levels/clearing/clearing.tscn"
 
 
 func _init() -> void:
@@ -88,13 +89,13 @@ static func mode() -> GameMode:
 
 
 ## The maps as #649 played them: the House the one player map, so every match starts on it, the
-## greybox its test bench. The shipped mode's estate (its player map since the M8 slice, #1496)
+## greybox its test bench. The shipped mode's M8 map (the estate, #1496; the clearing, #1687)
 ## stays out: without the ship's engine no task type here plays on it.
 func _house_maps(base: GameMode) -> void:
 	var kept := PackedStringArray()
 	var benches := PackedStringArray()
 	for path: String in base.maps:
-		if path == ESTATE:
+		if path == ESTATE or path == CLEARING:
 			continue
 		kept.append(path)
 		if path != HOUSE and base.bench_maps.has(path):

@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 ## The ship's engine end to end (#1498; ARCHITECTURE §9.5.27, §9.7; GDD §3 "The M8 slice", §10):
-## the two estate scenarios on the real base mode with the slice's defaults (the real kinds, the
+## the two engine scenarios on the real base mode with the slice's defaults (the real kinds, the
 ## 5-minute clock, one task), played by the core runner from the console's start to MatchEnded.
 ## In crew_mends_the_ships_engine three crew bots split the problems by MendEngine (its seed draws
 ## all three kinds: gills, breakers and the crystal) and fix every problem the three stages open,
@@ -12,7 +12,7 @@ extends GdUnitTestSuite
 
 const CREW_MENDS := "res://content/scenarios/crew_mends_the_ships_engine.tres"
 const BLAST := "res://content/scenarios/engine_blast_gives_the_humans_the_clock.tres"
-const ESTATE := "res://levels/estate/estate.tscn"
+const CLEARING := "res://levels/clearing/clearing.tscn"
 const ENGINE_EVENTS: Array[StringName] = [
 	&"EngineProblemOpened",
 	&"EngineProblemFixed",
@@ -23,11 +23,11 @@ const ENGINE_EVENTS: Array[StringName] = [
 ]
 
 
-func test_both_play_the_base_mode_on_the_estate_with_its_defaults() -> void:
+func test_both_play_the_base_mode_on_the_clearing_with_its_defaults() -> void:
 	for path: String in [CREW_MENDS, BLAST]:
 		var scenario := load(path) as BotScenario
 		assert_str(scenario.mode.resource_path).is_equal("res://content/modes/base_mode.tres")
-		assert_str(scenario.played_map()).is_equal(ESTATE)
+		assert_str(scenario.played_map()).is_equal(CLEARING)
 		assert_dict(scenario.settings).is_empty()
 		assert_int(scenario.clock_s).is_equal(0)
 

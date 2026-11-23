@@ -207,12 +207,21 @@ func _base_mode() -> GameMode:
 	return load(BASE_MODE) as GameMode
 
 
-## The base mode playing on the estate alone, with no lobby.
+## The base mode playing on the estate alone, with no lobby. The ship's engine, which plays on the
+## clearing since M8 hid the estate (#1687), plays on the estate here, as it did before.
 func _estate_mode() -> GameMode:
 	var mode := _base_mode().duplicate() as GameMode
 	mode.lobby_level = ""
 	mode.maps = PackedStringArray([MAP])
 	mode.bench_maps = PackedStringArray()
+	var types: Array[TaskType] = []
+	for type: TaskType in mode.task_types:
+		var own := type
+		if type.id == &"engine":
+			own = type.duplicate() as TaskType
+			own.maps = PackedStringArray([MAP])
+		types.append(own)
+	mode.task_types = types
 	return mode
 
 

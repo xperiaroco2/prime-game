@@ -7,6 +7,7 @@ const MAPS: Array[String] = [
 	"res://levels/greybox/greybox.tscn",
 	"res://levels/house/house.tscn",
 	"res://levels/estate/estate.tscn",
+	"res://levels/clearing/clearing.tscn",
 ]
 
 

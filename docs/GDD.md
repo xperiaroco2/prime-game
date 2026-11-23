@@ -201,6 +201,10 @@ above with:
   work.
 - **Death and the return:** the dead's room (m8-match §3: the lobby station's hall without the skat) is in M8, with
   the return. The dead see each other as their own characters made see-through, a placeholder until a better ghost.
+- **The ship's clearing only** (the engineer's "hide", 2026-11-23, #1687): the round does not load the estate; the
+  ship stands on its clearing, with fog beyond it and an invisible boundary, and everything happens on and around the
+  ship. The estate stays for later (its scene and code are kept, only not loaded in M8). The clearing's size and the
+  fog's density are placeholders for the engineer to tune.
 
 ### The knockdown (#728)
 Decided by the engineer on 2026-10-10 (#728, his answer A): the knockdown of
@@ -470,7 +474,8 @@ later. Anyone may use it; it does not touch the neighbours' anger. Numbers are p
 - How does a task look in first-person 3D?
 
 **The base mode's task list** (`content/modes/base_mode.tres` and the task types' `maps`; #1088, after the M7 task
-chains #676): the mode lists six task types. In the M8 slice (§3, #1496) players play the forest estate only, and it
+chains #676): the mode lists six task types. In the M8 slice (§3, #1496) players play the forest estate only (in M8
+its ship's clearing alone, #1687), and it
 deals the ship's engine alone (Delivery is off the estate). The House, now a bench map, deals Delivery (#683), the
 Generator (#800), Photography (#784), Cooking (#775) and Repairing the car (#810). On the greybox, a test bench only,
 it deals the colour-matched Delivery alone. The lobby's `tasks` is 1 (1 to 5), the number of different task

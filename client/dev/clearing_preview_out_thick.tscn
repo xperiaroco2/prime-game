@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://xpevokciagpv"]
+
+[ext_resource type="Script" uid="uid://4374gquufd1m" path="res://client/dev/clearing_preview.gd" id="1_preview"]
+
+[node name="ClearingPreview" type="Node3D" unique_id=2060892137]
+script = ExtResource("1_preview")
+yaw_deg = 180.0
+fog_density = 0.05
