@@ -17,7 +17,7 @@ const BASE_MODE := "res://content/modes/base_mode.tres"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 const GREYBOX := "res://levels/greybox/greybox.tscn"
 const HOUSE := "res://levels/house/house.tscn"
-## The estate (#1374): the map players play, the M8 slice's (#1496).
+## The clearing (#1687): the map players play in M8 (the estate before, #1374, #1496).
 const CLEARING := "res://levels/clearing/clearing.tscn"
 
 
@@ -106,10 +106,10 @@ func test_the_greybox_without_its_respawn_markers_does_not_fit() -> void:
 	)
 
 
-func test_players_always_play_the_estate_and_the_greybox_is_a_test_bench() -> void:
+func test_players_always_play_the_clearing_and_the_greybox_is_a_test_bench() -> void:
 	# #767 (the engineer's option (a)): the flat greybox stays one of the base mode's maps for the
 	# bot scenarios and the information-leak test, as its test bench; the lobby offers the clearing
-	# alone (#1687; the estate in the M8 slice, #1496), each match starts there, each scenario plays the
+	# alone (#1687; the estate before, #1496), each match starts there, each scenario plays the
 	# greybox (§9.7), but those that play the House's stations one storey at a time (#1197, the
 	# engineer's answer on the issue): the House is no flat level the fake world must describe.
 	var mode := _base_mode()
@@ -137,7 +137,7 @@ func test_a_scenario_on_the_house_plays_its_storeys_and_a_flat_map_one_floor() -
 	# #1209: the scenarios on a map with storeys (the House) play in a fake world with its storeys
 	# and stairs (ScenarioLevels.world_of); some marker of the map stands on each of those storeys,
 	# so each is one of the map's. A flat map's scenarios play on one floor at y = 0, the level's
-	# floor (test_the_scenarios_levels_are_flat). The estate joins them with the ship's deck (#1498):
+	# floor (test_the_scenarios_levels_are_flat). The clearing joins them with the ship's deck (#1498):
 	# a station marker on the deck must stand on the fake's deck, else no bot reaches it.
 	assert_array(ScenarioLevels.STOREYED_MAPS).contains_exactly(
 		[ScenarioLevels.HOUSE, ScenarioLevels.CLEARING]

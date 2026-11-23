@@ -197,9 +197,10 @@ func test_the_map_pick_sits_under_the_lobby_name_and_a_new_mode_rebuilds_its_lis
 	assert_array(sent).is_equal([mode.maps[1]])
 
 
-func test_the_shipped_lobby_offers_the_estate_alone_never_a_bench() -> void:
+func test_the_shipped_lobby_offers_the_clearing_alone_never_a_bench() -> void:
 	# #767: the greybox is a test bench only, and since the M8 slice (#1496) the House too, so
-	# players always play the estate: the lobby's picker lists the estate alone, on it from the
+	# players always play the M8 map, the clearing since #1687 (the estate before): the picker lists
+	# it alone, on it from the
 	# start (the host's Welcome names the mode's default map), with nothing to pick.
 	var mode := load(MODE) as GameMode
 	assert_bool(mode.maps.has(GREYBOX)).is_true()
@@ -211,7 +212,7 @@ func test_the_shipped_lobby_offers_the_estate_alone_never_a_bench() -> void:
 	model.map = mode.default_map()
 	panel.refresh(model, -1, true)
 	assert_int(panel.map_picker.item_count).is_equal(1)
-	assert_str(panel.map_picker.get_item_text(0)).is_equal("Estate")
+	assert_str(panel.map_picker.get_item_text(0)).is_equal("Clearing")
 	assert_int(panel.map_picker.selected).is_equal(0)
 	assert_bool(panel.map_picker.disabled).is_true()
 

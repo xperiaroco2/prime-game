@@ -3400,7 +3400,7 @@ no key to press) uses the hand item and takes the viewfinder's shot (`house_phot
 game's pointer too (`LifeView.mouse_captured`, `pointer.captured`, #1117), but `spectate_next` and
 `spectate_previous` are the mouse buttons alone and no playcheck step drives them (`spectate.txt` watches its one
 target), so cycling stays with the playtest.
-Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the estate, the default since the M8 slice (#1496), unless a script names a bench: the greybox for flat ground, #767, or the House, `house_photo.txt`) as the host's own
+Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the M8 map (the clearing, #1687; the estate from the M8 slice, #1496), unless a script names a bench: the greybox for flat ground, #767, or the House, `house_photo.txt`) as the host's own
 client once every player is in its roster (within the scenario's `timeout`, plus `BOTS_START_SECONDS`, 60 s, when
 bots play, #406); peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
 process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
@@ -5743,7 +5743,7 @@ menu, which has had no Lobby entry since (§4.7.42).
   ToyRowTwelve at the end, the pack's minus and plus, the arrows the ToyStepper's size constants, the 156 px Value; the
   banned types' chips, the host's, or plates, everyone else's) and `Code` (`common.code` and the code, "…" while
   the service makes the room, `esc.lobby.code_gone` in its place; no Copy). Which rows show and their names are
-  `MatchRows`' (`client/ui/match_rows.gd`, from #1601's Lobby page): on the Estate the duration, the engine's chip
+  `MatchRows`' (`client/ui/match_rows.gd`, from #1601's Lobby page): on the M8 map the duration, the engine's chip
   and the dissidents. The host of a shared session's lobby (`Game.hosting()`, `EscMenuState.settings_by_host`)
   gets the steppers and chips, and the host's note shows to the host also in the countdown (read-only values there);
   everyone else reads the values and the lock line; the own ship and the tutorial show the values with no host to name
@@ -8541,7 +8541,7 @@ Settings:
 - players 1 to 10. One player may start a match alone to try the mechanics and is then always Crew: the deal
   lowers `dissidents` to N − 1, which is 0 (the engineer's answer on #719: there is no minimum; a recommended size
   of 4 and up is only a hint, never enforced). Match settings, default (bounds): `match_duration` 5 min (1 to 60; 10 until the M8 slice, #1496);
-  `tasks` 1 (1 to 5: every type a map plays, in every match, the Generator ADR's GD7 (i), the photo ADR's PD14 and the car repair ADR's RD13 (d): the estate's one ship's engine, the default since the M8 slice (#1496, the answer on #507; 5 until then); the House's Delivery, Generator, photo task, Cooking and car repair, which its bot scenarios and tests set `tasks` 5 for; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #810, #775, #784, #800, #828, #79); `banned_task_types` (a set of task types, empty;
+  `tasks` 1 (1 to 5: every type a map plays, in every match, the Generator ADR's GD7 (i), the photo ADR's PD14 and the car repair ADR's RD13 (d): the M8 map's one ship's engine (the clearing since #1687), the default since the M8 slice (#1496, the answer on #507; 5 until then); the House's Delivery, Generator, photo task, Cooking and car repair, which its bot scenarios and tests set `tasks` 5 for; the greybox deals its one Delivery, as `DealTasks` deals a smaller pool whole; #810, #775, #784, #800, #828, #79); `banned_task_types` (a set of task types, empty;
   a host may ban any type: `ChangeSettings` refuses a ban that leaves fewer types than `tasks`, or none (`out_of_bounds`); on a map whose pool a ban empties, the fit check at `all_ready` refuses the start, `no_task_types`. The House plays five types since #810 (four since #775, three since #784, two since #800): banning any but all of them leaves the rest, and banning all five (allowed once `tasks` is 1, as the greybox Delivery is left) empties its pool; the greybox plays one Delivery, so banning it empties the pool, #828); `packages`, both Deliveries' subtasks (items or packages), 6 (1 to 10, a placeholder, "not a
   decision"); `switches`, the Generator's subtasks (its active switches), 3 (2 to 4; its label "Active switches (Generator)" a placeholder, "not a decision", GD1; #800); `photos`, the photo task's subtasks (the photos to hang), 3 (1 to 5; its label "Photos (Photography)" a placeholder, "not a decision"; #784); `burgers`, Cooking's subtasks (its orders), 1 (0 to 3, the cooking ADR's CD1; its label "Burgers (Cooking)", the cooking ADR §5.1; #775); `car_parts`, car repair's subtasks (the parts to fit), 2 (1 to 3, the car repair ADR's RD2, a placeholder, "not a decision"; its label "Parts to fit", RD12; #810); `dissidents` 1 (0 to 9, lowered to N − 1 by the deal; until the host names it, it follows the players present, §9.1: 1 at 1 to 5 players, 2 at 6 to 8, 3 at 9 and 10, the M8 slice, GDD §3, #1492); `knives` 2 (0 or more; the map's `knife` markers bound it at `all_ready`).
 - `PlayerRules`, value (bounds): health 100 (1 to 1000); stamina 100 (1 to 1000), regenerating 15 per second (0 to
@@ -9684,7 +9684,7 @@ plays it on the estate (#1462, "The estate and the content" below).
   public: `SoundChooser` plays `SfxSet.ENGINE_ZAP` at an `ItemPlaced` of cause `zapped`, heard like any world sound (§4.7.64).
 - **The estate and the content** (#1462, provisional under the MVP content ADR). `content/tasks/ship_engine.tres`
   (the console kind `engine_console`, the three kinds above, `stage_problems` 2, 4, 6, `stage_seconds` 30 (the GDD's
-  placeholder, the engineer's to set), `maps` the estate alone) is a task type of the base mode, which also lists the
+  placeholder, the engineer's to set), `maps` the clearing alone since #1687, the estate before) is a task type of the base mode, which also lists the
   two crystal item kinds and the setting `engine_stages` fixed at 3 (min = max = default: the stages are not a host's
   knob, #507). `levels/estate/rooms/ship.tscn`'s `Engine/Markers` holds a `Marker3D` per station in its `spawn_<tag>`
   group: the console, two gill buttons, two breaker boards, eight breakers (four along each board's wall, 0.5 m
@@ -9899,7 +9899,7 @@ the steam and the mist and none replayed or blasted, the last stage's pass addin
 `tests/unit/match/match_engine_finish_test.gd` (the won and End in the tick the last stage passes, #1563); the
 playcheck `ship_engine` (the walk to the console and its hologram,
 the gills, the hologram from them, a breaker, then the start, the first problem's lamp and the blast). Over the wire
-with the shipped base mode on the estate: the scenarios `crew_mends_the_ships_engine` and
+with the shipped base mode on the clearing (the estate before #1687): the scenarios `crew_mends_the_ships_engine` and
 `engine_blast_gives_the_humans_the_clock` (§9.7, #1498) and `tests/scenarios/engine_scenarios_test.gd`; the bots'
 policy in `tests/unit/harness/engine_mender_test.gd` and their book in `scenario_bot_engine_test.gd`.
 
@@ -10017,7 +10017,7 @@ content/
   tasks/photo.tres                 the photo task, with its five station kinds inside it (#784)
   tasks/cooking.tres               Cooking, with its five station kinds inside it (#775)
   tasks/car_repair.tres            car repair, with its car, lift panel, three bins and picture inside it (#810)
-  tasks/ship_engine.tres           the ship's engine on the estate, its console inside it (#1462, §9.5.27); its kinds
+  tasks/ship_engine.tres           the ship's engine on the clearing (#1687; the estate before), its console inside it (#1462, §9.5.27); its kinds
                                    tasks/gills.tres, breakers.tres, crystal.tres (#1461)
   win_conditions/every_task_done.tres, no_crew_present.tres, time_up_no_humans.tres, time_up.tres
   poses/wheel_poses.tres           the pose wheel's 6 leg stances and 8 arm gestures (#1485, §7.1.23; provisional)
@@ -10049,10 +10049,12 @@ levels/
                                    and ducts, #1373)
   clearing/clearing.tscn           the M8 round's map (#1687): the estate's `Ship` piece at (116, 0, 72), the dead's
                                    hall, and its own pieces in `clearing/rooms/`: `Markers` (the estate's round and
-                                   respawn markers), `Ground` (200 m, the garden floor), `Boundary` (an invisible ring
-                                   of walls, 35 m inside, 12 m high), `Sky` (a WorldEnvironment: fog 0.035 into a grey
-                                   background); base_mode's one player map; the ship's engine plays here and on the
-                                   estate; the size and the fog are placeholders
+                                   respawn markers, and four knife markers on its edge for the melee fixture's
+                                   Loading), `Ground` (200 m, the garden floor), `Boundary` (an invisible ring of
+                                   walls, 35 m inside, 12 m high), `Sky` (a WorldEnvironment: fog 0.035 into a grey
+                                   background); base_mode's one player map and the only map the ship's engine lists
+                                   (`tests/integration/levels/clearing_test.gd`; its walks up the ramp: the playchecks `m8_match` and `ship_engine`); the size, the fog and the knives'
+                                   places are placeholders
   stations/switch.tscn, generator.tscn   the Generator's devices with their use spots (#799), in House's basement
   stations/camera.tscn, photo_spot.tscn, film_box.tscn, printer.tscn, photo_board.tscn   the photo task's stations
                                    (#783), in House's photo zone, storage, study and darkroom
@@ -10138,7 +10140,7 @@ levels/
   rule as it is from any walked floor, InReach with the jump and InSight crouched, or standing where the standing
   capsule fits (#1560); red with the `Cap` shapes off, with the belly skirt off, and with the lens panes off; the
   skirt and the panes within their bands); the
-  playcheck `estate` (the round and the map screen on it).
+  playcheck `clearing` (the round and the map screen on it; `estate` before #1687).
 - **The levels in stage 2.** The base mode names its lobby and map from 2a on, and the checks with layouts (§9.1)
   and the scenarios (§9.7) need them before M4. So 2j adds both scenes at these paths as flat, marker-only levels: a
   floor collider and the markers, enough for every tag at 10 players with the default settings, and no rooms. 4e
@@ -10350,7 +10352,7 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
     error of `core/`) stands in for the log's `ERROR:` lines. The MVP's scenarios play on the flat lobby hall (the art hall's floor at y 0
     under every lobby marker, its walls, ship and pieces kept clear of every walk, #1354, #1451) and the marker-only map (§9.6). Only the levels the
     scenarios play on must be flat: the mode's lobby, the map a scenario plays when it names none (the base mode's test bench, the greybox, #767) and any map a scenario names
-    (`tests/fixtures/scenario_levels.gd`), but the storeyed maps (`ScenarioLevels.STOREYED_MAPS`: the House and the estate). The
+    (`tests/fixtures/scenario_levels.gd`), but the storeyed maps (`ScenarioLevels.STOREYED_MAPS`: the House and the clearing, #1687). The
     four-level House (#626), the one map players played until the M8 slice made it a bench (#767, #1496), was played
     by people in the host's real world, and since
     #1197 by bot scenarios (below); the runners
@@ -10575,7 +10577,7 @@ per step, `StepJoin` to `StepLeave`, whose `problems()` report an unplayable set
   the printer's film vanish on the spot (`ItemVanished`), so no scenario waits out a loose item's `vanish_seconds`
   and no shipped task setting changed. The burger takes at least 48 s of the clock (46 s failed at the herb), so
   56 s leaves about 8 s. Every bot decodes them alike (`LeakCheck.check_tasks`, `ScenarioInvariants`).
-  The ship's engine over the wire (#1498; §9.5.27; GDD §3 "The M8 slice", §10): two scenarios play it on the estate
+  The ship's engine over the wire (#1498; §9.5.27; GDD §3 "The M8 slice", §10): two scenarios play it on the clearing (the estate before #1687)
   in the storeyed fake (above) with the shipped base mode and its defaults (the real kinds, the 5-minute clock, one
   task, no `clock_s`), from the console's start to `MatchEnded`, the crew boarding over the ramp.
   `crew_mends_the_ships_engine` (4 bots, a forced dissident, a 240 s time limit; about 173 s of match time): three

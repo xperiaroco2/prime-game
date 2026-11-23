@@ -63,6 +63,11 @@ func test_the_round_s_markers_stand_inside_the_boundary_on_a_floor() -> void:
 				assert_float(floor_y).override_failure_message(where).is_equal_approx(
 					at.y, SPAWN_FLOOR_M
 				)
+	# The blast's box (its two corners, in the air) stands inside too.
+	assert_int(layout.count(&"engine_aboard")).is_equal(2)
+	for at: Vector3 in layout.positions(&"engine_aboard"):
+		var flat := Vector2(at.x - MIDDLE.x, at.z - MIDDLE.z)
+		assert_float(flat.length()).override_failure_message(str(at)).is_less(radius - 1.0)
 
 
 func test_the_boundary_closes_the_clearing_all_round() -> void:
@@ -72,11 +77,19 @@ func test_the_boundary_closes_the_clearing_all_round() -> void:
 		var angle := TAU * step / 144.0
 		var out := Vector3(sin(angle), 0, cos(angle))
 		for height: float in [0.3, 1.0, 1.8, 6.0]:
-			var from := MIDDLE + out * (radius - 3.0) + Vector3.UP * height
-			var ray := PhysicsRayQueryParameters3D.create(from, from + out * 6.0)
+			# From outside the ship's outline (its corners about 17 m out): the wall's inner face, a chord,
+			# lies at radius_m and at most 1 % further between two walls' middles.
+			var from := MIDDLE + out * (radius - 12.0) + Vector3.UP * height
+			var ray := PhysicsRayQueryParameters3D.create(from, from + out * 15.0)
 			var hit := level.space_state().intersect_ray(ray)
 			var where := "%.1f degrees, %.1f m up" % [rad_to_deg(angle), height]
 			assert_bool(hit.is_empty()).override_failure_message(where).is_false()
+			if not hit.is_empty():
+				var at := (hit["position"] as Vector3) - MIDDLE
+				var far := Vector2(at.x, at.z).length()
+				assert_float(far).override_failure_message(where).is_between(
+					radius - 0.05, radius * 1.01
+				)
 	# Nothing of it shows: the walls have no mesh.
 	var scene: Node = auto_free((load(MAP) as PackedScene).instantiate())
 	var boundary := scene.get_node(^"Boundary")
@@ -91,7 +104,9 @@ func test_the_map_is_the_ship_on_its_clearing_in_fog_and_no_estate_lot() -> void
 	assert_array(names).contains_exactly_in_any_order(
 		["Ground", "Ship", "Boundary", "Sky", "Markers", "DeadHall"]
 	)
-	assert_vector((scene.get_node(^"Ship") as Node3D).position).is_equal(MIDDLE)
+	for piece: String in ["Ship", "Ground", "Boundary"]:
+		var placed := (scene.get_node(NodePath(piece)) as Node3D).position
+		assert_vector(placed).override_failure_message(piece).is_equal(MIDDLE)
 	var sky := scene.get_node(^"Sky") as WorldEnvironment
 	assert_bool(sky.environment.fog_enabled).is_true()
 	assert_float(sky.environment.fog_density).is_greater(0.0)
@@ -111,7 +126,9 @@ func _boundary_radius() -> float:
 
 
 func _read(mode: GameMode) -> MarkerReader.Read:
-	var world := HostWorldQuery.new(mode.player_rules.capsule_radius_m, mode.player_rules.crouch_height_m)
+	var world := HostWorldQuery.new(
+		mode.player_rules.capsule_radius_m, mode.player_rules.crouch_height_m
+	)
 	world.add_level(LevelWorld.build(MAP))
 	world.use_level(MAP)
 	return MarkerReader.read_scene(MAP, world, MarkerReader.floor_tags_of(mode))

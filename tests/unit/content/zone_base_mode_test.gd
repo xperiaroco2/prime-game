@@ -253,14 +253,15 @@ func test_the_fixture_is_the_shipped_base_mode_plus_the_zone_task() -> void:
 	assert_object(mode.find_setting(&"photos")).is_null()
 	assert_array(mode.transitions).is_equal(base.transitions)
 	assert_array(mode.actions).is_equal(base.actions)
-	# The maps differ too (#1496): the shipped mode's without the estate, the House its one player
+	# The maps differ too (#1496): the shipped mode's without its M8 map (the clearing, #1687), the
+	# House its one player
 	# map and default, the greybox its bench.
 	var maps: Array[String] = []
 	for path: String in base.maps:
-		if path != ESTATE:
+		if path != CLEARING:
 			maps.append(path)
 	assert_array(Array(mode.maps)).is_equal(maps)
-	assert_bool(base.maps.has(ESTATE)).is_true()
+	assert_bool(base.maps.has(CLEARING)).is_true()
 	assert_array(Array(mode.bench_maps)).is_equal([GREYBOX])
 	assert_array(Array(mode.player_maps())).is_equal([HOUSE])
 	assert_str(mode.default_map()).is_equal(HOUSE)
