@@ -43,15 +43,22 @@ static func size_of(_kind: StringName) -> Vector3:
 static func build(kind: StringName, model: PackedScene = null) -> Node3D:
 	var scene := model if model != null else _art()
 	if scene != null:
-		var made := scene.instantiate() as Node3D
+		var node := scene.instantiate()
+		var made := node as Node3D
 		if made != null and made.find_child(BODY, true, false) != null:
 			made.name = "Mug"
 			var beer := made.find_child(BEER, true, false) as Node3D
 			if beer != null:
 				beer.visible = kind != &"mug_empty"
+			# A mug lights nothing and sees nothing: an exported light would glow through walls
+			# with no shadow, and the item's layers never cover it.
+			for extra: Node in made.find_children("*", "Light3D", true, false):
+				extra.free()
+			for extra: Node in made.find_children("*", "Camera3D", true, false):
+				extra.free()
 			return made
-		if made != null:
-			made.free()
+		if node != null:
+			node.free()
 	return placeholder()
 
 

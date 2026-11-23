@@ -4,8 +4,8 @@ extends Node3D
 ## prime-game-art#136, its HANDOFF.md) under the local player's camera, at an identity transform,
 ## its axes the camera's. Every mesh of it, and the crystal or mug it holds, is on PhotoLayers.HANDS
 ## alone with no shadow, so only FpView's own camera draws it (at the package's 50 degrees) and
-## neither the live view nor a picture does. - The clips switch by state (clip_for): Idle or Run
-## with an empty hand, Crystal_Idle or
+## neither the live view nor a picture does.
+## - The clips switch by state (clip_for): Idle or Run with an empty hand, Crystal_Idle or
 ##   Crystal_Run with a crystal, blended over BLEND_S; the run's speed follows the own speed. A
 ##   hit (play_hit) plays Punch or Crystal_Hit once, then the state's clip again.
 ## - A held crystal (crystal_charged or crystal_spent) is the energy crystal's own look
@@ -54,9 +54,9 @@ const HAND_BONE := "RightHand"
 const FIST_MORPH := &"fist"
 ## The right fist's morph while it holds a mug: part-open, the fingers round the mug. A look.
 const GRIP := 0.45
-## The mug's place in the right hand bone's space (its Y along the fingers, its -X out of the palm,
-## its +Z to the thumb): upright on the screen in Idle, its side against the palm, the handle on the
-## far side. A look, "not a decision".
+## The mug's place in the right hand bone's space (its Y along the fingers, its -X out of the
+## palm, its +Z to the thumb): upright on the screen in Idle, its side against the palm, the handle
+## on the far side. A look, "not a decision".
 const MUG_AT := Transform3D(
 	Basis(
 		Vector3(-0.815, 0.579, -0.016), Vector3(0.58, 0.814, -0.022), Vector3(0.0, -0.027, -0.999)
@@ -77,8 +77,8 @@ const RUN_CLIP_MPS := 4.5
 ## The run clip's speed stays between these. Looks.
 const RUN_SCALE_MIN := 0.7
 const RUN_SCALE_MAX := 1.6
-## The package's default body colour (HANDOFF "The colour slot and the light": sRGB 0.40 0.86 0.80),
-## the hands' colour until the own one is known (set_tint).
+## The package's default body colour (HANDOFF "The colour slot and the light": sRGB 0.40 0.86
+## 0.80), the hands' colour until the own one is known (set_tint).
 const DEFAULT_TINT := Color(0.40, 0.86, 0.80)
 
 ## The package's scene, loaded once for every controller.
@@ -111,6 +111,9 @@ var _fist_index := -1
 ## Whether the package has the mug socket and the mug clips (#1697).
 var _art_socket := false
 var _mug_clips := false
+## The right fist Mug_Idle keys (-1: none): held through a hit with a mug, so Punch does not close
+## the hand on the handle.
+var _mug_fist := -1.0
 
 
 ## Hands from `scene` (tests pass a fixture); the package's GLB by default.
@@ -202,8 +205,8 @@ func attach(holder: Node, camera: Camera3D, hand: FirstPersonHand) -> void:
 	holder.add_child(view)
 
 
-## Every physics frame (the controller's): the own horizontal speed, which the state's clip follows,
-## and whether the hands are drawn at all (`shown`: the own player living).
+## Every physics frame (the controller's): the own horizontal speed, which the state's clip
+## follows, and whether the hands are drawn at all (`shown`: the own player living).
 func update(speed: float, shown := true) -> void:
 	_speed = speed
 	if view != null:
@@ -341,16 +344,23 @@ func _show_mug(kind: StringName) -> void:
 
 
 ## The right fist part-open round a held mug, after the clips have keyed it (each frame at the
-## mixer's mixer_applied); with none held the clips' own value stands until their next frame.
+## mixer's mixer_applied); with none held the clips' own value stands until their next frame. The
+## art's mug clips key their own fist round the handle, and through a hit (Punch keys a closed
+## fist, which would close the hand through the mug) Mug_Idle's stands.
 func _hold_grip() -> void:
-	if mug != null and _fist_mesh != null and not _mug_clips:
+	if mug == null or _fist_mesh == null:
+		return
+	if not _mug_clips:
 		_fist_mesh.set_blend_shape_value(_fist_index, GRIP)
+	elif _hitting and _mug_fist >= 0.0:
+		_fist_mesh.set_blend_shape_value(_fist_index, _mug_fist)
 
 
 ## The mug's grip: the package's MugSocket when it has one (#1697), else a bone attachment on
 ## HAND_BONE; and the right fist's morph, which the #1678 grip holds open without the mug clips.
 func _add_grip() -> void:
 	_mug_clips = player.has_animation(MUG_IDLE) and player.has_animation(MUG_RUN)
+	_mug_fist = _fist_keyed(player.get_animation(MUG_IDLE)) if _mug_clips else -1.0
 	var art := model.find_child(MUG_SOCKET, true, false) as Node3D
 	if art != null:
 		grip = art
@@ -374,6 +384,16 @@ func _add_grip() -> void:
 		skeleton.add_child(attachment)
 		grip = attachment
 		return
+
+
+## The right fist `clip` keys at its start (-1: no fist track).
+static func _fist_keyed(clip: Animation) -> float:
+	for track: int in clip.get_track_count():
+		if clip.track_get_type(track) != Animation.TYPE_BLEND_SHAPE:
+			continue
+		if StringName(clip.track_get_path(track).get_concatenated_subnames()) == FIST_MORPH:
+			return clip.blend_shape_track_interpolate(track, 0.0)
+	return -1.0
 
 
 func _apply_tint() -> void:

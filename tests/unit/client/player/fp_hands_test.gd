@@ -52,7 +52,8 @@ func _fixture(
 	second_arm := false,
 	fists := false,
 	grip := false,
-	art_mug := false,
+	mug_socket := false,
+	mug_clips := false,
 ) -> PackedScene:
 	var root := Node3D.new()
 	root.name = "Fixture"
@@ -61,7 +62,7 @@ func _fixture(
 		player.name = "AnimationPlayer"
 		var library := AnimationLibrary.new()
 		var clips := CLIPS.duplicate()
-		if art_mug:
+		if mug_clips:
 			clips.append_array(MUG_CLIPS)
 		for clip: StringName in clips:
 			var animation := Animation.new()
@@ -107,12 +108,12 @@ func _fixture(
 		other.mesh = other_box
 		attachment.add_child(other)
 		other.owner = root
-	if art_mug:
+	if mug_socket:
 		# The art's mug hold (#1697): its socket on the right hand.
-		var mug_socket := Node3D.new()
-		mug_socket.name = FpHands.MUG_SOCKET
-		root.add_child(mug_socket)
-		mug_socket.owner = root
+		var art_socket := Node3D.new()
+		art_socket.name = FpHands.MUG_SOCKET
+		root.add_child(art_socket)
+		art_socket.owner = root
 	if grip:
 		# The package's skeleton with its right hand bone (HANDOFF "Rig"), where the mug's grip goes.
 		var skeleton := Skeleton3D.new()
@@ -427,10 +428,10 @@ func test_a_held_mug_sits_in_the_right_hands_grip_part_open() -> void:
 
 ## #1697 (art#392's contract): with the package's MugSocket and Mug clips the mug sits on the socket
 ## by its Grip (MugLooks.grip_of: the placeholder's middle until the art's mug), the hands play
-## Mug_Idle and Mug_Run round it, and the fist is the clips' own (no GRIP held over them).
+## Mug_Idle and Mug_Run round it, and the fist is the clips' own (no GRIP held over them); through a
+## hit Mug_Idle's fist stands, as Punch's closed one would close the hand through the mug.
 func test_with_the_art_s_hold_the_mug_sits_on_its_socket_and_the_mug_clips_play() -> void:
-	var hands: FpHands = auto_free(FpHands.new(_fixture(true, false, false, true, true, true)))
-	add_child(hands)
+	var hands := _art_hands(true, true)
 	var arms := hands.model.find_child("FPArms", true, false) as MeshInstance3D
 	var right := arms.find_blend_shape_by_name(FpHands.FIST_MORPH)
 	assert_str(String(hands.grip.name)).is_equal(FpHands.MUG_SOCKET)
@@ -444,11 +445,55 @@ func test_with_the_art_s_hold_the_mug_sits_on_its_socket_and_the_mug_clips_play(
 	_play_for(hands, FpHands.BLEND_S * 2.0)
 	assert_str(hands.current_clip()).is_equal("Mug_Run")
 	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(MUG_FIST, 1e-3)
+	hands.play_hit()
+	_play_for(hands, FpHands.HIT_BLEND_S * 2.0)
+	assert_str(hands.current_clip()).is_equal("Punch")
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(MUG_FIST, 1e-3)
+	hands.player.animation_finished.emit(&"Punch")
+	assert_str(hands.current_clip()).is_equal("Mug_Run")
 	hands.set_held(&"")
 	hands.update(0.0)
 	_play_for(hands, FpHands.BLEND_S * 2.0)
 	assert_str(hands.current_clip()).is_equal("Idle")
 	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(1.0, 1e-3)
+
+
+## A package with the socket and not the clips: the mug on the socket by its Grip, round which the
+## old clips play with the fist held at GRIP.
+func test_the_art_s_socket_without_the_mug_clips_holds_the_fist_at_grip() -> void:
+	var hands := _art_hands(true, false)
+	var arms := hands.model.find_child("FPArms", true, false) as MeshInstance3D
+	var right := arms.find_blend_shape_by_name(FpHands.FIST_MORPH)
+	assert_str(String(hands.grip.name)).is_equal(FpHands.MUG_SOCKET)
+	hands.set_held(&"mug")
+	assert_object(hands.mug.get_parent()).is_same(hands.grip)
+	assert_that(hands.mug.transform).is_equal(MugLooks.grip_of(hands.mug.look()).affine_inverse())
+	assert_str(hands.current_clip()).is_equal("Idle")
+	_play_for(hands, FpHands.BLEND_S * 2.0)
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(FpHands.GRIP, 1e-3)
+
+
+## A package with the clips and not the socket: the mug at MUG_AT on the hand bone's grip, the mug
+## clips playing with their own fist.
+func test_the_mug_clips_without_the_art_s_socket_keep_the_bone_grip() -> void:
+	var hands := _art_hands(false, true)
+	var arms := hands.model.find_child("FPArms", true, false) as MeshInstance3D
+	var right := arms.find_blend_shape_by_name(FpHands.FIST_MORPH)
+	assert_str((hands.grip as BoneAttachment3D).bone_name).is_equal(FpHands.HAND_BONE)
+	hands.set_held(&"mug")
+	assert_object(hands.mug.get_parent()).is_same(hands.grip)
+	assert_that(hands.mug.transform).is_equal(FpHands.MUG_AT)
+	assert_str(hands.current_clip()).is_equal("Mug_Idle")
+	_play_for(hands, FpHands.BLEND_S * 2.0)
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(MUG_FIST, 1e-3)
+
+
+## Hands on the fixture with the fists, the bone grip and the art's `socket` and mug `clips`.
+func _art_hands(socket: bool, clips: bool) -> FpHands:
+	var scene := _fixture(true, false, false, true, true, socket, clips)
+	var hands: FpHands = auto_free(FpHands.new(scene))
+	add_child(hands)
+	return hands
 
 
 func test_the_hand_item_leaves_the_mug_to_the_hands_grip() -> void:

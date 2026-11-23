@@ -2918,7 +2918,7 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   energy crystal's two kinds are the crystal's own model (`ShipCrystalLook`, #1672: charged lit, spent grey, its
   light skipping the stations' meshes and the first-person hands and casting shadows, so it stops at walls as
   the photo flash's does (P6), and at the first-person hands' 40 % in a hand item; the labelled box only without
-  the Git LFS model); the bar's mugs are `MugLooks`' placeholder (#1678);
+  the Git LFS model); the bar's mugs are `MugLooks`' (the art's mug, #1697, else a placeholder, #1678);
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
   (`hand_point()`, a mug by its grip, `MugLooks.grip_of`, #1697; `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
   holder is downed (the own player too, whose first-person hand then shows nothing), hidden while it has no body
@@ -5915,12 +5915,12 @@ draws the hands. The view shows while the own player is living and the player ca
   right fist's morph (`fist`) is held at `GRIP` (0.45, part-open) after every apply of the clips (the mixer's
   `mixer_applied`); the left fist stays the clip's. `FpHands.attach` adds the mug kinds to `hidden_kinds` when the
   package has the `RightHand` bone; without it the hand item draws the mug. The others see it at the holder's
-  hand point, `MugLooks.IN_HAND` (half its height) lower, so the hand closes round its middle. The art's mug model
+  hand point by its grip (the placeholder's: `MugLooks.IN_HAND`, half its height, lower), so the hand closes round its middle. The art's mug model
   and a grip pose, if the art makes one, replace the placeholder, `MUG_AT` and `GRIP` (#1697, art#392's contract):
   `MugLooks` builds `assets/props/mug/mug.glb` when it is here (its `Beer` hidden for `mug_empty`); a look's grip
   (`MugLooks.grip_of`) is its `Grip` (+Y up the handle, -Z to the mug's axis), else the placeholder's middle, and
   the others' hand point holds the mug by it; the hands seat it by its grip on the package's `MugSocket` and play
-  `Mug_Idle` and `Mug_Run` with no fist held, each part on its own (the socket without the clips keeps `GRIP`; the
+  `Mug_Idle` and `Mug_Run` with no fist held (through a hit `Mug_Idle`'s fist stands: `Punch` keys a closed one), each part on its own (the socket without the clips keeps `GRIP`; the
   clips without the socket the code's `MugGrip`). Gap: the lobby mirror draws
   no held mug (§4.7.68).
 - **The colour:** the own body colour from the own profile (`ClientModel.colour_of(own_peer)`, `BodyColours`),
