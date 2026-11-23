@@ -249,8 +249,11 @@ func test_a_mug_hangs_round_the_middle_of_another_players_hand() -> void:
 	await _drawn()
 	var point := _avatars.body_of(OTHER).hand_point()
 	var view := _items.view_of(1)
-	var at := point.global_transform.translated_local(MugLooks.IN_HAND).origin
-	assert_vector(view.global_position).is_equal_approx(at, Vector3.ONE * 1e-4)
+	# Its grip on the hand point: the art's Grip (#1697), else the placeholder's middle.
+	var grip := MugLooks.grip_of(view.look()).affine_inverse()
+	var at := point.global_transform * grip
+	assert_vector(view.global_position).is_equal_approx(at.origin, Vector3.ONE * 1e-4)
+	assert_vector(view.global_basis.y).is_equal_approx(at.basis.y, Vector3.ONE * 1e-4)
 	assert_bool(view.is_look_shown()).is_true()
 	assert_int(view.find_children("*", "Label3D", true, false).size()).is_zero()
 
