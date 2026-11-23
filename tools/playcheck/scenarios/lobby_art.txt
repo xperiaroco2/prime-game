@@ -35,7 +35,7 @@ aim off
 # The mirror from its middle place: the player's own reflection in the frame.
 aim station mirror via to_mirror
 hold move_forward
-seconds 4
+seconds 2.6
 release move_forward
 frames 30
 shot mirror_reflection
