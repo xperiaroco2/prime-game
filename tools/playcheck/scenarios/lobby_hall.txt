@@ -1,4 +1,5 @@
-# The lobby hall (#1451: the art lobby hall's level set, the game's bar, booth, pinball and mirror
+# The lobby hall (#1451: the art lobby hall's level set, the game's bar, booth (hidden in M8,
+# #1680), pinball and mirror
 # boxes beside it) in the game's real window, in the hall's own lighting: window 1 hosts alone and
 # stays in the lobby. It shoots the hall from its lobby spawn point (the first `lobby_player`
 # marker, x -9, z 2.5; since #1522 the player faces the marker's yaw, south, the window), sprints

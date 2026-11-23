@@ -57,10 +57,12 @@ mesh = SubResource("Mesh_bar")
 
 [node name="PhotoBooth" type="StaticBody3D" parent="." unique_id=1586480523]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0, -13)
+visible = false
 
 [node name="Shape" type="CollisionShape3D" parent="PhotoBooth" unique_id=1503642539]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1.25, 1)
 shape = SubResource("Shape_booth")
+disabled = true
 
 [node name="Mesh" type="MeshInstance3D" parent="PhotoBooth" unique_id=226614191]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1.25, 1)

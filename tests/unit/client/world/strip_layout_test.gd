@@ -95,8 +95,10 @@ func test_the_strip_look_has_a_picture_slot_and_its_size() -> void:
 	assert_bool(material.no_depth_test).is_false()
 
 
+## On the base mode with the booth (M8 hides it, #1680: there no station prints a strip at all).
 func test_the_base_modes_strip_kind_is_the_looks_kind() -> void:
-	var mode := load(BASE_MODE) as GameMode
+	assert_array(BoothUse.strip_kinds(load(BASE_MODE) as GameMode)).is_empty()
+	var mode := FixtureBaseModeWithBooth.mode()
 	assert_array(BoothUse.strip_kinds(mode)).contains_exactly([StripLooks.STRIP])
 	assert_bool(BoothUse.is_strip(mode, &"strip")).is_true()
 	assert_bool(BoothUse.is_strip(mode, &"photo")).is_false()

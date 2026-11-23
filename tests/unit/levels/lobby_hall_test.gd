@@ -343,8 +343,9 @@ func test_the_mirror_s_glass_marker_lies_on_the_box_s_room_face() -> void:
 
 
 ## The photo booth's volume (#1396) is the booth station's own cylinder on the Booth marker: the
-## whole cylinder stands clear of every collider (the PhotoBooth box stays solid until the engineer
-## opens it), and right in front of the PhotoBooth box, less than a capsule's width away.
+## whole cylinder stands clear of every collider and of the PhotoBooth box (hidden in M8 with its
+## shape disabled, #1680, so the host's world no longer holds it: the box is checked by its own
+## geometry), right in front of it, less than a capsule's width away.
 func test_the_booth_marker_stands_before_the_photo_booth_its_volume_clear() -> void:
 	var booths := _markers(&"spawn_booth")
 	assert_int(booths.size()).is_equal(1)
@@ -362,6 +363,7 @@ func test_the_booth_marker_stands_before_the_photo_booth_its_volume_clear() -> v
 	var world := LevelWorld.build(LOBBY)
 	assert_array(world.space_state().intersect_shape(query, 1)).is_empty()
 	var gap := _distance_to_box(at, _shape_of(_root.get_node("PhotoBooth"))) - kind.radius_m
+	assert_float(gap).is_greater_equal(0.0)
 	assert_float(gap).is_less(2.0 * _mode.player_rules.capsule_radius_m)
 
 

@@ -3,7 +3,9 @@ extends GdUnitTestSuite
 ## shipped booth and strip carry the provisional numbers; on the hall's real layout the booth
 ## stands on its one `booth` marker, a press inside it runs the whole session and prints a strip
 ## for each player in the frames; readying up mid-session stops it, and countdown_done clears the
-## booth and every strip before the map loads.
+## booth and every strip before the map loads. M8 hides the booth (#1680): the shipped base
+## mode places none and runs none of its parts, and the booth's tests run on
+## FixtureBaseModeWithBooth, the base mode with its three parts back as M9 brings them.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
@@ -42,6 +44,56 @@ func _in_booth(mode: GameMode) -> Match:
 	return game
 
 
+func test_m8_s_base_mode_places_no_booth_and_runs_none_of_its_parts() -> void:
+	var mode := load(BASE_MODE) as GameMode
+	for phase: PhaseSpec in mode.phases:
+		(
+			assert_bool(BoothTicks.listed_in(phase))
+			. override_failure_message(String(phase.id))
+			. is_false()
+		)
+		for system: TickSystem in phase.tick_systems:
+			var placing := system as StationTicks
+			if placing != null:
+				assert_str(String(placing.kind.id)).is_not_equal("booth")
+	for row: Transition in mode.transitions:
+		for action: RuleEffect in row.actions:
+			assert_bool(action is StopBooth).is_false()
+	assert_array(Array(BoothCheck.problems(mode))).is_empty()
+	# In the hall's lobby the marker stays for M9, and no booth stands on it.
+	var game := Match.new(mode, 7, FlatWorldQuery.new(), _layouts_for(mode))
+	game.state.map = GREYBOX
+	assert_bool(game.start(0)).is_true()
+	FixtureBaseMode.join(game, P1)
+	FixtureModes.run_ticks(game, 1)
+	assert_int(FixtureBooth.booth_id(game)).is_equal(-1)
+
+
+## The fixture is the base mode but for the booth's three parts, the base mode's own resources.
+func test_the_base_mode_with_the_booth_adds_only_its_three_parts() -> void:
+	var base := load(BASE_MODE) as GameMode
+	var mode: GameMode = FixtureBaseModeWithBooth.mode()
+	assert_int(mode.phases.size()).is_equal(base.phases.size())
+	for i: int in base.phases.size():
+		if base.phases[i].id != &"lobby":
+			assert_object(mode.phases[i]).is_same(base.phases[i])
+	var lobby := mode.find_phase(&"lobby").tick_systems
+	assert_int(lobby.size()).is_equal(base.find_phase(&"lobby").tick_systems.size() + 2)
+	assert_str(String((lobby[lobby.size() - 4] as StationTicks).kind.id)).is_equal("booth")
+	assert_object(lobby[lobby.size() - 3]).is_instanceof(BoothTicks)
+	# The base mode's own Lobby is untouched.
+	assert_bool(BoothTicks.listed_in(base.find_phase(&"lobby"))).is_false()
+	var row := mode.find_transition(&"lobby", LobbyPhase.ALL_READY)
+	assert_object(row.actions[row.actions.size() - 1]).is_instanceof(StopBooth)
+	assert_int(base.find_transition(&"lobby", LobbyPhase.ALL_READY).actions.size()).is_equal(
+		row.actions.size() - 1
+	)
+	assert_array([mode.item_kinds, mode.roles, mode.settings]).is_equal(
+		[base.item_kinds, base.roles, base.settings]
+	)
+	assert_array(Array(ModeCheck.run(mode).errors)).is_empty()
+
+
 func test_the_shipped_booth_and_strip_carry_the_provisional_numbers() -> void:
 	var booth := load(BOOTH) as StationKind
 	assert_str(String(booth.spawn_tag)).is_equal("booth")
@@ -55,7 +107,7 @@ func test_the_shipped_booth_and_strip_carry_the_provisional_numbers() -> void:
 
 
 func test_a_press_in_the_hall_s_booth_prints_a_strip_for_each() -> void:
-	var mode := load(BASE_MODE) as GameMode
+	var mode: GameMode = FixtureBaseModeWithBooth.mode()
 	var game := _in_booth(mode)
 	FixtureBooth.press(game, P1, 1)
 	assert_array(FixtureModes.rejections(game, P1)).is_empty()
@@ -75,7 +127,7 @@ func test_a_press_in_the_hall_s_booth_prints_a_strip_for_each() -> void:
 
 
 func test_ready_stops_the_session_and_countdown_done_clears_the_booth_and_its_strips() -> void:
-	var mode := load(BASE_MODE) as GameMode
+	var mode: GameMode = FixtureBaseModeWithBooth.mode()
 	var game := _in_booth(mode)
 	var start := FixtureBooth.start_in(mode)
 	FixtureBooth.press(game, P1, 1)
