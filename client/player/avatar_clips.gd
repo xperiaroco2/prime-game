@@ -137,6 +137,20 @@ static func plan(state: State, walk_mps: float, sprint_mps: float) -> Plan:
 	return out
 
 
+## The ground speed at rate 1 the table's rates assume for the move clip `clip` (JOG_MPS,
+## SPRINT_MPS, CROUCH_MPS); 0 for a clip that does not move. A character measured otherwise plays it
+## faster or slower (CharacterRig.rate_factor, #1693).
+static func assumed_mps(clip: StringName) -> float:
+	match clip:
+		JOG_FWD, JOG_BWD, STRAFE_LEFT, STRAFE_RIGHT:
+			return JOG_MPS
+		SPRINT_FWD:
+			return SPRINT_MPS
+		CROUCH_FWD:
+			return CROUCH_MPS
+	return 0.0
+
+
 ## The one-shot clip for picking up or putting down an item, two-handed (the package) or not.
 static func one_shot(shot: Shot, two_handed: bool) -> StringName:
 	if shot == Shot.PICKUP:

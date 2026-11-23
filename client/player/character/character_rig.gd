@@ -4,8 +4,9 @@ extends Node3D
 ## turned to face -Z (the art faces +Z), playing AvatarClips' plan on an AnimationTree:
 ##
 ##   base (a Transition of SLOTS, cross-faded) -> rate (TimeScale) -> carry (Blend2 with
-##   Carry_Upper, filtered to Torso and every bone below it) -> shot (a OneShot of the pick-up or
-##   put-down clip) -> output
+##   Carry_Upper, filtered to the profile's carry root and every bone below it) -> shot (a OneShot
+##   of the pick-up or put-down clip) -> output; the carry and the shot only with their clips
+##   (#1693)
 ##
 ## A slot is a clip (Idle, Sprint_Fwd, Crouch_Idle, Crouch_Fwd) or a move family of Locomotion
 ## (Front, Back, #1334): an AnimationNodeBlendSpace2D of the family's points whose clip the
@@ -36,25 +37,23 @@ const SLOTS: Array[StringName] = [
 ]
 const CARRY_FADE_S := 0.2
 const SHOT_FADE_S := 0.15
-## The bone the carry layer starts at (the art: "Torso and every bone below it").
-const CARRY_ROOT := &"Torso"
-## The sockets: name -> [bone, the point in the bone's own frame, fitted carrying]. Each point
-## was measured on the art (slice_m1) from close-up shots (#1050): Hand at the right palm, where a
-## one-handed item's bottom sits in the fist; Belt on the outside of the left hip at the waist;
-## Carry the bottom of a two-handed item held between both palms in front of the chest. A socket
-## stands upright in the rig at its fitting pose (the idle clip's first frame; carrying: with
-## Carry_Upper's first frame on the carry layer's bones), the pose its item shows in.
-const SOCKETS := {
-	&"Hand": [&"Wrist.R", Vector3(0.0, 0.125, 0.0), false],
-	&"Belt": [&"Hips", Vector3(0.19, 0.065, -0.06), false],
-	&"Carry": [&"Chest", Vector3(0.015, -0.265, 0.525), true],
-}
+## The client's port of the art's look scripts (its static skin, art#398): they dress a model from
+## a look JSON and colour its skin.
+const AlienDress := preload("res://client/player/character/alien_look/alien_dress.gd")
+const AlienStatic := preload("res://client/player/character/alien_look/alien_static.gd")
 
 ## The character's scene root, its skeleton, its player and the tree driving it.
 var model: Node3D
 var skeleton: Skeleton3D
 var player: AnimationPlayer
 var tree: AnimationTree
+## The character's profile (CharacterProfile, #1693): the bone the carry layer starts at, the
+## sockets (name -> [bone, the point in the bone's own frame, fitted carrying]: Hand where a
+## one-handed item's bottom sits in the hand; Belt on the outside of the hip at the waist; Carry the
+## bottom of a two-handed item held in front of the chest; each standing upright in the rig at its
+## fitting pose, the idle clip's first frame, carrying with Carry_Upper's first frame on the carry
+## layer's bones where the character has that clip), the clips' own speeds.
+var profile: CharacterProfile
 
 var _base: StringName = AvatarClips.IDLE
 var _slot: StringName = AvatarClips.IDLE
@@ -67,6 +66,10 @@ var _tint := Color.WHITE
 var _sockets: Dictionary[StringName, Node3D] = {}
 var _materials: Array[BaseMaterial3D] = []
 var _albedo: Array[Color] = []
+## The look's skin materials (a profile with a look, #1693: the alien's), tinted through the look.
+var _skins: Array[ShaderMaterial] = []
+var _has_carry := false
+var _has_shot := false
 
 
 ## A rig of `character`'s scene, standing in its idle clip; `with_look`: with a HeadLook (a living
@@ -74,15 +77,22 @@ var _albedo: Array[Color] = []
 static func make(character: CharacterSet, with_look := false) -> CharacterRig:
 	var rig := CharacterRig.new()
 	rig.name = "Character"
+	rig.profile = (
+		character.profile if character.profile != null else CharacterSet.default_profile()
+	)
 	rig.model = character.scene.instantiate() as Node3D
 	rig.model.name = "Model"
 	rig.model.rotation = Vector3(0.0, PI, 0.0)
 	rig.add_child(rig.model)
 	rig.skeleton = rig.model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
 	rig.player = rig.model.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
+	rig._has_carry = rig.player.has_animation(AvatarClips.CARRY_UPPER)
+	for clip: StringName in AvatarClips.shot_clips():
+		rig._has_shot = rig._has_shot or rig.player.has_animation(clip)
 	rig._build_tree()
 	rig._add_sockets()
 	rig._own_materials()
+	rig._dress()
 	if with_look:
 		rig._add_look()
 	return rig
@@ -99,13 +109,21 @@ func apply(plan: AvatarClips.Plan) -> void:
 		tree.set("parameters/base/transition_request", String(plan.slot))
 	if _spaces.has(plan.slot):
 		tree.set("parameters/%s/blend_position" % plan.slot, plan.blend)
-	tree.set("parameters/rate/scale", plan.rate)
-	_carry_target = 1.0 if plan.carry else 0.0
+	tree.set("parameters/rate/scale", rate_of(plan))
+	_carry_target = 1.0 if plan.carry and _has_carry else 0.0
 
 
-## Plays `clip` once over the base and the carry layer, then fades back.
+## The tree's rate for `plan` on this character: AvatarClips' rate times the profile's
+## rate_factor (#1693: each clip at the ground its stride covers), within AvatarClips' clamp.
+func rate_of(plan: AvatarClips.Plan) -> float:
+	var rate := plan.rate * profile.rate_factor(plan.base, plan.slot, plan.blend)
+	return clampf(rate, AvatarClips.MIN_RATE, AvatarClips.MAX_RATE)
+
+
+## Plays `clip` once over the base and the carry layer, then fades back; nothing for a clip the
+## character lacks.
 func play_one_shot(clip: StringName) -> void:
-	if not player.has_animation(clip):
+	if not _has_shot or not player.has_animation(clip):
 		return
 	var node := (tree.tree_root as AnimationNodeBlendTree).get_node(&"shot_clip")
 	(node as AnimationNodeAnimation).animation = clip
@@ -152,9 +170,9 @@ func carry_weight() -> float:
 	return _carry
 
 
-## Whether a one-shot plays.
+## Whether a one-shot plays (never on a character without its clips).
 func is_shot_active() -> bool:
-	return tree.get("parameters/shot/active") as bool
+	return _has_shot and tree.get("parameters/shot/active") as bool
 
 
 ## The socket `socket_name` (Hand, Belt, Carry): a node that follows its bone.
@@ -162,21 +180,29 @@ func socket(socket_name: StringName) -> Node3D:
 	return _sockets.get(socket_name) as Node3D
 
 
-## Tints every surface by `colour` (white: the art's own look).
+## Tints every surface by `colour` (white: the art's own look). A character with a look (the
+## alien's) takes it as its skin through the look (AlienStatic.set_skin), the rest of its paint
+## following it as the art's does; white puts back the look's own skin.
 func set_tint(colour: Color) -> void:
 	_tint = colour
 	for i: int in _materials.size():
 		_materials[i].albedo_color = _albedo[i] * colour
+	if _skins.is_empty():
+		return
+	if colour == Color.WHITE:
+		AlienStatic.set_colours(_skins, {})
+	else:
+		AlienStatic.set_skin(_skins, colour)
 
 
 func tint() -> Color:
 	return _tint
 
 
-## The bones the carry layer moves: CARRY_ROOT and every bone below it.
+## The bones the carry layer moves: the profile's carry root and every bone below it.
 func carry_bones() -> PackedStringArray:
 	var out := PackedStringArray()
-	var root := skeleton.find_bone(CARRY_ROOT)
+	var root := skeleton.find_bone(profile.carry_root)
 	for i: int in skeleton.get_bone_count():
 		var at := i
 		while at >= 0 and at != root:
@@ -190,7 +216,8 @@ func carry_bones() -> PackedStringArray:
 func step(delta: float) -> void:
 	var fade := delta / CARRY_FADE_S
 	_carry = move_toward(_carry, _carry_target, fade)
-	tree.set("parameters/carry/blend_amount", _carry)
+	if _has_carry:
+		tree.set("parameters/carry/blend_amount", _carry)
 
 
 ## Stands the rig in the plan applied this instant, `seconds` into its clips with every fade done:
@@ -198,7 +225,8 @@ func step(delta: float) -> void:
 ## physics step (a picture's puppet, #787), which the tree would leave in the arms-out rest.
 func pose_now(seconds := XFADE_S) -> void:
 	_carry = _carry_target
-	tree.set("parameters/carry/blend_amount", _carry)
+	if _has_carry:
+		tree.set("parameters/carry/blend_amount", _carry)
 	tree.advance(0.0)
 	tree.advance(seconds)
 	skeleton.force_update_all_bone_transforms()
@@ -223,27 +251,37 @@ func _build_tree() -> void:
 		blend.connect_node(&"base", i, SLOTS[i])
 	blend.add_node(&"rate", AnimationNodeTimeScale.new())
 	blend.connect_node(&"rate", 0, &"base")
-	var carry_clip := AnimationNodeAnimation.new()
-	carry_clip.animation = AvatarClips.CARRY_UPPER
-	blend.add_node(&"carry_clip", carry_clip)
-	var carry := AnimationNodeBlend2.new()
-	carry.filter_enabled = true
-	var prefix := String(model.get_path_to(skeleton)) + ":"
-	for bone: String in carry_bones():
-		carry.set_filter_path(NodePath(prefix + bone), true)
-	blend.add_node(&"carry", carry)
-	blend.connect_node(&"carry", 0, &"rate")
-	blend.connect_node(&"carry", 1, &"carry_clip")
-	var shot_clip := AnimationNodeAnimation.new()
-	shot_clip.animation = AvatarClips.PICKUP_ONE
-	blend.add_node(&"shot_clip", shot_clip)
-	var shot := AnimationNodeOneShot.new()
-	shot.fadein_time = SHOT_FADE_S
-	shot.fadeout_time = SHOT_FADE_S
-	blend.add_node(&"shot", shot)
-	blend.connect_node(&"shot", 0, &"carry")
-	blend.connect_node(&"shot", 1, &"shot_clip")
-	blend.connect_node(&"output", 0, &"shot")
+	# The carry layer and the one-shot only where the character has their clips (#1693: the alien
+	# has neither): without them the base plays alone, as with a clip missing before.
+	var last := &"rate"
+	if _has_carry:
+		var carry_clip := AnimationNodeAnimation.new()
+		carry_clip.animation = AvatarClips.CARRY_UPPER
+		blend.add_node(&"carry_clip", carry_clip)
+		var carry := AnimationNodeBlend2.new()
+		carry.filter_enabled = true
+		var prefix := String(model.get_path_to(skeleton)) + ":"
+		for bone: String in carry_bones():
+			carry.set_filter_path(NodePath(prefix + bone), true)
+		blend.add_node(&"carry", carry)
+		blend.connect_node(&"carry", 0, last)
+		blend.connect_node(&"carry", 1, &"carry_clip")
+		last = &"carry"
+	if _has_shot:
+		var shot_clip := AnimationNodeAnimation.new()
+		for clip: StringName in AvatarClips.shot_clips():
+			if player.has_animation(clip):
+				shot_clip.animation = clip
+				break
+		blend.add_node(&"shot_clip", shot_clip)
+		var shot := AnimationNodeOneShot.new()
+		shot.fadein_time = SHOT_FADE_S
+		shot.fadeout_time = SHOT_FADE_S
+		blend.add_node(&"shot", shot)
+		blend.connect_node(&"shot", 0, last)
+		blend.connect_node(&"shot", 1, &"shot_clip")
+		last = &"shot"
+	blend.connect_node(&"output", 0, last)
 	tree = AnimationTree.new()
 	tree.name = "Tree"
 	tree.tree_root = blend
@@ -295,8 +333,8 @@ func _add_look() -> void:
 ## in, never the rest: the art's rest is an arms-out bind pose, against which the hand's item would
 ## turn with the arm as soon as a clip lowers it.
 func _add_sockets() -> void:
-	for socket_name: StringName in SOCKETS:
-		var entry: Array = SOCKETS[socket_name]
+	for socket_name: StringName in profile.sockets:
+		var entry: Array = profile.sockets[socket_name]
 		var bone := skeleton.find_bone(entry[0] as StringName)
 		var attach := BoneAttachment3D.new()
 		attach.name = "%sBone" % socket_name
@@ -321,8 +359,8 @@ static func socket_transform(bone_pose: Transform3D, point: Vector3) -> Transfor
 ## has to run first.
 func fit_pose(bone: int, carrying: bool) -> Transform3D:
 	var idle := player.get_animation(AvatarClips.IDLE)
-	var carry := player.get_animation(AvatarClips.CARRY_UPPER)
-	var layered := carry_bones() if carrying else PackedStringArray()
+	var carry := player.get_animation(AvatarClips.CARRY_UPPER) if _has_carry else idle
+	var layered := carry_bones() if carrying and _has_carry else PackedStringArray()
 	var prefix := String(model.get_path_to(skeleton)) + ":"
 	var out := Transform3D.IDENTITY
 	var at := bone
@@ -360,6 +398,14 @@ func _frame_of(node: Node3D) -> Transform3D:
 			out = (at as Node3D).transform * out
 		at = at.get_parent()
 	return out
+
+
+## Dresses the model in its profile's look (the alien's static skin, #1693): the look makes this
+## avatar's own skin materials, which set_tint colours. Nothing for a profile without a look.
+func _dress() -> void:
+	if profile.look.is_empty():
+		return
+	_skins = AlienDress.dress_from(model, profile.look)
 
 
 ## Gives each surface its own copy of its material, so one avatar's tint leaves the others'.

@@ -119,8 +119,8 @@ func test_no_root_motion_and_no_physical_bones() -> void:
 ## Each socket is a child of its bone's attachment, at its point in the bone's own frame.
 func test_each_socket_sits_at_its_point_in_its_bones_frame() -> void:
 	var rig := _rig()
-	for socket_name: StringName in CharacterRig.SOCKETS:
-		var entry: Array = CharacterRig.SOCKETS[socket_name]
+	for socket_name: StringName in CharacterProfile.slice_m1().sockets:
+		var entry: Array = CharacterProfile.slice_m1().sockets[socket_name]
 		var socket := rig.socket(socket_name)
 		var attach := socket.get_parent() as BoneAttachment3D
 		assert_str(attach.bone_name).is_equal(str(entry[0]))
@@ -137,9 +137,9 @@ func test_each_socket_sits_at_its_point_in_its_bones_frame() -> void:
 ## sign: the hand point runs down Wrist.R toward the fingers, the belt point is on the left (+X in
 ## Hips' frame), the carry point is in front of the chest (+Z in Chest's frame) and below it.
 func test_the_measured_points_face_the_arts_bone_frames() -> void:
-	var hand: Vector3 = CharacterRig.SOCKETS[&"Hand"][1]
-	var belt: Vector3 = CharacterRig.SOCKETS[&"Belt"][1]
-	var carry: Vector3 = CharacterRig.SOCKETS[&"Carry"][1]
+	var hand: Vector3 = CharacterProfile.slice_m1().sockets[&"Hand"][1]
+	var belt: Vector3 = CharacterProfile.slice_m1().sockets[&"Belt"][1]
+	var carry: Vector3 = CharacterProfile.slice_m1().sockets[&"Carry"][1]
 	assert_float(hand.y).override_failure_message("Hand toward the fingers").is_greater(0.05)
 	assert_float(Vector2(hand.x, hand.z).length()).is_less(0.03)
 	assert_float(belt.x).override_failure_message("Belt on the left hip").is_greater(0.1)
@@ -153,8 +153,8 @@ func test_the_measured_points_face_the_arts_bone_frames() -> void:
 func test_at_the_idle_pose_the_sockets_are_on_their_bones() -> void:
 	var rig := _rig()
 	_run(rig, 0.3)
-	for socket_name: StringName in CharacterRig.SOCKETS:
-		var entry: Array = CharacterRig.SOCKETS[socket_name]
+	for socket_name: StringName in CharacterProfile.slice_m1().sockets:
+		var entry: Array = CharacterProfile.slice_m1().sockets[socket_name]
 		var bone := _bone_in_rig(rig, entry[0] as StringName)
 		var at := _socket_in_rig(rig, socket_name)
 		var message := String(socket_name)
@@ -177,7 +177,7 @@ func test_carrying_the_carry_socket_stands_upright() -> void:
 	_run(rig, 0.5)
 	var chest := rig.skeleton.get_bone_pose_rotation(rig.skeleton.find_bone(&"Chest"))
 	assert_float(chest.get_angle()).is_equal_approx(Fixture.CARRY_CHEST, 0.01)
-	var entry: Array = CharacterRig.SOCKETS[&"Carry"]
+	var entry: Array = CharacterProfile.slice_m1().sockets[&"Carry"]
 	var point: Vector3 = entry[1]
 	var at := _socket_in_rig(rig, &"Carry")
 	assert_vector(at.origin).is_equal_approx(
@@ -201,7 +201,7 @@ func test_on_an_arms_out_rest_the_hand_socket_stands_upright_while_idle_plays() 
 	var rest := rig.skeleton.get_bone_global_rest(wrist).origin
 	var pose := rig.skeleton.get_bone_global_pose(wrist).origin
 	assert_float(rest.distance_to(pose)).is_greater(0.3)
-	var point: Vector3 = CharacterRig.SOCKETS[&"Hand"][1]
+	var point: Vector3 = CharacterProfile.slice_m1().sockets[&"Hand"][1]
 	var at := _socket_in_rig(rig, &"Hand")
 	assert_vector(at.origin).is_equal_approx(
 		_bone_in_rig(rig, &"Wrist.R") * point, Vector3.ONE * 0.001
@@ -409,3 +409,46 @@ func test_no_head_look_without_the_bones_or_for_a_ragdolls_rig() -> void:
 	auto_free(rig)
 	assert_object(rig.head_look()).is_null()
 	rig.set_look(1.0, 1.0)
+
+
+## #1693: a character without the carry clip and the one-shots (the alien) plays its base clip: a
+## carrying plan and a one-shot change nothing, and its tree has neither node.
+func test_without_the_carry_and_shot_clips_the_base_plays_alone() -> void:
+	var character := CharacterSet.from_scene(
+		Fixture.scene(AvatarClips.base_clips()), Fixture.ragdoll()
+	)
+	var rig := CharacterRig.make(character)
+	add_child(rig)
+	auto_free(rig)
+	rig.tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	rig.set_physics_process(false)
+	var root := rig.tree.tree_root as AnimationNodeBlendTree
+	assert_bool(root.has_node(&"carry")).is_false()
+	assert_bool(root.has_node(&"shot")).is_false()
+	rig.apply(_plan(AvatarClips.JOG_FWD, 1.0, true))
+	rig.play_one_shot(AvatarClips.PICKUP_PACKAGE)
+	_run(rig, 0.5)
+	assert_float(rig.carry_weight()).is_equal(0.0)
+	assert_bool(rig.is_shot_active()).is_false()
+	assert_float(_angle(rig, &"UpperLeg.L")).is_equal_approx(Fixture.base_angle(&"Jog_Fwd"), 0.01)
+	assert_float(_angle(rig, &"UpperArm.R")).is_equal_approx(0.0, 0.01)
+	# The carry socket is fitted on the idle clip alone.
+	assert_object(rig.socket(&"Carry")).is_not_null()
+
+
+## #1693: the tree plays at the rate the move needs on this character (the profile's rate_factor):
+## the slice character as AvatarClips assumes, the alien's back jog faster (its stride covers 2.0
+## m/s at its own size, 1.88 as drawn at 0.94, not 4.5), within AvatarClips' clamp.
+func test_the_tree_plays_at_the_profile_s_rate() -> void:
+	var rig := _rig()
+	rig.apply(_plan(AvatarClips.JOG_BWD, 1.0))
+	assert_float(rig.tree.get("parameters/rate/scale") as float).is_equal_approx(1.0, 0.0001)
+	rig.profile = CharacterProfile.alien()
+	var plan := _plan(AvatarClips.JOG_BWD, 1.0)
+	plan.slot = Locomotion.BACK
+	plan.blend = Vector2(0.0, -1.0)
+	rig.apply(plan)
+	var want := 4.5 / (2.0 * CharacterProfile.ALIEN_SCALE)
+	assert_float(rig.tree.get("parameters/rate/scale") as float).is_equal_approx(want, 0.0001)
+	plan.rate = 3.0
+	assert_float(rig.rate_of(plan)).is_equal(AvatarClips.MAX_RATE)
