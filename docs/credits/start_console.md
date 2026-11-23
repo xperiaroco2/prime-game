@@ -9,6 +9,8 @@
   SHA-256. A station on the estate's art ship (#1535), at the hall's centre since the ship package v9
   (xperiaroco2/prime-game-art#376). Approved by the engineer in the art manifest (`approved_by` xperiaroco2,
   2026-10-26, xperiaroco2/prime-game-art#325).
+- **Updated:** the cold-steel build `steel` (its `console_metal.gdshader` defaults steel), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+  2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false

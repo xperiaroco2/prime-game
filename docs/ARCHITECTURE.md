@@ -5763,11 +5763,11 @@ of the mode, never `core/` state (§9.5.27's client).
 prime-game-ui's s04 `console-host` and `console-guest` at `ui-2.5.4`: the match settings are a screen on a console by
 the lobby's spawn (the engineer, #1095 comment 6799556655: the console now, the workbench later), not a page of the Esc
 menu, which has had no Lobby entry since (§4.7.42).
-- **The level:** `levels/lobby/match_console.tscn`, the plainest greybox box (1.2 x 1.6 x 0.3 m, the hall's white
+- **The level:** `levels/lobby/match_console.tscn`, the art's console (prime-game-art `match_console` v6, #1700; its `ConsoleScreen` stand-in hidden where the game draws the screen) over the greybox box collider (1.2 x 1.6 x 0.3 m; formerly the hall's white
   station material) with a `Screen` Marker3D in `match_console_screen` (the screen's centre, facing its +Z), placed in
   `lobby.tscn` 4.5 m in front of the spawn row's first markers, facing them: the first players, the host and the
-  player alone in the own ship, start there, and every spawn keeps 4 m clear (`lobby_view_test.gd`). Its look is a
-  placeholder (the PR asks).
+  player alone in the own ship, start there, and every spawn keeps 4 m clear (`lobby_view_test.gd`). Its look is the
+  art's, its `Screen` at the art screen's face (z 0.162, #1700).
 - **The screen** (`ConsoleScreen`, `client/ui/console_screen.gd`): `Console` (ToyPanelDialog, 960 x 540) > `V` >
   `Top` (`Title` ToyTitleMachine `console.title`; the host's `HostNote` `esc.lobby.you_host`, 420 px; everyone
   else's `HostOnly`: the lock and `esc.lobby.host_only` with the host's name, 378 px), `Rows` (ToyColumnFour: a
@@ -5860,7 +5860,7 @@ GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first 
 - **The glass.** A Marker3D in `GLASS_GROUP` `mirror_glass` gives the reflecting plane: its origin the glass's centre,
   +X right and +Y up as seen from the room, +Z toward the room, its `SIZE_META` `glass_size_m` metadata the width and
   height (a `Vector2` or `Vector2i`, at least 5 cm a side; default 2 x 2.5 m; not `size_m`, which `MapData` reads as
-  a room). The lobby has it as a placeholder, `Mirror/Glass`, 1 cm before the greybox box's room face (provisional;
+  a room). The lobby has it as a placeholder, `Mirror/Glass`, on the glass of the art mirror (prime-game-art `mirror` v6, #1700, its `MirrorGlass` stand-in hidden where the reflection goes) and its box's room face (the box from 1 cm off the wall to the glass; provisional;
   `lobby_hall_test.gd` holds it on that face, facing the places). A level without one, or with it hidden
   (`HallVisibility`), draws no glass; `ItemWorld.set_level` hands the level over. The glass is an unshaded
   `QuadMesh` drawn `GLASS_BEHIND_M` (2 mm) behind the plane, showing the lens's picture flipped left to right (the
@@ -5950,7 +5950,7 @@ draws the hands. The view shows while the own player is living and the player ca
   package has the `RightHand` bone; without it the hand item draws the mug. The others see it at the holder's
   hand point by its grip (the placeholder's: `MugLooks.IN_HAND`, half its height, lower), so the hand closes round its middle. The art's mug model
   and a grip pose, if the art makes one, replace the placeholder, `MUG_AT` and `GRIP` (#1697, art#392's contract):
-  `MugLooks` builds `assets/props/mug/mug.glb` when it is here (its `Beer` hidden for `mug_empty`); a look's grip
+  `MugLooks` builds `assets/environment/mug/mug.glb` when it is here (its `Beer` hidden for `mug_empty`, its size `ART_SIZE`, in the game since #1700); a look's grip
   (`MugLooks.grip_of`) is its `Grip` (+Y up the handle, -Z to the mug's axis), else the placeholder's middle, and
   the others' hand point holds the mug by it; the hands seat it by its grip on the package's `MugSocket` and play
   `Mug_Idle` and `Mug_Run` with no fist held (through a hit `Mug_Idle`'s fist stands: `Punch` keys a closed one), each part on its own (the socket without the clips keeps `GRIP`; the
@@ -7921,7 +7921,7 @@ M8 (#1394 stays open for them). The menu and the reflection are #1395; until it 
 the plainest placeholder (§4.7.50).
 - **The places are level data.** Each place is a station of the mirror's kind (`content/stations/mirror.tres`,
   spawn tag `mirror`) on its own `mirror` marker of the hall (`levels/lobby/lobby.tscn`: three markers 0.8 m apart
-  in front of the greybox mirror), placed by a `StationTicks` with `every_marker` in the base mode's Lobby and
+  in front of the art mirror, #1700), placed by a `StationTicks` with `every_marker` in the base mode's Lobby and
   Countdown. The count, the spacing, the radius (0.4 m, half the spacing, so no two places overlap) and the place's `Cooldown` (0.5 s) are provisional, not a
   decision.
 - **Taking a place.** A place's Interact rule (`AtStation`, `StationInSight`, `MirrorFree`, a `Cooldown`) runs
@@ -10194,7 +10194,9 @@ levels/
   to z 16; the docked ship of `levels/ship/ship.tscn`, its plan origin at (0, 0, −14.5), shut; the Earth, the
   light rig and the art's ten spawn markers). The game's bar, photo booth, pinball machine and mirror stay its own
   layer-1 box bodies under the root (origin the north-west floor corner, on the whole-metre grid; every place a
-  placeholder, "not a decision"), clear of the art's colliders; the ten `lobby_player` markers stand on the art's
+  placeholder, "not a decision"), clear of the art's colliders; the bar and the mirror look as the art (prime-game-art
+  `bar` and `mirror` v6, #1700, each a `Look` at its HANDOFF's place over its kept box; the mirror's box 0.22 x 2.67 x
+  2.21 m from 1 cm off the wall to the glass, 5 cm behind the frame's face, `lobby_hall_test.gd`); the ten `lobby_player` markers stand on the art's
   spawns (x −9..9 in steps of 2, z 2.5). The lobby's flatness there: a ray down at every lobby marker meets the
   art floor at y 0 first. The host's LevelWorld never runs `lobby_hall.gd`, so a node the script frees must hold
   no layer-1 body: the hall takes the ship's clearing ground (an endless WorldBoundary at y 0) off layer 1, else

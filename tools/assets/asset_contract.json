@@ -33,9 +33,11 @@
         {"name": "Crystal_Idle", "loop": true},
         {"name": "Crystal_Run", "loop": true},
         {"name": "Punch", "loop": false},
-        {"name": "Crystal_Hit", "loop": false}
+        {"name": "Crystal_Hit", "loop": false},
+        {"name": "Mug_Idle", "loop": true},
+        {"name": "Mug_Run", "loop": true}
       ],
-      "nodes": ["CrystalSocket"]
+      "nodes": ["CrystalSocket", "MugSocket"]
     }
   },
   "character": {

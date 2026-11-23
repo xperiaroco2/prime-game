@@ -23,10 +23,10 @@ const ENAMEL: Dictionary[String, Color] = {
 }
 const CYAN := Color(0.0, 0.62, 1.0)
 const CYAN_ENERGY := 2.5
-const BRONZE := Color(0.5, 0.38, 0.24)
-const BRONZE_EDGE := Color(1.0, 0.9, 0.7)
-const PANEL := Color(0.3, 0.22, 0.14)
-const PANEL_EDGE := Color(0.78, 0.64, 0.46)
+const BRONZE := Color(0.547, 0.575, 0.593)
+const BRONZE_EDGE := Color(0.854, 0.876, 0.896)
+const PANEL := Color(0.496, 0.522, 0.542)
+const PANEL_EDGE := Color(0.76, 0.785, 0.81)
 const LAMP: Array[Color] = [Color(0.02, 0.02, 0.02), Color(1.0, 0.55, 0.0), Color(0.0, 1.0, 0.12)]
 const LAMP_ENERGY := 1.8
 const BEACON := Color(1.0, 0.02, 0.0)

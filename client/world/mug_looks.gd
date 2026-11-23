@@ -21,21 +21,36 @@ const HANDLE_OUTER := 0.036
 const IN_HAND := Vector3(0.0, -SIZE.y * 0.5, 0.0)
 ## The art's mug (art#392's contract, #1697): one GLB for both kinds, its origin the base's middle,
 ## the handle on +X; `Mug` always shown, `Beer` hidden for `mug_empty`, `Grip` the handle's middle.
-## Until its package lands the placeholder stands in.
-const GLB := "res://assets/props/mug/mug.glb"
+## Without its LFS content (CI's stand-in) the placeholder stands in.
+const GLB := "res://assets/environment/mug/mug.glb"
 const BODY := "Mug"
 const BEER := "Beer"
 const GRIP := "Grip"
 
+## The art mug's glass, as SIZE (art#392's HANDOFF: 0.09 m across, 0.15 m tall; #1700).
+const ART_SIZE := Vector3(0.09, 0.15, 0.09)
+
 static var _model: PackedScene
+## Whether the art's mug is here, read once (-1: not yet).
+static var _has_art := -1
 
 
 static func has(kind: StringName) -> bool:
 	return KINDS.has(kind)
 
 
+## The body's size: the art mug's when it is here, else the placeholder's.
 static func size_of(_kind: StringName) -> Vector3:
-	return SIZE
+	return ART_SIZE if has_art() else SIZE
+
+
+## Whether build() makes the art's mug (its GLB with a `Mug` node; not CI's LFS stand-in).
+static func has_art() -> bool:
+	if _has_art < 0:
+		var look := build(&"mug")
+		_has_art = 1 if look.find_child(BODY, true, false) != null else 0
+		look.free()
+	return _has_art == 1
 
 
 ## The look of `kind`: the art's mug (`model`, by default GLB when it is there, #1697) with its

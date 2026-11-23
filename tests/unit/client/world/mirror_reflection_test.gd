@@ -361,3 +361,15 @@ func _member(peer: int, colour: int) -> void:
 	member.name = "Peer%d" % peer
 	member.colour = colour
 	_model.roster[peer] = member
+
+
+## #1700: the art mirror's stand-in glass (its MirrorGlass mesh, in the glass's plane) is hidden
+## where the reflection is placed, so the two never fight in depth.
+func test_the_art_s_stand_in_glass_is_hidden_where_the_reflection_goes() -> void:
+	var stand_in := MeshInstance3D.new()
+	stand_in.name = MirrorReflection.ART_GLASS
+	stand_in.mesh = QuadMesh.new()
+	_level.add_child(stand_in)
+	assert_bool(stand_in.visible).is_true()
+	_mirror.level = _level
+	assert_bool(stand_in.visible).is_false()

@@ -8,6 +8,8 @@
   object's SHA-256, and the three shaders its `export/*.gdshader`. The crystal drawn in the ship's sockets and
   chargers (#1556). Approved by the engineer in the art manifest (`approved_by` xperiaroco2, 2026-10-24,
   xperiaroco2/prime-game-art#316).
+- **Updated:** the cold-steel build `steel` (its `crystal_metal.gdshader` defaults steel), from prime-game-art `main` at `37fd1767`; approved by the engineer (relayed by the director,
+  2026-11-23), in the game since #1700.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false

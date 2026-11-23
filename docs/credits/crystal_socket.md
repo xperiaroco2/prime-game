@@ -8,6 +8,8 @@
   object's SHA-256. A station on the estate's art ship (#1535). The art manifest's `approved_by` is still empty; the
   engineer approved the M8 slice (the lobby and the ship):
   https://github.com/xperiaroco2/prime-game/issues/507#issuecomment-6549409184.
+- **Updated:** the cold-steel build `steel` (xperiaroco2/prime-game-art#408), from prime-game-art `main`; approved by the
+  engineer (relayed by the director, 2026-11-23), in the game since #1700; the game's look port takes its steel colours.
 - **License:** own work, under the game's terms (the engineer's E1, 2026-10-11: the public game repo has no licence
   file, so all rights reserved)
 - **AI generated:** false
