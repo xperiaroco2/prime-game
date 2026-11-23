@@ -3,7 +3,8 @@ extends Node3D
 ## The stations of the own ClientModel in 3D (ARCHITECTURE §4.7, M4-8; the M4 ADR's D7 (a), D10
 ## (b)): each delivery circle a translucent cylinder of its station kind's radius and height (the
 ## client's own copy of the mode) in StationPlaced's colour, dimmed once PackageDelivered names it.
-## A station kind the mode does not name gets a cylinder of the fallback size. A zone (a ZoneTask's
+## A station kind the mode does not name gets a cylinder of the fallback size (one its own phases
+## place is the level's art, #1703). A zone (a ZoneTask's
 ## station kind) is ZoneViews', not drawn here, and so is every other task type's station (`draws`;
 ## a Generator's generator and switch are the level's station scenes, StationViews, #801).
 ##
@@ -74,7 +75,9 @@ static func is_drop_off(game_mode: GameMode, kind_id: StringName) -> bool:
 ## task type whose TaskClient draws it as a circle (Delivery's and Delivery by meaning's, #1260),
 ## or one no task type of the mode holds (the fallback cylinder). A zone is ZoneViews'; a
 ## Generator's generator and switch are the level's station scenes (StationViews); every other
-## task type's stations are its own view's. A world toggle's kind (#1295) is never drawn: its
+## task type's stations are its own view's. A kind the mode's own phases place (StationTicks: the
+## lobby's tap, pinball, mirror and booth, #1703) is the level's art: never drawn. A world toggle's
+## kind (#1295) is never drawn: its
 ## look is the level's own (the bookcase, a cover, the breaker), and a cylinder would mark a
 ## secret passage.
 static func draws(game_mode: GameMode, kind_id: StringName) -> bool:
@@ -94,7 +97,14 @@ static func draws(game_mode: GameMode, kind_id: StringName) -> bool:
 			if client != null and client.draws_circle(kind_id):
 				return true
 			held = true
-	return not held
+	if held:
+		return false
+	# A kind the mode places itself (StationTicks: the lobby's tap, pinball, mirror and booth) is the
+	# level's own art, its aim chip names it: no greybox cylinder over it (#1703).
+	for kind: StationKind in Stations.kinds_in(game_mode):
+		if kind != null and kind.id == kind_id:
+			return false
+	return true
 
 
 func _process(_delta: float) -> void:
