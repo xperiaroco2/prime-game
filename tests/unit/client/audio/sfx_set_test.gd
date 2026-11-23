@@ -19,9 +19,10 @@ func test_every_file_of_every_id_exists_and_loads() -> void:
 			# The file itself, not only its import: a deleted file's import still loads (#1501).
 			assert_bool(FileAccess.file_exists(path)).override_failure_message(path).is_true()
 			assert_bool(ResourceLoader.exists(path)).override_failure_message(path).is_true()
-			# Kenney's packs ship Ogg; the project's own task and engine sounds are WAV (§4.7.43).
+			# Kenney's packs ship Ogg; the project's own task, engine and M8 sounds are WAV (§4.7.43,
+			# §4.7.70).
 			var stream := load(path)
-			if pack in ["prime_task_feedback", "prime_engine"]:
+			if pack in ["prime_task_feedback", "prime_engine", "prime_m8"]:
 				assert_object(stream as AudioStreamWAV).override_failure_message(path).is_not_null()
 			else:
 				assert_str(pack).starts_with("kenney_")
@@ -43,18 +44,19 @@ func test_the_task_success_and_error_are_the_engineer_s_two_files() -> void:
 	assert_bool(SfxSet.ids().has(SfxSet.TASK_ERROR)).is_true()
 
 
+## The short circuit's zap is the engineer's K1 among the M8 sounds since #1674.
 func test_the_engine_s_five_sounds_are_its_own_synthesis() -> void:
 	var expected: Dictionary[StringName, String] = {
-		SfxSet.ENGINE_CALL: "engine_call",
-		SfxSet.ENGINE_BEEP: "engine_beep",
-		SfxSet.ENGINE_WAIL: "engine_wail",
-		SfxSet.ENGINE_ZAP: "engine_zap",
-		SfxSet.ENGINE_BLAST: "engine_blast",
+		SfxSet.ENGINE_CALL: "prime_engine/engine_call",
+		SfxSet.ENGINE_BEEP: "prime_engine/engine_beep",
+		SfxSet.ENGINE_WAIL: "prime_engine/engine_wail",
+		SfxSet.ENGINE_ZAP: "prime_m8/engine_zap",
+		SfxSet.ENGINE_BLAST: "prime_engine/engine_blast",
 	}
 	for id: StringName in expected:
 		assert_bool(SfxSet.ids().has(id)).override_failure_message(String(id)).is_true()
 		assert_that(Array(SfxSet.paths_for(id))).is_equal(
-			["res://assets/audio/prime_engine/%s.wav" % expected[id]]
+			["res://assets/audio/%s.wav" % expected[id]]
 		)
 
 

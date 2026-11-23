@@ -33,10 +33,51 @@ const ENGINE_CALL := &"engine_call"
 const ENGINE_BEEP := &"engine_beep"
 ## A problem opens: a rising wail at each of its stations.
 const ENGINE_WAIL := &"engine_wail"
-## A short circuit at a breaker: its zap.
+## A short circuit at a breaker: its zap (K1, an M8 sound since #1674).
 const ENGINE_ZAP := &"engine_zap"
 ## A problem's timer ran out: the blast through the ship.
 const ENGINE_BLAST := &"engine_blast"
+## The M8 sounds (#1674), the project's own synthesis the engineer picked by ear
+## (docs/credits/prime_m8.md, tools/sfx/m8_synth.gd), each file named by its id. Where and to whom
+## each plays: SoundChooser (the events), ShipEngineSounds (the engine), PinballSounds (the
+## pinball), StationHums (the charging loop), WorldSounds (the hit, the lobby's limp) and UiSounds
+## (the mirror, the clock's ticks). The swing (SoundChooser.SWING) and the zap are M8 files too.
+const M8 := "res://assets/audio/prime_m8/"
+## A hit landed on the own player: a fist's (any one-handed hand) or a two-handed item's.
+const HIT_FIST := &"hit_fist"
+const HIT_HEAVY := &"hit_heavy"
+## A swing with a two-handed item in the hand (the crystal).
+const SWING_HEAVY := &"swing_heavy"
+## A player knocked down (or gone limp in the lobby), raised, dead, back from the dead.
+const KNOCKDOWN := &"knockdown"
+const REVIVE := &"revive"
+const DEATH := &"death"
+const RESPAWN := &"respawn"
+## The bar: a mug poured at the tap, a drink.
+const TAP_POUR := &"tap_pour"
+const DRINK := &"drink"
+## The pinball: a flipper raised, a bumper, kicker or target scored, a ball launched, a ball lost,
+## a new best.
+const PINBALL_FLIPPER := &"pinball_flipper"
+const PINBALL_BUMPER := &"pinball_bumper"
+const PINBALL_LAUNCH := &"pinball_launch"
+const PINBALL_DRAIN := &"pinball_drain"
+const PINBALL_BEST := &"pinball_best"
+## The mirror's colour menu opening (the own player's only).
+const MIRROR_OPEN := &"mirror_open"
+## The engine: a gill opened or shut again, breakers tripped, one switched on, its lamp green, a
+## crystal into a charger or its socket, a charger charging (a loop) and done.
+const ENGINE_GILL_OPEN := &"engine_gill_open"
+const ENGINE_GILL_SHUT := &"engine_gill_shut"
+const ENGINE_BREAKER_TRIP := &"engine_breaker_trip"
+const ENGINE_BREAKER_ON := &"engine_breaker_on"
+const ENGINE_BREAKER_GREEN := &"engine_breaker_green"
+const ENGINE_CRYSTAL_CHARGER := &"engine_crystal_charger"
+const ENGINE_CRYSTAL_SOCKET := &"engine_crystal_socket"
+const ENGINE_CHARGING := &"engine_charging"
+const ENGINE_CHARGED := &"engine_charged"
+## One of the match clock's last seconds, on the HUD's clock.
+const TIMER_TICK := &"timer_tick"
 ## A UI press (UiSounds).
 const UI_CLICK := &"ui_click"
 ## The one sound of both outcomes when End starts (EndScreen.outro_began, #657).
@@ -48,7 +89,7 @@ const UI_ROLE_DISSIDENTS := &"ui_role_dissidents"
 ## Each id's files, but the footsteps' (footstep()). Arrays: a PackedStringArray value in a typed
 ## const Dictionary reported a wrong size() (24 for 3 paths, observed on 4.7.2).
 const FILES: Dictionary[StringName, Array] = {
-	SoundChooser.SWING: [RPG + "swing_1.ogg", RPG + "swing_2.ogg"],
+	SoundChooser.SWING: [M8 + "swing.wav"],
 	SoundChooser.PICK_UP: [RPG + "pick_up_1.ogg", RPG + "pick_up_2.ogg", RPG + "pick_up_3.ogg"],
 	SoundChooser.PUT_DOWN: [RPG + "put_down_1.ogg", RPG + "put_down_2.ogg", RPG + "put_down_3.ogg"],
 	UI_CLICK: [INTERFACE + "click_1.ogg", INTERFACE + "click_2.ogg", INTERFACE + "click_3.ogg"],
@@ -60,8 +101,33 @@ const FILES: Dictionary[StringName, Array] = {
 	ENGINE_CALL: [ENGINE + "engine_call.wav"],
 	ENGINE_BEEP: [ENGINE + "engine_beep.wav"],
 	ENGINE_WAIL: [ENGINE + "engine_wail.wav"],
-	ENGINE_ZAP: [ENGINE + "engine_zap.wav"],
+	ENGINE_ZAP: [M8 + "engine_zap.wav"],
 	ENGINE_BLAST: [ENGINE + "engine_blast.wav"],
+	HIT_FIST: [M8 + "hit_fist.wav"],
+	HIT_HEAVY: [M8 + "hit_heavy.wav"],
+	SWING_HEAVY: [M8 + "swing_heavy.wav"],
+	KNOCKDOWN: [M8 + "knockdown.wav"],
+	REVIVE: [M8 + "revive.wav"],
+	DEATH: [M8 + "death.wav"],
+	RESPAWN: [M8 + "respawn.wav"],
+	TAP_POUR: [M8 + "tap_pour.wav"],
+	DRINK: [M8 + "drink.wav"],
+	PINBALL_FLIPPER: [M8 + "pinball_flipper.wav"],
+	PINBALL_BUMPER: [M8 + "pinball_bumper.wav"],
+	PINBALL_LAUNCH: [M8 + "pinball_launch.wav"],
+	PINBALL_DRAIN: [M8 + "pinball_drain.wav"],
+	PINBALL_BEST: [M8 + "pinball_best.wav"],
+	MIRROR_OPEN: [M8 + "mirror_open.wav"],
+	ENGINE_GILL_OPEN: [M8 + "engine_gill_open.wav"],
+	ENGINE_GILL_SHUT: [M8 + "engine_gill_shut.wav"],
+	ENGINE_BREAKER_TRIP: [M8 + "engine_breaker_trip.wav"],
+	ENGINE_BREAKER_ON: [M8 + "engine_breaker_on.wav"],
+	ENGINE_BREAKER_GREEN: [M8 + "engine_breaker_green.wav"],
+	ENGINE_CRYSTAL_CHARGER: [M8 + "engine_crystal_charger.wav"],
+	ENGINE_CRYSTAL_SOCKET: [M8 + "engine_crystal_socket.wav"],
+	ENGINE_CHARGING: [M8 + "engine_charging.wav"],
+	ENGINE_CHARGED: [M8 + "engine_charged.wav"],
+	TIMER_TICK: [M8 + "timer_tick.wav"],
 }
 ## The variants of a footstep on each surface: footstep_<surface>_000 to _004 (Impact Sounds).
 const FOOTSTEP_VARIANTS := 5

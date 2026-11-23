@@ -13,6 +13,9 @@ extends Node3D
 ## the ring), and stops once it is fried (the ding; the task's error marks the burn) or taken
 ## off; its stream is WorldSounds.sizzle_blip(). The car repair's lift motor runs the same way
 ## (#811, RD14), at the car while its car rises (CarRepairUse.rising), keyed by the lift panel's id.
+## The ship engine's charger charges the same way (#1674): SfxSet.ENGINE_CHARGING, the engineer's
+## loop, at a charger while a crystal of the own ClientEngineBook charges in it (CHARGING, until its
+## `tick`), at CHARGING_DB; it stops at the charge's end (ShipEngineSounds' ENGINE_CHARGED).
 
 ## How often the muffle ray is cast for each hum playing (the ears move, unlike a one-shot's).
 const MUFFLE_EVERY_S := 0.1
@@ -20,6 +23,8 @@ const MUFFLE_EVERY_S := 0.1
 const HUM_DB := -6.0
 ## The lift motor's pitch on the hum's placeholder (#811): a placeholder, "not a decision".
 const MOTOR_PITCH := 0.6
+## How loud the charger's loop plays (#1674): as rendered, the engineer heard it so.
+const CHARGING_DB := 0.0
 
 var model: ClientModel
 ## The client's own copy of the mode: which station kinds are a Generator's generator.
@@ -37,6 +42,8 @@ var _started := 0
 var _rays := 0
 var _stream: AudioStreamWAV = null
 var _sizzle: AudioStreamWAV = null
+## Each hum's volume before its muffle, by station id.
+var _levels: Dictionary[int, float] = {}
 
 
 func _process(delta: float) -> void:
@@ -71,7 +78,7 @@ func _due(heard_from: Variant) -> Dictionary[int, Vector3]:
 			if SoundChooser.audible(motor_at as Vector3, heard_from as Vector3):
 				due[id] = motor_at as Vector3
 			continue
-		if not _sounds(station, now):
+		if not _sounds(station, now) and not _charging(id, now):
 			continue
 		if SoundChooser.audible(station.position, heard_from as Vector3):
 			due[id] = station.position
@@ -139,7 +146,12 @@ func hum_of(id: int) -> AudioStreamPlayer3D:
 
 func _start(id: int, at: Vector3) -> void:
 	var hum := AudioStreamPlayer3D.new()
-	if _is_grill(model.stations[id]):
+	var level := HUM_DB
+	if _charging(id, _now()):
+		hum.name = "Charging%d" % id
+		hum.stream = load(SfxSet.paths_for(SfxSet.ENGINE_CHARGING)[0]) as AudioStream
+		level = CHARGING_DB
+	elif _is_grill(model.stations[id]):
 		if _sizzle == null:
 			_sizzle = WorldSounds.sizzle_blip()
 		hum.name = "Sizzle%d" % id
@@ -158,12 +170,13 @@ func _start(id: int, at: Vector3) -> void:
 		hum.stream = _stream
 	hum.max_distance = SoundChooser.HEARING_RANGE_M
 	hum.bus = AudioBuses.EFFECTS
-	hum.volume_db = HUM_DB
+	hum.volume_db = level
 	hum.position = at
 	add_child(hum)
 	hum.play()
 	_hums[id] = hum
 	_muffles[id] = Muffle.new()
+	_levels[id] = level
 	_started += 1
 
 
@@ -171,6 +184,7 @@ func _stop(id: int) -> void:
 	var hum: AudioStreamPlayer3D = _hums[id]
 	_hums.erase(id)
 	_muffles.erase(id)
+	_levels.erase(id)
 	remove_child(hum)
 	hum.queue_free()
 
@@ -186,5 +200,18 @@ func _muffle(id: int, from: Vector3, delta: float) -> void:
 		behind = Muffle.blocked(get_world_3d().direct_space_state, from, to_global(aim))
 	var muffle := _muffles[id]
 	muffle.follow(behind, delta)
-	hum.volume_db = HUM_DB + muffle.volume_db()
+	hum.volume_db = _levels[id] + muffle.volume_db()
 	hum.bus = muffle.bus_for(AudioBuses.EFFECTS)
+
+
+## Whether a crystal charges in charger station `id` at host tick `now` (the own ClientEngineBook:
+## CHARGING, before its `tick`).
+func _charging(id: int, now: int) -> bool:
+	for crystal: ClientEngineBook.Crystal in model.engine.crystals.values():
+		if (
+			crystal.charger == id
+			and crystal.phase == CrystalProblem.CHARGING
+			and now < crystal.tick
+		):
+			return true
+	return false

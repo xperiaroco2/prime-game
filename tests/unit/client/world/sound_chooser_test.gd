@@ -104,9 +104,13 @@ func test_a_launch_plays_at_its_origin_and_none_beyond_the_hearing_range() -> vo
 
 
 func test_other_events_are_silent() -> void:
-	# PackageDelivered plays the task's success since #1341 (task_feedback_sounds_test.gd).
-	for event_name: StringName in [&"Damaged", &"TaskProgress", &"KnockedDown", &"Swapped"]:
+	# PackageDelivered plays the task's success since #1341 (task_feedback_sounds_test.gd); a
+	# KnockedDown the knockdown since #1674, and Damaged's hit is the victim's WorldSounds'
+	# (world_sounds_m8_test.gd), never the chooser's.
+	for event_name: StringName in [&"Damaged", &"TaskProgress", &"Swapped"]:
 		assert_object(_choose(event_name, {"peer": 2}, Vector3.ZERO)).is_null()
+	var down := _choose(&"KnockedDown", {"peer": 2, "position": Vector3(1, 0, 0)}, Vector3.ZERO)
+	assert_str(String(down.id)).is_equal(String(SfxSet.KNOCKDOWN))
 
 
 func test_world_sounds_plays_with_the_range_as_max_distance() -> void:
@@ -143,8 +147,9 @@ func test_a_footstep_plays_at_the_feet_within_the_range_only() -> void:
 
 
 func test_each_former_stub_event_plays_its_own_files() -> void:
-	# #525 replaced the generated blips (this test replaces the blips' length test): Swung,
-	# ItemPickedUp and ItemPlaced each play their SfxSet randomizer of Kenney files.
+	# #525 replaced the generated blips (this test replaces the blips' length test): ItemPickedUp
+	# and ItemPlaced each play their SfxSet randomizer of Kenney files; Swung the engineer's M8
+	# pick (#1674), one file of the project's own.
 	var sounds: WorldSounds = auto_free(WorldSounds.new())
 	add_child(sounds)
 	sounds.model = _model
@@ -152,8 +157,13 @@ func test_each_former_stub_event_plays_its_own_files() -> void:
 	var swung := {"peer": 2, "facing": Vector3.FORWARD}
 	var picked := {"peer": 2, "item": 5}
 	var placed := {"item": 5, "position": Vector3(0, 0, 2), "cause": &"put_down"}
+	var swing := _choose(&"Swung", swung, Vector3.ZERO)
+	assert_str(String(swing.id)).is_equal(String(SoundChooser.SWING))
+	assert_array(Array(SfxSet.paths_for(SoundChooser.SWING))).contains_exactly(
+		[SfxSet.M8 + "swing.wav"]
+	)
+	assert_int(sounds.sfx.stream_for(SoundChooser.SWING).streams_count).is_equal(1)
 	var events: Array[Array] = [
-		[&"Swung", swung, SoundChooser.SWING, "swing_"],
 		[&"ItemPickedUp", picked, SoundChooser.PICK_UP, "pick_up_"],
 		[&"ItemPlaced", placed, SoundChooser.PUT_DOWN, "put_down_"],
 	]

@@ -75,11 +75,15 @@ static func profile_of(model: ClientModel, colour: int) -> Dictionary:
 	return {"name": own.name if own != null else "", "colour": colour}
 
 
-## Shows or hides it for `model` on screen `now` and presses the own colour's swatch.
+## Shows or hides it for `model` on screen `now` and presses the own colour's swatch; as it opens,
+## the mirror's sound plays (#1674, UiSounds' MIRROR_OPEN: the own player's alone).
 func refresh(model: ClientModel, now: GameFlow.Screen) -> void:
+	var was_shown := visible
 	visible = shown_for(model, now)
 	if not visible:
 		return
+	if not was_shown:
+		UiSounds.cue(self, SfxSet.MIRROR_OPEN)
 	var colour := model.colour_of(model.own_peer)
 	if colour == _colour:
 		return

@@ -12,6 +12,12 @@ extends Node3D
 ## table), the close-up's camera pose (CLOSE_UP_GROUP) and the display's (DISPLAY_GROUP, its text
 ## facing its +Z). A level without the mount draws no table; without the close-up marker the seat
 ## shows no close-up; without the display marker no display.
+##
+## The table's sounds (#1674, PinballSounds) go out through `sound_due` as SoundChooser.CUEs at the
+## table's mount; no table, no sound.
+
+## A sound of the table due now (SoundChooser.CUE and its fields), for WorldSounds.on_event.
+signal sound_due(event_name: StringName, fields: Dictionary)
 
 ## After AvatarViews (-80), which sets this frame's render tick (drawn_at), and the viewfinder (7).
 const PHYSICS_PRIORITY := 8
@@ -33,6 +39,9 @@ var display := PinballDisplay.new()
 var close_up := PinballCloseUp.new()
 var keys := PinballKeys.new()
 var track := PinballBallTrack.new()
+## When the table sounds (#1674): its cues go out through `sound_due` (ItemWorld hands them to
+## WorldSounds).
+var sounds := PinballSounds.new()
 
 var _game := 0
 ## The level's display marker, or null: the display shows only with one.
@@ -56,6 +65,8 @@ func _physics_process(delta: float) -> void:
 	table.step(delta)
 	var render := drawn_at.call() as float if drawn_at.is_valid() else -1.0
 	table.show_ball(track.at(render) if render >= 0.0 else null)
+	for cue: Dictionary in sounds.due(model.pinball, table.global_position):
+		sound_due.emit(SoundChooser.CUE, cue)
 
 
 func _process(_delta: float) -> void:
@@ -78,6 +89,7 @@ func on_snapshot(_tick: int, _avatars: Dictionary) -> void:
 func on_event(event_name: StringName, _fields: Dictionary) -> void:
 	if event_name == &"LoadMatch":
 		close_up.snap()
+		sounds.clear()
 		track.clear()
 		keys.clear()
 
@@ -90,6 +102,7 @@ func clear() -> void:
 	keys.send = Callable()
 	track.clear()
 	table.rest()
+	sounds.clear()
 	display.show_state(null)
 	model = null
 	drawn_at = Callable()

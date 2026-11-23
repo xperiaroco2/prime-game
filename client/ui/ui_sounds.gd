@@ -12,6 +12,11 @@ extends RefCounted
 ##   role (`role_revealed`, #716, #213, #175), SfxSet's UI_ROLE_ENGINEERS or UI_ROLE_DISSIDENTS,
 ##   each from its own player. Local to the own client: it reads only the own role, sends nothing,
 ##   and no voice is routed through it (#213).
+## - The own cues (#1674), each from its own player, local to the own client: the mirror's menu
+##   opening (MirrorMenu.opened, the own player at a mirror; SfxSet's MIRROR_OPEN) and each of the
+##   match clock's last TICK_SECONDS seconds while the HUD shows the clock (GameUi; SfxSet's
+##   TIMER_TICK; the downed and the dead see no clock, so hear no tick). Time up plays nothing of
+##   its own: End's outro follows.
 ## A node outside the tree, or a set whose files do not load, plays nothing.
 
 ## The click's player's name under the root.
@@ -23,6 +28,13 @@ const ROLE_PLAYERS: Dictionary[StringName, StringName] = {
 	SfxSet.UI_ROLE_ENGINEERS: &"UiRoleEngineers",
 	SfxSet.UI_ROLE_DISSIDENTS: &"UiRoleDissidents",
 }
+## Each own cue's player's name under the root, by its SfxSet id; any other id plays nothing.
+const CUE_PLAYERS: Dictionary[StringName, StringName] = {
+	SfxSet.MIRROR_OPEN: &"UiMirrorOpen",
+	SfxSet.TIMER_TICK: &"UiTimerTick",
+}
+## How many of the match clock's last seconds tick (#1674).
+const TICK_SECONDS := 10
 ## How many clicks overlap at most (fast presses).
 const POLYPHONY := 4
 
@@ -32,6 +44,8 @@ static var clicks := 0
 static var outros := 0
 ## The role sounds played, by SfxSet id, oldest first (tests).
 static var roles: Array[StringName] = []
+## The own cues played, by SfxSet id, oldest first (tests).
+static var cues: Array[StringName] = []
 
 
 ## Plays the click for a press of `button`.
@@ -51,6 +65,12 @@ static func outro(screen: Node) -> void:
 static func role(screen: Node, id: StringName) -> void:
 	if ROLE_PLAYERS.has(id) and _play(screen, ROLE_PLAYERS[id], id, 1):
 		roles.append(id)
+
+
+## Plays own cue `id` (one of CUE_PLAYERS' ids) for `node`.
+static func cue(node: Node, id: StringName) -> void:
+	if CUE_PLAYERS.has(id) and _play(node, CUE_PLAYERS[id], id, 1):
+		cues.append(id)
 
 
 ## Stops every role sound still playing under the root of `tree`: the pregame ended, and a sound

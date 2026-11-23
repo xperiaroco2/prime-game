@@ -55,6 +55,25 @@ func test_a_swatch_per_body_colour_and_the_own_one_pressed() -> void:
 	assert_bool(menu.visible).is_false()
 
 
+## Opening plays the mirror's sound (#1674), once per opening, on the own client alone.
+func test_opening_plays_the_mirrors_sound_once() -> void:
+	var model := _model()
+	var menu: MirrorMenu = auto_free(MirrorMenu.new())
+	add_child(menu)
+	UiSounds.cues.clear()
+	menu.refresh(model, GameFlow.Screen.LOBBY)
+	assert_array(UiSounds.cues).is_empty()
+	model.fold(&"MirrorPlaces", _places([5], [OWN]))
+	menu.refresh(model, GameFlow.Screen.LOBBY)
+	menu.refresh(model, GameFlow.Screen.LOBBY)
+	assert_array(UiSounds.cues).contains_exactly([SfxSet.MIRROR_OPEN])
+	model.fold(&"MirrorPlaces", _places([], []))
+	menu.refresh(model, GameFlow.Screen.LOBBY)
+	model.fold(&"MirrorPlaces", _places([5], [OWN]))
+	menu.refresh(model, GameFlow.Screen.LOBBY)
+	assert_array(UiSounds.cues).contains_exactly([SfxSet.MIRROR_OPEN, SfxSet.MIRROR_OPEN])
+
+
 ## A click on a toggle flips it before `pressed`: the menu sets it back, the host decides.
 func test_a_click_asks_for_the_colour_and_predicts_nothing() -> void:
 	var model := _model()

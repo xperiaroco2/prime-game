@@ -1,9 +1,9 @@
 extends GdUnitTestSuite
 ## The ship engine's sounds through SoundChooser and WorldSounds (#1501; ARCHITECTURE §4.7.64):
 ## ShipEngineViews' cue (ShipEngineSounds.EVENT) plays its own id at its place, cut at the hearing
-## range, the blast at its farther one; a KnockedDown in play by a tripped breaker
-## still off is its zap there, any other knockdown silent; WorldSounds plays each on its SfxSet file
-## on the Effects bus with its range as max_distance; ItemWorld hands ShipEngineViews' cues to its
+## range, the blast at its farther one; a KnockedDown in play by a tripped breaker still off is its
+## zap there, any other knockdown its fall (#1674); WorldSounds plays each on its SfxSet file on the
+## Effects bus with its range as max_distance; ItemWorld hands ShipEngineViews' cues to its
 ## WorldSounds.
 
 const BASE_MODE := "res://content/modes/base_mode.tres"
@@ -50,9 +50,10 @@ func test_the_blast_carries_farther_than_the_rest() -> void:
 		assert_object(_choose(ShipEngineSounds.EVENT, ShipEngineSounds.cue(id, AT), far)).is_null()
 
 
-func test_a_knockdown_by_a_tripped_breaker_zaps_there_and_any_other_is_silent() -> void:
+## Any other knockdown falls with the knockdown's sound at the body since #1674.
+func test_a_knockdown_by_a_tripped_breaker_zaps_there_and_any_other_falls() -> void:
 	var by_breaker := {"peer": 2, "position": BREAKER_AT + Vector3(0.0, 0.0, 1.0)}
-	assert_object(_choose(&"KnockedDown", by_breaker, Vector3.ZERO)).is_null()
+	_assert_fall(_choose(&"KnockedDown", by_breaker, Vector3.ZERO), by_breaker)
 	_model.fold(
 		&"EngineProblemOpened",
 		{"problem": 1, "stations": PackedInt32Array([BOARD]), "deadline": 900}
@@ -68,9 +69,15 @@ func test_a_knockdown_by_a_tripped_breaker_zaps_there_and_any_other_is_silent() 
 	# Far from the listener: cut like every world sound.
 	var far := BREAKER_AT + Vector3(SoundChooser.HEARING_RANGE_M + 1.0, 0.0, 0.0)
 	assert_object(_choose(&"KnockedDown", by_breaker, far)).is_null()
-	# Outside the play phase: silent.
+	# Outside the play phase: no zap, the fall.
 	_phase(&"end")
-	assert_object(_choose(&"KnockedDown", by_breaker, Vector3.ZERO)).is_null()
+	_assert_fall(_choose(&"KnockedDown", by_breaker, Vector3.ZERO), by_breaker)
+
+
+func _assert_fall(sound: SoundChooser.Sound, fields: Dictionary) -> void:
+	assert_object(sound).is_not_null()
+	assert_str(String(sound.id)).is_equal(String(SfxSet.KNOCKDOWN))
+	assert_that(sound.position).is_equal(fields["position"])
 
 
 func test_world_sounds_plays_each_engine_file_on_effects_with_its_range() -> void:

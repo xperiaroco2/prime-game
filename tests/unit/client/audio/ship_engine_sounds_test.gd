@@ -70,7 +70,12 @@ func test_a_new_problem_wails_once_at_each_of_its_stations() -> void:
 	assert_object(cues[0]["position"]).is_equal(GILLS_AT)
 	assert_object(cues[1]["position"]).is_equal(_model.stations[BOARD].position)
 	assert_array(_due(false)).is_empty()
+	# Fixed: no wail; its success at each station (#1674), once.
 	_model.fold(&"EngineProblemFixed", {"problem": 1})
+	cues = _due(false)
+	assert_int(cues.size()).is_equal(2)
+	for cue: Dictionary in cues:
+		assert_str(str(cue["id"])).is_equal(String(SfxSet.TASK_SUCCESS))
 	assert_array(_due(false)).is_empty()
 
 
@@ -93,8 +98,12 @@ func test_the_order_beeps_at_each_lit_lamp_and_never_in_its_pause() -> void:
 	# Steps 1 to 8 of a 4-step cycle (two lamps, two dark): lamps at steps 1, 4, 5 and 8; step 0, the
 	# first lamp at tick 0, was seen at the open, not after it.
 	assert_int(beeps).is_equal(4)
-	# Fixed: no order, no beep.
+	# Fixed: no order, no beep (the fix's success, #1674, at the next frame alone).
 	_model.fold(&"EngineProblemFixed", {"problem": 1})
+	_now = 2 * cycle * step
+	var fixed := _due(false)
+	assert_int(fixed.size()).is_equal(1)
+	assert_str(str(fixed[0]["id"])).is_equal(String(SfxSet.TASK_SUCCESS))
 	for frame in range(2 * cycle * step + 1, 4 * cycle * step):
 		_now = frame
 		assert_array(_due(false)).is_empty()

@@ -91,6 +91,8 @@ var _model: ClientModel
 var _mode: GameMode
 var _host_tick := 0.0
 var _local := HudText.Local.new()
+## The match clock's seconds left at the last round refresh (-1 before one): its tick (#1674).
+var _ticked := -1
 
 
 func _init() -> void:
@@ -263,11 +265,23 @@ func refresh_round(
 	_local = local
 	_alive = model.is_alive(model.own_peer)
 	hud.aiming = not map.visible and _alive and not _local.viewing
-	hud.show_hud(HudText.of(model, mode, host_tick, local))
+	var shown := HudText.of(model, mode, host_tick, local)
+	hud.show_hud(shown)
+	var left := GameFlow.seconds_left(model.end_tick, floori(host_tick))
+	if tick_due(shown.time != "", left, _ticked):
+		UiSounds.cue(self, SfxSet.TIMER_TICK)
+	_ticked = left
 	# Lesson 7: the dead player's Spectate plate holds the top centre; the step goes under it.
 	tutorial.set_step_under(life.spectate if life.spectate.visible else null)
 	if map.visible:
 		map.refresh(model, mode, host_tick, local)
+
+
+## Whether the match clock ticks (#1674): it shows (`clock_shown`: the HUD's, hidden for the
+## downed and the dead) and its seconds `left` stepped from `last` to one of its last
+## UiSounds.TICK_SECONDS. At 0 nothing ticks: End's outro follows.
+static func tick_due(clock_shown: bool, left: int, last: int) -> bool:
+	return clock_shown and left != last and left >= 1 and left <= UiSounds.TICK_SECONDS
 
 
 ## Opens the Esc menu over `screen_now`, by default the screen drawn last; `model` is the own
