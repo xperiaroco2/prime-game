@@ -5,7 +5,8 @@ extends Node3D
 ## controller puts them, in body colour `colour` (BodyColours; -1: the package's default,
 ## FpHands.DEFAULT_TINT). `state` picks the frame: "idle",
 ## "run" (a quarter into its cycle), "punch" (at its contact, 0.15 s), "crystal" (a charged crystal
-## held, a second into Crystal_Idle) or "crystal_hit" (at its contact, 0.20 s). Each clip is
+## held, a second into Crystal_Idle), "crystal_hit" (at its contact, 0.20 s) or "mug" (a mug of
+## beer in the right hand's grip, #1678, a second into Idle). Each clip is
 ## seeked and paused, so the still does not depend on the frame rate. Dev only.
 
 const ROOM := "res://levels/estate/rooms/ship.tscn"
@@ -24,6 +25,7 @@ const STATES := {
 	"punch": [&"Punch", 0.15],
 	"crystal": [&"Crystal_Idle", 1.0],
 	"crystal_hit": [&"Crystal_Hit", 0.20],
+	"mug": [&"Idle", 1.0],
 }
 
 @export var state := "idle"
@@ -55,6 +57,8 @@ func _ready() -> void:
 		hands.set_tint(BodyColours.of(colour))
 	if state.begins_with("crystal"):
 		hands.set_held(&"crystal_charged")
+	if state == "mug":
+		hands.set_held(&"mug")
 	if hands.player == null:
 		return
 	var pose: Array = STATES.get(state, STATES["idle"])

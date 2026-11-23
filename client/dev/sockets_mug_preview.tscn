@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://hd2m1piyiwve"]
+
+[ext_resource type="Script" uid="uid://bu3vuiasmgxfk" path="res://client/dev/sockets_preview.gd" id="1_preview"]
+
+[node name="SocketsPreview" type="Node3D" unique_id=1694447408]
+script = ExtResource("1_preview")
+hand_kind = &"mug"

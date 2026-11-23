@@ -2918,9 +2918,9 @@ with `SnapshotBuffer`'s poses. What the build pinned:
   energy crystal's two kinds are the crystal's own model (`ShipCrystalLook`, #1672: charged lit, spent grey, its
   light skipping the stations' meshes and the first-person hands and casting shadows, so it stops at walls as
   the photo flash's does (P6), and at the first-person hands' 40 % in a hand item; the labelled box only without
-  the Git LFS model);
+  the Git LFS model); the bar's mugs are `MugLooks`' placeholder (#1678);
   `ItemViews` places one per model item: where it lies, at a remote holder's `RemotePlayerBody` attach point
-  (`hand_point()`, `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
+  (`hand_point()`, a mug `MugLooks.IN_HAND` lower; `belt_point()`, `carry_point()` for a two-handed kind), on the ground at the body while that
   holder is downed (the own player too, whose first-person hand then shows nothing), hidden while it has no body
   drawn and when the own living player holds it; in flight, on its arc (§4.7.52). Each view joins
   `SightHider.GROUP` and gives `sight_point()`; the root's `visible` is left to the sight hiding, `ItemViews`
@@ -5852,8 +5852,9 @@ GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first 
   `ClientModel.posed`, in the own roster colour (the host's `ProfileChanged`; nothing predicted). Shown again after
   being hidden, it faces the look at once (`snap_look`). It shows only while the own body stands (`body_life_of`
   living: a downed or limp own body is drawn as its ragdoll, KE5) and the reflection renders. The first-person hand
-  item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye, but a crystal, which the
-  first-person hands hold on `HANDS` (§4.7.69: only its glow shows); the stand-in holds no item view (kept simple).
+  item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye, but a crystal or a mug, which
+  the first-person hands hold on `HANDS` (§4.7.69: only a crystal's glow shows; a mug at the hall's bar does not
+  show at all, #1678); the stand-in holds no item view (kept simple).
 - **Cost.** The lens renders (`UPDATE_ALWAYS`) only while the eye is in front of the plane (`MIN_EYE_M`) and the
   glass is not wholly outside one of its frustum's planes (`seen_by`); else its viewport is off and the stand-in
   hidden. Its picture is `HEIGHT_PX` 512 rows (the width by the glass's aspect: 410), with no positional shadows, no
@@ -5907,6 +5908,16 @@ draws the hands. The view shows while the own player is living and the player ca
   the package has its `CrystalSocket`. Gaps: the lobby mirror (`MIRROR_VIEW`) draws no held crystal, only its
   light (no crystal in the lobby today); the spectate camera's hand (`LifeView.spectate_hand`) still draws a
   watched player's crystal as the hand item (its model since #1672), not the hands of that player's own screen.
+- **The mug** (#1678): a held `mug` or `mug_empty` is its `ItemView` look (`MugLooks`' placeholder: a cylinder with
+  a handle, no label) in the right hand, on `MugGrip`, a `BoneAttachment3D` the code adds on the package's
+  `RightHand` bone, at `MUG_AT` (upright on the screen in `Idle`, its side in the palm), its meshes on `HANDS` with
+  no shadow. The package has no one-handed grip, so with a mug the state clips stay the empty hand's and the
+  right fist's morph (`fist`) is held at `GRIP` (0.45, part-open) after every apply of the clips (the mixer's
+  `mixer_applied`); the left fist stays the clip's. `FpHands.attach` adds the mug kinds to `hidden_kinds` when the
+  package has the `RightHand` bone; without it the hand item draws the mug. The others see it at the holder's
+  hand point, `MugLooks.IN_HAND` (half its height) lower, so the hand closes round its middle. The art's mug model
+  and a grip pose, if the art makes one, replace the placeholder, `MUG_AT` and `GRIP`. Gap: the lobby mirror draws
+  no held mug (§4.7.68).
 - **The colour:** the own body colour from the own profile (`ClientModel.colour_of(own_peer)`, `BodyColours`),
   which `ItemViews` passes on every frame. It multiplies each material's own albedo, as `CharacterRig` tints a
   remote body; the package's skin is a neutral texture under a white factor, so the albedo is the body colour
@@ -5918,11 +5929,13 @@ draws the hands. The view shows while the own player is living and the player ca
   clips, and tints and layers every mesh of the package, so a package with the arms split into meshes changes no
   code.
 - **The fists:** `FPArms`' two morph targets, `fist` (the right hand) and `fist_L` (the left), are keyed in every
-  clip: 1 in `Idle`, `Run` and `Punch`, 0 in the crystal clips. The code keys and resets none: the switch's blend
+  clip: 1 in `Idle`, `Run` and `Punch`, 0 in the crystal clips. The code keys none but the right fist round a held
+  mug (The mug, above), and resets none: the switch's blend
   opens the fists onto the crystal over its 0.15 s and closes them again. A crystal taken or dropped during a hit of
   the other state ends that hit at once (its clip would key the old fists), and the new state's clip blends in.
   Tests: `fp_hands_test.gd` on a fixture; `tests/integration/client/player/fp_hands_art_test.gd` on the package
-  (the keys on `FPArms` in every clip, the blend, the colour and the layer), in the nightly `lfs` job (CI has only
+  (the keys on `FPArms` in every clip, the blend, the colour and the layer, the mug's grip), in the nightly `lfs`
+  job (CI has only
   the Git LFS stand-in: skip).
 
 The hands have no sound beyond the existing swing. A later package from the art repo replaces the one GLB (its

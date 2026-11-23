@@ -3,7 +3,8 @@ extends GdUnitTestSuite
 ## fixture built in memory with the package's node and clip names (the real GLB is Git LFS content,
 ## absent on CI): the state clips, the hit and the return from it, the run's speed, the crystal on
 ## the socket at 40 % of its light and never lighting the hands, the colour, the HANDS layer, the
-## hand item's crystal left to the hands, and the hands' own camera.
+## hand item's crystal left to the hands, the hands' own camera, and a mug in the right hand's grip
+## (#1678).
 
 const CLIPS: Array[StringName] = [
 	&"Idle", &"Run", &"Punch", &"Crystal_Idle", &"Crystal_Run", &"Crystal_Hit"
@@ -41,7 +42,7 @@ static func _fist_mesh(skin: StandardMaterial3D) -> ArrayMesh:
 
 
 func _fixture(
-	with_player := true, looping_hit := false, second_arm := false, fists := false
+	with_player := true, looping_hit := false, second_arm := false, fists := false, grip := false
 ) -> PackedScene:
 	var root := Node3D.new()
 	root.name = "Fixture"
@@ -93,6 +94,15 @@ func _fixture(
 		other.mesh = other_box
 		attachment.add_child(other)
 		other.owner = root
+	if grip:
+		# The package's skeleton with its right hand bone (HANDOFF "Rig"), where the mug's grip goes.
+		var skeleton := Skeleton3D.new()
+		skeleton.name = "Skeleton3D"
+		skeleton.add_bone("View")
+		skeleton.add_bone(FpHands.HAND_BONE)
+		skeleton.set_bone_parent(1, 0)
+		root.add_child(skeleton)
+		skeleton.owner = root
 	var scene := PackedScene.new()
 	scene.pack(root)
 	root.free()
@@ -352,6 +362,67 @@ func test_a_held_crystal_sits_on_the_socket_at_forty_percent_light() -> void:
 	assert_str(hands.current_clip()).is_equal("Idle")
 
 
+func test_a_held_mug_sits_in_the_right_hands_grip_part_open() -> void:
+	# #1678: the mug's look on the grip at MUG_AT, on the hands' layer with no shadow; the right
+	# fist held at GRIP over whatever clip plays (the left the clip's), the clip's again once it
+	# goes.
+	var hands: FpHands = auto_free(FpHands.new(_fixture(true, false, false, true, true)))
+	add_child(hands)
+	var arms := hands.model.find_child("FPArms", true, false) as MeshInstance3D
+	var right := arms.find_blend_shape_by_name(FpHands.FIST_MORPH)
+	var left := arms.find_blend_shape_by_name(&"fist_L")
+	_play_for(hands, 0.1)
+	hands.set_held(&"mug")
+	assert_bool(hands.holds_mug()).is_true()
+	assert_str(hands.current_clip()).is_equal("Idle")
+	assert_str((hands.grip as BoneAttachment3D).bone_name).is_equal(FpHands.HAND_BONE)
+	assert_object(hands.mug.get_parent()).is_same(hands.grip)
+	assert_that(hands.mug.transform).is_equal(FpHands.MUG_AT)
+	assert_object(hands.mug.look().find_child("Mug", false, false)).is_not_null()
+	for node: Node in hands.mug.find_children("*", "GeometryInstance3D", true, false):
+		var geometry := node as GeometryInstance3D
+		assert_int(geometry.layers).is_equal(PhotoLayers.HANDS)
+		assert_int(geometry.cast_shadow).is_equal(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	_play_for(hands, 0.2)
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(FpHands.GRIP, 1e-3)
+	assert_float(arms.get_blend_shape_value(left)).is_equal_approx(1.0, 1e-3)
+	hands.update(5.0)
+	_play_for(hands, FpHands.BLEND_S * 2.0)
+	assert_str(hands.current_clip()).is_equal("Run")
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(FpHands.GRIP, 1e-3)
+	hands.play_hit()
+	_play_for(hands, FpHands.HIT_BLEND_S * 2.0)
+	assert_str(hands.current_clip()).is_equal("Punch")
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(FpHands.GRIP, 1e-3)
+	# Drunk empty: a new look of the empty kind in the same grip.
+	hands.set_held(&"mug_empty")
+	assert_str(hands.mug.kind).is_equal("mug_empty")
+	assert_object(hands.mug.get_parent()).is_same(hands.grip)
+	assert_int(hands.grip.get_child_count()).is_equal(1)
+	hands.set_held(&"")
+	assert_bool(hands.holds_mug()).is_false()
+	assert_int(hands.grip.get_child_count()).is_zero()
+	_play_for(hands, 0.1)
+	assert_float(arms.get_blend_shape_value(right)).is_equal_approx(1.0, 1e-3)
+
+
+func test_the_hand_item_leaves_the_mug_to_the_hands_grip() -> void:
+	var holder: Node3D = auto_free(Node3D.new())
+	add_child(holder)
+	var camera := Camera3D.new()
+	holder.add_child(camera)
+	var hand := FirstPersonHand.new()
+	camera.add_child(hand)
+	var hands := FpHands.new(_fixture(true, false, false, false, true))
+	hands.build()
+	hands.attach(holder, camera, hand)
+	assert_array(hand.hidden_kinds).contains_exactly(FpHands.CRYSTAL_KINDS + MugLooks.KINDS)
+	for kind: StringName in MugLooks.KINDS:
+		hand.show_item(kind, Color.WHITE)
+		assert_str(hand.shown_kind()).is_equal(kind)
+		assert_object(hand.find_child("HandItem", false, false)).is_null()
+
+
 func test_without_the_package_every_call_is_harmless() -> void:
 	var hands := _hands(false)
 	assert_object(hands.model).is_null()
@@ -361,6 +432,8 @@ func test_without_the_package_every_call_is_harmless() -> void:
 	hands.set_tint(Color.RED)
 	assert_str(hands.current_clip()).is_empty()
 	assert_object(hands.crystal).is_null()
+	hands.set_held(&"mug")
+	assert_object(hands.mug).is_null()
 
 
 func test_the_hand_item_leaves_the_crystal_to_the_hands() -> void:
@@ -377,6 +450,7 @@ func test_the_hand_item_leaves_the_crystal_to_the_hands() -> void:
 	hand.show_item(&"crystal_charged", Color.WHITE)
 	assert_str(hand.shown_kind()).is_equal("crystal_charged")
 	assert_object(hand.find_child("HandItem", false, false)).is_null()
+	# A package without the grip's bone (this fixture's) leaves the mug to the hand item.
 	hand.show_item(&"mug", Color.WHITE)
 	assert_object(hand.find_child("HandItem", false, false)).is_not_null()
 	# The hands' own camera follows the player camera at the package's field of view.
