@@ -10195,8 +10195,9 @@ levels/
   light rig and the art's ten spawn markers). The game's bar, photo booth, pinball machine and mirror stay its own
   layer-1 box bodies under the root (origin the north-west floor corner, on the whole-metre grid; every place a
   placeholder, "not a decision"), clear of the art's colliders; the bar and the mirror look as the art (prime-game-art
-  `bar` and `mirror` v6, #1700, each a `Look` at its HANDOFF's place over its kept box; the mirror's box 0.22 x 2.67 x
-  2.21 m from 1 cm off the wall to the glass, 5 cm behind the frame's face, `lobby_hall_test.gd`); the ten `lobby_player` markers stand on the art's
+  `bar` and `mirror` v6, #1700, each a `Look` at its HANDOFF's place over its kept box; the mirror's box 0.22 x 4.5 x
+  2.21 m from 1 cm off the wall to the glass, 5 cm behind the frame's face, `lobby_hall_test.gd`; up the wall past any
+  throw's apex, a jump's included, so no thrown item rests on it out of reach, #1708, `lobby_throw_test.gd`); the ten `lobby_player` markers stand on the art's
   spawns (x −9..9 in steps of 2, z 2.5). The lobby's flatness there: a ray down at every lobby marker meets the
   art floor at y 0 first. The host's LevelWorld never runs `lobby_hall.gd`, so a node the script frees must hold
   no layer-1 body: the hall takes the ship's clearing ground (an endless WorldBoundary at y 0) off layer 1, else
