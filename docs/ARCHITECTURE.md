@@ -4540,7 +4540,10 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
     step falls where the playing clip's phase (advanced by the plan's rate over the length) crosses one of the
     clip's foot contacts (`Locomotion.CONTACTS`, the art table's contact times over its cycle), so at rate r the
     steps fall the contacts' times / r apart; the phase restarts with the rig's slot (a family or clip change),
-    on a placement and on a reset, and holds while standing. A remote player's plan is `AvatarViews.plan_of`
+    on a placement and on a reset, and holds while standing. A backstop (`STEP_BACKSTOP`, 1.6, a placeholder;
+    #1334's netcode review): with no contact crossed for 1.6 of the longest contact gap of the clips played since
+    the last step, a step falls all the same, so a slot flipped faster than a step (a speed tapped across Walk's
+    edge, the fast crouch's halfway or the sprint's) never silences a walker. A remote player's plan is `AvatarViews.plan_of`
     (drawn before `WorldSounds`, priority -80) and its length the rig's clip (`CharacterRig.cycle_of`, slice_m1's
     real lengths), the table's cycle for a capsule; the own player's plan comes from its drawn move against a body
     yaw `WorldSounds` keeps by `HeadLook.body_follow`, its length the character set's (`CharacterSet.cycle_of`, what
@@ -4598,7 +4601,7 @@ nothing for a door (M6.2 has none; the engineer, #525, 2026-10-07).
   crouch speed, a walk's at the fast crouch's (#991) and at the walk speed whatever the flag, eased between, cut
   beyond 6 m, the own slow steps too). The contacts (#1334): `footstep_cadence_test.gd` (a jog's and a sprint's
   steps at the contacts over the rate, a slot change restarts the phase, standing holds it, no contacts falls back
-  to the interval) and `world_sounds_steps_test.gd` (a backpedal steps on `Jog_Bwd`'s contacts over its rate).
+  to the interval, a slot flipping faster than a step still steps) and `world_sounds_steps_test.gd` (a backpedal steps on `Jog_Bwd`'s contacts over its rate).
 #### 4.7.44 The solo tutorial session in the game (#601)
 T3 of the tutorial (`docs/design/tutorial.md` §2.1, §2.2, §5; E62, E67, E69, E70; D25, D26, D35 (a)). The lessons
 (T4, #602), the invite and the plates (#492) and the Esc menu's tutorial variant (#491) build on it.
@@ -5112,17 +5115,18 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   | moving, crouched (any heading), else | `Crouch_Fwd` | speed / 0.75 |
   | moving in the back family (`Locomotion.family_of`: past 110° off the body's forward; back to the front below 90°) | `Jog_Bwd` (slot `Back`) | speed / 4.5 |
   | moving more to a side than ahead | `Strafe_Left`, `Strafe_Right` (slot `Front`) | speed / 4.5 |
-  | moving ahead at most `WALK_UP_TO_MPS` (2.0 m/s, the engineer's list of 2026-10-26), the character with `Walk` (#1334) | `Walk` (a slot of its own: the slots' cross-fade is the blend into the jog) | speed / (2.0 / 2.398) |
-  | moving ahead, at most halfway from the walk to the sprint speed (`PlayerRules`) | `Jog_Fwd` (slot `Front`) | speed / 4.5 |
-  | moving ahead, faster | `Sprint_Fwd` | speed / 7.0 |
+  | moving ahead, faster than halfway from the walk to the sprint speed (`PlayerRules`) | `Sprint_Fwd` | speed / 7.0 |
+  | moving ahead within `WALK_MAX_DEG` (22.5°) of forward, at most `WALK_UP_TO_MPS` (2.0 m/s, the engineer's list of 2026-10-26; a dead zone: entered up to 2.25, kept up to 2.5 while the last plan walked, `State.was_walk`), the character with `Walk` (#1334) | `Walk` (a slot of its own: the slots' cross-fade is the blend into the jog) | speed / (2.0 / 2.398) |
+  | moving ahead, else | `Jog_Fwd` (slot `Front`) | speed / 4.5 |
 
   Holding a two-handed item adds the `Carry_Upper` layer over any base (carry idle = `Idle` + `Carry_Upper`, carry
-  walk = `Jog_Fwd` + `Carry_Upper`). Picking up and putting down are one-shots (`one_shot()`): `Pickup_Package` and
+  walk = `Jog_Fwd` or `Walk` + `Carry_Upper`). Picking up and putting down are one-shots (`one_shot()`): `Pickup_Package` and
   `Putdown_Package` for a two-handed item, `Pickup_One` and `Putdown_One` for another. Not mapped (they stay in the
   GLB): jump, turn, raise, talk, push and knife clips. A plan also names the rig's `slot` (the clip, or the move's
   family `Front` or `Back`) and its `blend` (the move's unit direction in the body's frame, x right, y ahead); `base`
-  stays the art MVP set's clip nearest the move (the label tests and footsteps read). `back` feeds the next state's
-  `was_back`, the family switch's dead zone.
+  is the art MVP set's clip nearest the move, or one of `EXTRA_CLIPS` the character has (the label tests and
+  footsteps read). `back` feeds the next state's `was_back`, the family switch's dead zone; a `Walk` slot the next
+  state's `was_walk`.
 - `client/player/Locomotion` (pure, #1334, art#196's table copied into #1334): the eight-direction data and maths.
   `POINTS`: the art's eight clips with their headings (positive to the body's left) and families: front
   (`Jog_Fwd`, `Jog_Fwd_Left`/`Right` at 45°, `Strafe_Left`/`Right` at 90°) and back (`Jog_Bwd`,

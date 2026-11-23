@@ -168,3 +168,13 @@ func test_every_profile_s_json_files_ship_in_every_export() -> void:
 					. override_failure_message("%s in %s" % [path, section])
 					. is_true()
 				)
+
+
+## #1334: the set names the extra clips (Walk, Crouch_Run) its scene has, as its rig does.
+func test_the_set_names_the_extra_clips_its_scene_has() -> void:
+	var bare := CharacterSet.from_scene(Fixture.scene(AvatarClips.all_clips()), Fixture.ragdoll())
+	assert_array(bare.extra_clips()).is_empty()
+	var clips := AvatarClips.all_clips()
+	clips.append(AvatarClips.WALK)
+	var walker := CharacterSet.from_scene(Fixture.scene(clips), Fixture.ragdoll())
+	assert_array(walker.extra_clips()).contains_exactly([AvatarClips.WALK])

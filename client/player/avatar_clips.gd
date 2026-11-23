@@ -14,15 +14,16 @@ extends RefCounted
 ## crouched -> Crouch_Fwd, past halfway from the crouch's speed to the fast crouch's Crouch_Run
 ## where the character has it (#1334; whatever the heading); in Locomotion's back family (beyond
 ## about 100 degrees off the body's forward, with its dead zone, #1334) -> Jog_Bwd; more to a side
-## than ahead -> Strafe_Left or Strafe_Right; ahead up to WALK_UP_TO_MPS -> Walk where the character
-## has it; ahead at most halfway from the walk to the sprint speed -> Jog_Fwd, faster ->
-## Sprint_Fwd. That clip is the plan's `base`, the nearest
-## point of the art MVP set; the rig plays a family's move as a blend of its points at the plan's
-## `blend` (the direction) and switches families by the plan's `slot`. A move clip
-## plays at the drawn speed over its ground speed at rate 1 (the art's "play at speed /
-## speed_m_s"), clamped to MIN_RATE..MAX_RATE. Holding a two-handed item adds the Carry_Upper layer
-## over any of them (carry idle = Idle + Carry_Upper, carry walk = Jog_Fwd + Carry_Upper). Picking
-## up and putting down are one-shots on the item events (one_shot()), not states.
+## than ahead -> Strafe_Left or Strafe_Right; ahead, faster than halfway from the walk to the
+## sprint speed -> Sprint_Fwd; ahead within WALK_MAX_DEG of forward, up to WALK_UP_TO_MPS (and its
+## dead zone) -> Walk where the character has it; else Jog_Fwd. That clip is the plan's `base`, the
+## nearest point of the art MVP set or one of EXTRA_CLIPS the character has; the rig plays a
+## family's move as a blend of its points at the plan's `blend` (the direction) and switches
+## families by the plan's `slot`. A move clip plays at the drawn speed over its ground speed at
+## rate 1 (the art's "play at speed / speed_m_s"), clamped to MIN_RATE..MAX_RATE. Holding a
+## two-handed item adds the Carry_Upper layer over any of them (carry idle = Idle + Carry_Upper,
+## carry walk = Jog_Fwd or Walk + Carry_Upper). Picking up and putting down are one-shots on the
+## item events (one_shot()), not states.
 
 enum Shot { PICKUP, PUTDOWN }
 
@@ -65,6 +66,14 @@ const CROUCH_RUN_MPS := 2.8
 ## to about 2 m/s, then a blend into the jog", the engineer's list of 2026-10-26): the slots'
 ## cross-fade is the blend. Client feel, not a game number: the host checks no clip.
 const WALK_UP_TO_MPS := 2.0
+## The Walk edge's dead zone (#1334's review), so an interpolated pose's jitter at the sneak's
+## 2.0 m/s never flips the slot: a move enters Walk up to WALK_UP_TO_MPS plus the first and keeps it
+## up to WALK_UP_TO_MPS plus the second. Client feel, placeholders, "not a decision".
+const WALK_ENTER_SLACK_MPS := 0.25
+const WALK_KEEP_SLACK_MPS := 0.5
+## Walk is one straight-ahead clip: only a move this near forward plays it (Jog_Fwd's share of the
+## front blend), a wider diagonal keeps the family's blend, so the body never slides sideways.
+const WALK_MAX_DEG := 22.5
 ## The rate clamp: a placeholder, "not a decision" (wide enough for the fast crouch over 0.75 m/s).
 const MIN_RATE := 0.25
 const MAX_RATE := 4.0
@@ -89,6 +98,8 @@ class State:
 	var carrying := false
 	## Whether the last plan was in the back family (Plan.back): the family switch's dead zone.
 	var was_back := false
+	## Whether the last plan played Walk (Plan.slot): the Walk edge's dead zone.
+	var was_walk := false
 
 
 ## What to play.
@@ -100,8 +111,8 @@ class Plan:
 	var rate := 1.0
 	## The Carry_Upper layer on.
 	var carry := false
-	## The rig's base input: the clip for Idle, Sprint_Fwd and the crouch's, else the move's family
-	## (Locomotion.FRONT or BACK), blended at `blend`.
+	## The rig's base input: the clip for Idle, Sprint_Fwd, Walk and the crouch's, else the move's
+	## family (Locomotion.FRONT or BACK), blended at `blend`.
 	var slot: StringName = IDLE
 	## The move's direction in the body's frame (Locomotion.blend_position()); zero standing.
 	var blend := Vector2.ZERO
@@ -160,7 +171,7 @@ static func plan(
 		out.base = SPRINT_FWD
 		out.slot = out.base
 		out.rate = _rate(speed, SPRINT_MPS)
-	elif speed <= WALK_UP_TO_MPS and extras.has(WALK):
+	elif _walks(state, speed, heading) and extras.has(WALK):
 		out.base = WALK
 		out.slot = out.base
 		out.rate = _rate(speed, WALK_MPS)
@@ -230,3 +241,12 @@ static func all_clips() -> Array[StringName]:
 
 static func _rate(speed: float, natural: float) -> float:
 	return clampf(speed / natural, MIN_RATE, MAX_RATE)
+
+
+## Whether a front move at `speed` and `heading` plays Walk: near forward, up to the Walk edge and
+## its dead zone (WALK_KEEP_SLACK_MPS while the last plan walked, else WALK_ENTER_SLACK_MPS).
+static func _walks(state: State, speed: float, heading: float) -> bool:
+	if absf(rad_to_deg(heading)) > WALK_MAX_DEG:
+		return false
+	var slack := WALK_KEEP_SLACK_MPS if state.was_walk else WALK_ENTER_SLACK_MPS
+	return speed <= WALK_UP_TO_MPS + slack

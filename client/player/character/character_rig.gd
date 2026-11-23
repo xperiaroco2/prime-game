@@ -9,7 +9,8 @@ extends Node3D
 ##   (#1693)
 ##
 ## A slot is a clip (Idle, Sprint_Fwd, Crouch_Idle, Crouch_Fwd, and Walk and Crouch_Run, #1334,
-## Jog_Fwd and Crouch_Fwd standing in for them where the character lacks them) or a move family
+## Jog_Fwd and Crouch_Fwd filling those inputs where the character lacks them: no plan names them
+## then, as its extras are the rig's extra_clips()) or a move family
 ## of Locomotion (Front, Back, #1334): an AnimationNodeBlendSpace2D of the family's points whose
 ## clip the character has, at the plan's direction, its clips kept in step
 ## (SYNC_MODE_CYCLIC_MUTABLE: the art MVP set's clips differ in length); a family with fewer than
@@ -153,7 +154,7 @@ func cycle_of(clip: StringName) -> float:
 
 ## AvatarClips.EXTRA_CLIPS this character has (AvatarClips.plan()'s `extras`).
 func extra_clips() -> Array[StringName]:
-	return _extras
+	return _extras.duplicate()
 
 
 ## The Transition's input playing (a clip, or Locomotion.FRONT or BACK).

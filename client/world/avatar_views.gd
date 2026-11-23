@@ -296,6 +296,7 @@ func _animate(body: RemotePlayerBody, pose: SnapshotBuffer.Pose, delta: float) -
 	state.carrying = _two_handed(model.hand_item(body.peer))
 	var last: AvatarClips.Plan = _plans.get(body.peer)
 	state.was_back = last != null and last.back
+	state.was_walk = last != null and last.slot == AvatarClips.WALK
 	if _drawn_pos.has(body.peer) and delta > 0.0 and not _is_placement(body.peer, pose, delta):
 		state.drawn_move = (pose.position - _drawn_pos[body.peer]) / delta
 	_drawn_pos[body.peer] = pose.position

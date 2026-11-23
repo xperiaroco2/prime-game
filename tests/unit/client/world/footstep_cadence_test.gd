@@ -230,6 +230,39 @@ func test_a_plan_without_contacts_or_cycle_falls_back_to_the_speed() -> void:
 		assert_int(count).is_equal(_expected(WALK, 3.0))
 
 
+## A slot flipping faster than half a cycle (#1334's netcode review: a speed tapped across Walk's
+## 2.0 m/s or the fast crouch's halfway, or the jog's sprint edge) restarts the phase each time and
+## would reach no contact: STEP_BACKSTOP steps it all the same (at least one step per 1.6 of the
+## jog's 0.687 s gap at 3 m/s), so a flipping walker is never silent.
+func test_a_slot_flipping_faster_than_a_step_still_steps() -> void:
+	var flips: Array[Array] = [
+		[
+			_plan(&"Walk", &"Walk", 3.0 / AvatarClips.WALK_MPS),
+			1.333,
+			_plan(&"Jog_Fwd", &"Front", 3.0 / AvatarClips.JOG_MPS),
+			0.917
+		],
+		[
+			_plan(&"Crouch_Fwd", &"Crouch_Fwd", 2.4 / AvatarClips.CROUCH_MPS),
+			0.875,
+			_plan(&"Crouch_Run", &"Crouch_Run", 2.4 / AvatarClips.CROUCH_RUN_MPS),
+			0.667
+		],
+	]
+	for flip: Array in flips:
+		var cadence := FootstepCadence.new()
+		var count := 0
+		for i: int in roundi(3.0 / FRAME):
+			# Every 0.1 s (6 frames) the other slot.
+			var first := floori(i / 6.0) % 2 == 0
+			var plan := (flip[0] if first else flip[2]) as AvatarClips.Plan
+			var cycle := (flip[1] if first else flip[3]) as float
+			if cadence.advance(_move(3.0), FRAME, WALK, SPRINT, plan, cycle):
+				count += 1
+		var name := String((flip[0] as AvatarClips.Plan).base)
+		assert_int(count).override_failure_message(name).is_greater_equal(2)
+
+
 ## The times (seconds from the start) of the steps `seconds` of moving at 4 m/s play in the clip
 ## mode with `plan` and `cycle_s`, frame by frame, on `cadence` (a new one when null).
 func _clip_steps(
