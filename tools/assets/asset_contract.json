@@ -85,7 +85,8 @@
       "_about": "A character whose package differs from the shared row above (#1690), keyed by assets/characters/<id>/: its own params, player_options, bones and clips replace the shared ones. The art package's HANDOFF.md and package.json are the source.",
       "alien_chameleon": {
         "params": {
-          "_about": "The alien's GLB is baked at 24 fps (its HANDOFF, art#398).",
+          "_about": "The alien's GLB is baked at 24 fps (its HANDOFF, art#398) and imported at 0.94 of its size, applied to its meshes, skeleton and clips: its eyes at the game's 1.6 m (CharacterProfile.ALIEN_SCALE, #1693).",
+          "nodes/root_scale": 0.94,
           "animation/fps": 24
         },
         "player_options": {

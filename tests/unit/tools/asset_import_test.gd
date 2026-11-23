@@ -87,8 +87,11 @@ func test_a_character_with_its_own_row_takes_that_row() -> void:
 	assert_object(Check.character_role(FIXTURE, _contract)).is_same(_contract["character"])
 	var params := _character_params()
 	params["animation/fps"] = 24
+	var shared := params.duplicate()
+	# The alien is imported at its drawn size (#1693).
+	params["nodes/root_scale"] = 0.94
 	assert_array(Check.check_glb_params(alien, params, _contract, true)).is_empty()
-	assert_array(Check.check_glb_params(FIXTURE, params, _contract, true)).is_equal(
+	assert_array(Check.check_glb_params(FIXTURE, shared, _contract, true)).is_equal(
 		[FIXTURE + ": .import animation/fps=24, want 30"]
 	)
 
