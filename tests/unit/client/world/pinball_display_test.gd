@@ -31,6 +31,74 @@ func test_the_best_and_its_owner_in_the_owner_s_colour() -> void:
 	assert_bool(_display.game.visible).is_false()
 
 
+## #1721: every line lies on the art cabinet's screen (PinballDisplay.SCREEN_M, centred on the
+## Display marker), nothing over the trim under it: the worst case, a seven-digit best, a long
+## wide name and a long game line, each drawn within the screen's rect.
+func test_every_line_lies_inside_the_cabinet_s_screen() -> void:
+	add_child(_display)
+	_member(3, "WWWWWWWWWWWWWWWW", 2)
+	_model.pinball.best = 9999999
+	_model.pinball.best_name = "WWWWWWWWWWWWWWWW"
+	_model.pinball.player = 1
+	_model.pinball.in_play = true
+	_model.pinball.score = 9999999
+	_model.pinball.balls_left = 3
+	_display.show_state(_model)
+	await get_tree().process_frame
+	var inner := PinballDisplay.inner_screen()
+	# Inside the screen's margin: the trim stays clear.
+	var screen := Rect2(-PinballDisplay.SCREEN_M * 0.5, PinballDisplay.SCREEN_M)
+	assert_bool(screen.grow(-PinballDisplay.SCREEN_MARGIN_M + 0.0001).encloses(inner)).is_true()
+	var lines: Array[Label3D] = [_display.best, _display.owner_name, _display.game]
+	for i in lines.size():
+		var line := lines[i]
+		var row := _display.row_of(i)
+		assert_bool(inner.grow(0.0001).encloses(row)).override_failure_message(line.name).is_true()
+		if i > 0:
+			# Top to bottom, no two rows overlapping.
+			assert_float(row.end.y).is_less_equal(_display.row_of(i - 1).position.y + 0.0001)
+		var box := line.transform * line.get_aabb()
+		var drawn := Rect2(box.position.x, box.position.y, box.size.x, box.size.y)
+		(
+			assert_float(drawn.size.x)
+			. override_failure_message("%s draws nothing" % line.name)
+			. is_greater(0.0)
+		)
+		(
+			assert_bool(row.grow(0.001).encloses(drawn))
+			. override_failure_message("%s %s leaves its row %s" % [line.name, drawn, row])
+			. is_true()
+		)
+
+
+## #1721: short lines keep the placeholder's sizes in ratio: the three share one pixel size, so
+## the best's line stays the largest, the game's the smallest.
+func test_short_lines_keep_their_sizes_in_ratio() -> void:
+	add_child(_display)
+	_model.pinball.best = 120
+	_model.pinball.best_name = "Bo"
+	_model.pinball.player = 1
+	_model.pinball.in_play = true
+	_model.pinball.score = 50
+	_model.pinball.balls_left = 3
+	_display.show_state(_model)
+	await get_tree().process_frame
+	var shared := _display.shared_pixel
+	assert_float(shared).is_greater(0.0)
+	assert_float(shared).is_less_equal(PinballDisplay.PIXEL_M)
+	for line: Label3D in [_display.best, _display.owner_name, _display.game]:
+		assert_float(line.pixel_size).override_failure_message(line.name).is_equal_approx(
+			shared, 1e-7
+		)
+	var tall := func(line: Label3D) -> float: return line.get_aabb().size.y
+	assert_float(tall.call(_display.best) as float).is_greater(
+		tall.call(_display.owner_name) as float
+	)
+	assert_float(tall.call(_display.owner_name) as float).is_greater(
+		tall.call(_display.game) as float
+	)
+
+
 func test_an_owner_gone_or_a_shared_name_is_neutral() -> void:
 	_model.pinball.best = 300
 	_model.pinball.best_name = "Cy"

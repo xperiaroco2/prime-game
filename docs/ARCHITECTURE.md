@@ -5717,7 +5717,11 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
   the owner's roster body colour, found by name (`PinballState` carries the name, not a peer): only a name exactly one
   roster member has gets a colour; an owner gone or a shared name is drawn in the neutral colour. Captions are deck
   keys (`pinball.best`, `pinball.score`, `pinball.balls`; raw until the deck has them, asked on #150) with the number
-  after them.
+  after them. The lines lie on the art cabinet's screen (#1721): `SCREEN_M` 66 x 38 cm centred on the marker (the art's
+  HANDOFF), one row per line inside its 2 cm margin, each as tall as its line: the three share one pixel size
+  (`shared_pixel`, `PIXEL_M` at most, less so the rows fit the screen's height), so their sizes keep their ratio, and a
+  line shrinks further only when its text (measured with the font Label3D draws with, outline included) is wider than
+  its row (`fit_line`). Its look (font, sizes, colours) is still the placeholder; the engineer picks it on #1721.
 - **Provisional, not a decision** (taste, the engineer's: taken under his standing word, #507): the keys Z and Slash,
   the close-up's fov 50 and ease 0.6 s, the gap and reconcile times, the display's Toy-style look; the greybox table's
   looks (CI's, without the LFS art). The cabinet, the table's art and the markers are the approved art's (#1702; the
