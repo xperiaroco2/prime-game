@@ -196,12 +196,19 @@ func test_in_the_hall_the_table_fills_the_close_up_s_view() -> void:
 	# The display's best line shows at the top of the seated view.
 	assert_bool(views.display.visible).is_true()
 	assert_bool(lens.is_position_in_frustum(views.display.best.global_position)).is_true()
-	# Its top edge too (half the text's height above its centred anchor): the line is not cut
-	# (#1400, answer 6).
+	# Its whole drawn text too, the top edge included: the line is not cut (#1400, answer 6;
+	# #1721: the lines now fill the art cabinet's screen, the best's row at its top).
+	_model.pinball.best = 1200
+	_model.pinball.best_name = "Bo"
+	views.display.show_state(_model)
+	await get_tree().process_frame
 	var best := views.display.best
-	var top := best.global_position + Vector3.UP * (best.font_size * best.pixel_size / 2.0)
-	assert_bool(lens.is_position_in_frustum(top)).is_true()
-	assert_float(lens.unproject_position(top).y).is_greater_equal(0.0)
+	var drawn := best.global_transform * best.get_aabb()
+	assert_float(drawn.size.y).is_greater(0.0)
+	for i in 8:
+		var corner := drawn.get_endpoint(i)
+		assert_bool(lens.is_position_in_frustum(corner)).is_true()
+		assert_float(lens.unproject_position(corner).y).is_greater_equal(0.0)
 	# Most of the screen's height: the table, not the room.
 	assert_float(box.size.y / screen.y).is_greater(0.6)
 	assert_bool(Rect2(Vector2.ZERO, screen).encloses(box)).is_true()
