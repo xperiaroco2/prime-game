@@ -10,7 +10,6 @@ extends GdUnitTestSuite
 const MAP := "res://levels/clearing/clearing.tscn"
 ## The landing pad's material (prime-game-art clearing_ground/v1, #1704).
 const GROUND_LOOK := "res://assets/environment/clearing/clearing_ground.tres"
-
 const BASE_MODE := "res://content/modes/base_mode.tres"
 ## The ship's origin, the clearing's middle (the estate's, docs/design/estate-map.md §5a).
 const MIDDLE := Vector3(116, 0, 72)
@@ -132,9 +131,15 @@ func test_the_ground_is_the_landing_pad_round_the_ship() -> void:
 	var ground := scene.get_node(^"Ground") as Node3D
 	var mesh := (ground.get_node(^"Mesh") as MeshInstance3D).mesh as BoxMesh
 	var material := mesh.material as ShaderMaterial
-	assert_object(material).is_not_null()
+	(
+		assert_object(material)
+		. override_failure_message("no ShaderMaterial on the ground")
+		. is_not_null()
+	)
+	if material == null:
+		return
 	assert_str(material.resource_path).is_equal(GROUND_LOOK)
-	assert_bool(material.get_shader_parameter(&"pad") == true).is_true()
+	assert_that(material.get_shader_parameter(&"pad")).is_equal(true)
 	var centre: Vector2 = material.get_shader_parameter(&"centre")
 	var ship := (scene.get_node(^"Ship") as Node3D).position
 	assert_vector(centre).is_equal(Vector2(ship.x, ship.z))

@@ -10094,7 +10094,9 @@ levels/
   clearing/clearing.tscn           the M8 round's map (#1687): the estate's `Ship` piece at (116, 0, 72), the dead's
                                    hall, and its own pieces in `clearing/rooms/`: `Markers` (the estate's round and
                                    respawn markers, and four knife markers on its edge for the melee fixture's
-                                   Loading), `Ground` (200 m; the landing pad, #1704: prime-game-art's `clearing_ground` shader material, its pad centred on the ship), `Boundary` (an invisible ring of
+                                   Loading), `Ground` (200 m; the landing pad, #1704: prime-game-art's
+                                   `clearing_ground` shader material, its pad centred on the
+                                   ship), `Boundary` (an invisible ring of
                                    walls, 35 m inside, 12 m high), `Sky` (a WorldEnvironment: fog 0.035 into a grey
                                    background); base_mode's one player map and the only map the ship's engine lists
                                    (`tests/integration/levels/clearing_test.gd`; its walks up the ramp: the playchecks `m8_match` and `ship_engine`); the size, the fog and the knives'
