@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://c14myfihww7x1"]
+
+[ext_resource type="PackedScene" uid="uid://dwowsc5qbhfu7" path="res://assets/environment/bar/bar.glb" id="1_look"]
+
+[sub_resource type="BoxShape3D" id="Shape_bar"]
+size = Vector3(1, 1.1, 6)
+
+[node name="Bar" type="StaticBody3D" unique_id=1707300001]
+
+[node name="Shape" type="CollisionShape3D" parent="." unique_id=1707300002]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.55, 3)
+shape = SubResource("Shape_bar")
+
+[node name="Look" parent="." unique_id=1707300003 instance=ExtResource("1_look")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.5, 0, 3)

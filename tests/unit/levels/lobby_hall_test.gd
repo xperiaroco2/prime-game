@@ -19,6 +19,8 @@ const HALL := "res://levels/lobby/lobby_hall.tscn"
 const SHIP := "res://levels/ship/ship.tscn"
 const PLAYER := "res://client/player/player.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
+const DEAD_HALL := "res://levels/lobby/dead_hall.tscn"
+const BAR := "res://levels/lobby/bar.tscn"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 ## The game's pieces of the hall, each a node of its own under the root.
 const PIECES: Array[String] = ["Bar", "PhotoBooth", "Pinball", "Mirror"]
@@ -598,7 +600,7 @@ func test_the_art_pieces_bring_no_light_or_camera() -> void:
 ## #1702: the dead's hall plays the same art pinball as the lobby: its Pinball body, collider, Look,
 ## markers and play spot as the lobby's (whose placement the tests above hold).
 func test_the_dead_hall_s_pinball_is_the_lobby_s() -> void:
-	var dead := (load("res://levels/lobby/dead_hall.tscn") as PackedScene).instantiate() as Node3D
+	var dead := (load(DEAD_HALL) as PackedScene).instantiate() as Node3D
 	var ours := dead.get_node("Pinball") as Node3D
 	var theirs := _root.get_node("Pinball") as Node3D
 	assert_bool(ours.transform.is_equal_approx(theirs.transform)).is_true()
@@ -621,3 +623,28 @@ func test_the_dead_hall_s_pinball_is_the_lobby_s() -> void:
 	var lobby_spot := _markers(&"spawn_pinball")[0] as Node3D
 	assert_vector((spots[0] as Node3D).position).is_equal(lobby_spot.position)
 	dead.free()
+
+
+## #1707: the lobby and the dead's hall both stand the one bar piece (levels/CLAUDE.md: a map
+## instances pieces, never copies them) at one place, adding nothing to it: no greybox of their own.
+func test_both_halls_stand_the_one_bar_piece() -> void:
+	var piece := auto_free((load(BAR) as PackedScene).instantiate()) as Node3D
+	var dead := auto_free((load(DEAD_HALL) as PackedScene).instantiate()) as Node3D
+	var lobby_bar := _root.get_node("Bar") as Node3D
+	for bar: Node3D in [lobby_bar, dead.get_node_or_null("Bar") as Node3D]:
+		assert_object(bar).is_not_null()
+		if bar == null:
+			continue
+		assert_str(bar.scene_file_path).is_equal(BAR)
+		assert_bool(bar.transform.is_equal_approx(lobby_bar.transform)).is_true()
+		assert_array(_names_of(bar)).contains_exactly(_names_of(piece))
+	var look := piece.get_node("Look") as Node3D
+	assert_str(look.scene_file_path).is_equal(ART_LOOKS["Bar"])
+
+
+## The names of `node`'s children, in order.
+func _names_of(node: Node) -> Array[StringName]:
+	var names: Array[StringName] = []
+	for child: Node in node.get_children():
+		names.append(child.name)
+	return names

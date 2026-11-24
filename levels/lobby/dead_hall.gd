@@ -1,10 +1,12 @@
 class_name DeadHall
 extends Node3D
 ## The dead's hall inside a round map (#1489): the piece the map instances holds the markers, the
-## stations' places and a floor, and no art, so a map stays cheap to read (the host and every test
-## read each level whole; `lobby_hall.tscn` is a 9000-line scene). The art comes on the client the
-## first time its own player waits here (HallVisibility, ensure_art): the host never needs it, and
-## a dead player's movement is bound by the hall's radius, not the art's walls.
+## stations' places, a floor and the two pieces a dead player plays with: the lobby's bar piece
+## (`bar.tscn`, #1707) and the pinball (#1702), each a small GLB `Look` over its collider. The
+## hall's own art stays out, so a map stays cheap to read (the host and every test read each level
+## whole; `lobby_hall.tscn` is a 9000-line scene). That art comes on the client the first time its
+## own player waits here (HallVisibility, ensure_art): the host never needs it, and a dead player's
+## movement is bound by the hall's radius, not the art's walls.
 
 ## The lobby's art hall, without the skat: its ship, its environment and its ship probe are freed
 ## on the client by the art's own script (`ship_free`).
