@@ -60,7 +60,7 @@ var zones: Dictionary[StringName, PackedStringArray] = {}
 ## level without a map (NO_MAP_KEY on its root).
 static func from_level(level: Node, mode: GameMode) -> MapData:
 	var data := MapData.new()
-	if level == null or level.get_meta(NO_MAP_KEY, false):
+	if level == null or level.get_meta(NO_MAP_KEY, false) == true:
 		return data
 	data.rooms = rooms_of(level)
 	if mode == null:
