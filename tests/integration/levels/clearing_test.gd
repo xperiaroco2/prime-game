@@ -124,6 +124,33 @@ func test_the_clearing_draws_no_map_on_the_m_screen() -> void:
 	assert_array(MapData.from_level(scene, _base_mode()).rooms).is_empty()
 
 
+## #1720: no greybox room label floats over the clearing: the estate ship room's `Name` ("Ship")
+## is hidden where the clearing places the room; the room's record (id, name key, size) stays, and
+## the estate's own map keeps its labels (estate_map_test).
+func test_no_room_label_shows_on_the_clearing() -> void:
+	var scene: Node = auto_free((load(MAP) as PackedScene).instantiate())
+	var shown: Array[String] = []
+	for node: Node in scene.find_children("*", "Label3D", true, false):
+		if _drawn(node as Node3D, scene):
+			shown.append("%s \"%s\"" % [scene.get_path_to(node), (node as Label3D).text])
+	assert_array(shown).is_empty()
+	var ship := scene.get_node(^"Ship") as Node3D
+	assert_bool(ship.has_meta(MapData.SIZE_KEY)).is_true()
+	assert_str(str(ship.get_meta(MapData.ID_KEY, ""))).is_equal("ship")
+
+
+## Whether `node` draws: it and every Node3D above it up to `root` visible (out of the tree,
+## where is_visible_in_tree() reads false).
+func _drawn(node: Node3D, root: Node) -> bool:
+	var at: Node = node
+	while at != null and at != root:
+		var spatial := at as Node3D
+		if spatial != null and not spatial.visible:
+			return false
+		at = at.get_parent()
+	return true
+
+
 ## #1704, the engineer's landing pad (prime-game-art clearing_ground/v1): the ground's box wears the
 ## package's material, its pad centred on the ship; the box and its collider stay the greybox's.
 func test_the_ground_is_the_landing_pad_round_the_ship() -> void:
