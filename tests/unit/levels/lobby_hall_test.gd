@@ -26,13 +26,45 @@ const PIECES: Array[String] = ["Bar", "PhotoBooth", "Pinball", "Mirror"]
 const ART_LOOKS: Dictionary[String, String] = {
 	"Bar": "res://assets/environment/bar/bar.glb",
 	"Mirror": "res://assets/environment/mirror/mirror.glb",
+	"Pinball": "res://assets/environment/pinball/pinball.glb",
 }
-## Where each art look stands in the hall, its package's HANDOFF (prime-game-art bar and mirror v6).
+## Where each art look stands in the hall, its package's HANDOFF (prime-game-art bar, mirror and
+## pinball v6).
 const ART_AT: Dictionary[String, Transform3D] = {
 	"Bar":
 	Transform3D(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(-16.5, 0, -10)),
 	"Mirror":
 	Transform3D(Vector3(0, 0, -1), Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(-19.86, 0, 8)),
+	"Pinball": Transform3D(Basis.IDENTITY, Vector3(18, 0, 3.44)),
+}
+## Each art piece's collider box in the hall (position and size): the bar's greybox box, the
+## mirror's from 1 cm off the wall to its glass (#1700), the pinball cabinet's footprint up to
+## 1.1 m, over its playfield's far edge and under the table's sound point (#1702).
+const ART_BOX: Dictionary[String, AABB] = {
+	"Bar": AABB(Vector3(-17, 0, -13), Vector3(1, 1.1, 6)),
+	"Mirror": AABB(Vector3(-19.99, 0, 6.895), Vector3(0.22, 2.67, 2.21)),
+	"Pinball": AABB(Vector3(17.55, 0, 2.575), Vector3(0.9, 1.1, 1.73)),
+}
+## The pinball cabinet's markers under the Pinball body (17, 0, 3), its Look at local (1, 0, 0.44):
+## CloseUp 0.1 m nearer the player than report.json's, so the playfield's front edge is in its frame
+## too (pinball_close_up_test); otherwise report.json's, each basis as rows (#1702).
+const ART_MARKERS: Dictionary[String, Transform3D] = {
+	"TableMount":
+	Transform3D(
+		Vector3(-1, 0, 0),
+		Vector3(0, 0.9936, -0.1132),
+		Vector3(0, -0.1132, -0.9936),
+		Vector3(1, 0.9936, 0.3307)
+	),
+	"CloseUp":
+	Transform3D(
+		Vector3(-1, 0, 0),
+		Vector3(0, 0.7986, 0.6018),
+		Vector3(0, 0.6018, -0.7986),
+		Vector3(1, 2.2836, -1.0693)
+	),
+	"Display":
+	Transform3D(Vector3(-1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(1, 1.62, 1.016)),
 }
 ## The hall's floor plan inside its straight walls (x, z), the art's layouts/lobby/hall.toml
 ## (x0, x1, zN, zS); the window bows south of it to z 16.
@@ -194,9 +226,14 @@ func test_each_piece_is_a_separate_box_body_on_the_metre_grid() -> void:
 			assert_object(art_shape.shape as BoxShape3D).is_not_null()
 			if art_shape.shape is BoxShape3D:
 				var art_bounds := _bounds(art_shape)
-				# On the floor; the bar's box from the body's corner, the mirror's from 1 cm off it.
-				assert_float(art_bounds.position.y).is_equal_approx(0.0, EPS)
-				assert_float(art_bounds.position.x - origin.x).is_between(0.0, 0.01 + EPS)
+				# The box its HANDOFF gives, on the floor (the mirror's from 1 cm off the wall to the glass).
+				var want: AABB = ART_BOX[piece_name]
+				(
+					assert_vector(art_bounds.position)
+					. override_failure_message(piece_name)
+					. is_equal_approx(want.position, Vector3(EPS, EPS, EPS))
+				)
+				assert_vector(art_bounds.size).is_equal_approx(want.size, Vector3(EPS, EPS, EPS))
 			continue
 		var meshes := piece.find_children("*", "MeshInstance3D", true, false)
 		assert_int(shapes.size()).override_failure_message(piece_name).is_equal(1)
@@ -336,8 +373,25 @@ func test_the_pinball_s_view_markers_sit_on_the_machine_once_each() -> void:
 			assert_bool(String(each).begins_with("spawn_")).is_false()
 	var box := _bounds(_shape_of(machine))
 	var mount := (machine as Node3D).transform * (machine.get_node("TableMount") as Node3D).position
-	# On the box's top, its middle over the box.
-	assert_float(mount.y).is_greater_equal(box.end.y)
+	# #1702: the art cabinet's own markers (prime-game-art pinball v6, report.json), the table in the
+	# cabinet at its playfield; and the table's sound point (its mount, raised as WorldSounds aims a
+	# cue) in clear air from the play spot's eye, so no pinball sound is muffled by the cabinet's box.
+	for marker_name: String in ART_MARKERS:
+		var marker := machine.get_node(marker_name) as Node3D
+		(
+			assert_bool(marker.transform.is_equal_approx(ART_MARKERS[marker_name]))
+			. override_failure_message(marker_name + " is off the cabinet's marker")
+			. is_true()
+		)
+	var spot := (_markers(&"spawn_pinball")[0] as Node3D).position
+	var eye := spot + Vector3.UP * _mode.player_rules.eye_height_m
+	var aim := mount + Vector3.UP * SoundChooser.CUE_AIM_M
+	var world := LevelWorld.build(LOBBY)
+	(
+		assert_bool(Muffle.blocked(world.space_state(), eye, aim))
+		. override_failure_message("the pinball's sounds are muffled from its play spot")
+		. is_false()
+	)
 	(
 		assert_bool(
 			Rect2(box.position.x, box.position.z, box.size.x, box.size.z).has_point(
@@ -526,7 +580,9 @@ func _bounds(shape: CollisionShape3D) -> AABB:
 func test_the_art_pieces_bring_no_light_or_camera() -> void:
 	var console := _root.get_node_or_null(^"MatchConsole")
 	assert_object(console).is_not_null()
-	for piece: Node in [_root.get_node(^"Bar"), _root.get_node(^"Mirror"), console]:
+	for piece: Node in [
+		_root.get_node(^"Bar"), _root.get_node(^"Mirror"), _root.get_node(^"Pinball"), console
+	]:
 		var look := piece.get_node_or_null(^"Look")
 		assert_object(look).override_failure_message(str(piece.name)).is_not_null()
 		if look == null:
@@ -537,3 +593,31 @@ func test_the_art_pieces_bring_no_light_or_camera() -> void:
 				. override_failure_message("%s brings a %s" % [piece.name, type])
 				. is_empty()
 			)
+
+
+## #1702: the dead's hall plays the same art pinball as the lobby: its Pinball body, collider, Look,
+## markers and play spot as the lobby's (whose placement the tests above hold).
+func test_the_dead_hall_s_pinball_is_the_lobby_s() -> void:
+	var dead := (load("res://levels/lobby/dead_hall.tscn") as PackedScene).instantiate() as Node3D
+	var ours := dead.get_node("Pinball") as Node3D
+	var theirs := _root.get_node("Pinball") as Node3D
+	assert_bool(ours.transform.is_equal_approx(theirs.transform)).is_true()
+	for part: String in ["Shape", "Look", "TableMount", "CloseUp", "Display"]:
+		var a := ours.get_node(part) as Node3D
+		var b := theirs.get_node(part) as Node3D
+		(
+			assert_bool(a.transform.is_equal_approx(b.transform))
+			. override_failure_message(part)
+			. is_true()
+		)
+	assert_vector(((ours.get_node("Shape") as CollisionShape3D).shape as BoxShape3D).size).is_equal(
+		((theirs.get_node("Shape") as CollisionShape3D).shape as BoxShape3D).size
+	)
+	assert_str(ours.get_node("Look").scene_file_path).is_equal(ART_LOOKS["Pinball"])
+	var spots := dead.find_children("*", "Marker3D", true, false).filter(
+		func(node: Node) -> bool: return node.is_in_group(&"spawn_pinball")
+	)
+	assert_int(spots.size()).is_equal(1)
+	var lobby_spot := _markers(&"spawn_pinball")[0] as Node3D
+	assert_vector((spots[0] as Node3D).position).is_equal(lobby_spot.position)
+	dead.free()

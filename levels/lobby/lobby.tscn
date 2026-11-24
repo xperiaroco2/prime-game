@@ -3,10 +3,10 @@
 [ext_resource type="PackedScene" uid="uid://ce8fwjqhlos80" path="res://levels/lobby/lobby_hall.tscn" id="1_hall"]
 [ext_resource type="Script" uid="uid://dhb4r6d6y5bb1" path="res://levels/lobby/lobby_render.gd" id="2_render"]
 [ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="4_green"]
-[ext_resource type="Material" uid="uid://c857ea2kxqs27" path="res://levels/kit/greybox_station_blue.tres" id="7_blue"]
 [ext_resource type="PackedScene" uid="uid://cdgdi26xsd1gj" path="res://levels/lobby/match_console.tscn" id="8_console"]
 [ext_resource type="PackedScene" uid="uid://dwowsc5qbhfu7" path="res://assets/environment/bar/bar.glb" id="9_bar"]
 [ext_resource type="PackedScene" uid="uid://b8xswy5mjbvwx" path="res://assets/environment/mirror/mirror.glb" id="10_mirror"]
+[ext_resource type="PackedScene" uid="uid://dxud6l2lwli4c" path="res://assets/environment/pinball/pinball.glb" id="20_pinball"]
 
 [sub_resource type="BoxShape3D" id="Shape_bar"]
 size = Vector3(1, 1.1, 6)
@@ -19,11 +19,7 @@ material = ExtResource("4_green")
 size = Vector3(2, 2.5, 2)
 
 [sub_resource type="BoxShape3D" id="Shape_pinball"]
-size = Vector3(2, 1.2, 1)
-
-[sub_resource type="BoxMesh" id="Mesh_pinball"]
-material = ExtResource("7_blue")
-size = Vector3(2, 1.2, 1)
+size = Vector3(0.9, 1.1, 1.73)
 
 [sub_resource type="BoxShape3D" id="Shape_mirror"]
 size = Vector3(0.22, 2.67, 2.21)
@@ -63,21 +59,20 @@ mesh = SubResource("Mesh_booth")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0, 3)
 
 [node name="Shape" type="CollisionShape3D" parent="Pinball" unique_id=76257870]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.6, 0.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.55, 0.44)
 shape = SubResource("Shape_pinball")
 
-[node name="Mesh" type="MeshInstance3D" parent="Pinball" unique_id=777382763]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.6, 0.5)
-mesh = SubResource("Mesh_pinball")
+[node name="Look" parent="Pinball" unique_id=1329589936 instance=ExtResource("20_pinball")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0.44)
 
 [node name="TableMount" type="Marker3D" parent="Pinball" unique_id=1400140001 groups=["pinball_table"]]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1, 1.21, 0.5)
+transform = Transform3D(-1, 0, 0, 0, 0.9936, -0.1132, 0, -0.1132, -0.9936, 1, 0.9936, 0.3307)
 
 [node name="CloseUp" type="Marker3D" parent="Pinball" unique_id=1400140002 groups=["pinball_closeup"]]
-transform = Transform3D(-1, 0, 0, 0, 0.743145, 0.669131, 0, 0.669131, -0.743145, 1, 2.5, -0.8)
+transform = Transform3D(-1, 0, 0, 0, 0.7986, 0.6018, 0, 0.6018, -0.7986, 1, 2.2836, -1.0693)
 
 [node name="Display" type="Marker3D" parent="Pinball" unique_id=1400140003 groups=["pinball_display"]]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1, 1.72, 1.3)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 1, 1.62, 1.016)
 
 [node name="MatchConsole" parent="." unique_id=642946917 instance=ExtResource("8_console")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -7, 0, 7.2)
@@ -130,7 +125,7 @@ transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 9, 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, -10)
 
 [node name="PinballSpot" type="Marker3D" parent="." unique_id=1398139801 groups=["spawn_pinball"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 2.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 0, 2)
 
 [node name="Booth" type="Marker3D" parent="." unique_id=1396139601 groups=["spawn_booth"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.5, 0, -9.5)
