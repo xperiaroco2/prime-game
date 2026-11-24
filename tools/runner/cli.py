@@ -298,7 +298,7 @@ def build_parser() -> argparse.ArgumentParser:
         "steps, with PNGs at its named steps. Desktop only: CI and verify never run it; an agent may.",
     )
     p.add_argument("scenarios", nargs="*", help="scenario names in tools/playcheck/scenarios/ (default: every one)")
-    p.add_argument("--seconds", type=int, help="hard timeout of each scenario's run (default 300)")
+    p.add_argument("--seconds", type=int, help="hard timeout of each scenario's run (default: its `run` header, else 300); overrides `run`")
 
     p = sub.add_parser(
         "perf",

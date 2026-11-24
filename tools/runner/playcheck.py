@@ -93,7 +93,7 @@ on the same field before it.
 
 A run fails on a step that times out or cannot run (its window prints the step's line and what it saw, saves
 failed-window-<n>.png and exits 1), an engine error line or a non-zero exit of any process, a window that did not
-finish its steps within --seconds, or a missing PNG. Every process it started stops through hostjoin's stop file (a
+finish its steps within the run's hard timeout (--seconds, else its `run`), or a missing PNG. Every process it started stops through hostjoin's stop file (a
 killed runner: the alive file) and is killed if it still runs WINDOW_GRACE_SECONDS later (a window; the bots:
 hostjoin's GRACE_SECONDS), so no host is left holding the port; the report gives each one's time from the stop to its
 exit. It needs a desktop session: CI never runs it, and verify does not.
@@ -541,10 +541,15 @@ class _Parser:
             # With bots, a window without the setup (which waits for every player) gives its first wait after its
             # first `press ready` the bots' start time too: the round needs the bots in and ready (#406).
             late_bots = bool(s.bots) and not (number == 1 and has_setup)
+            # Without the setup, window 1's first `wait players` waits for the other windows' start (#1713).
+            late_windows = number == 1 and s.windows > 1 and not has_setup
             after_ready = False
             for step in steps:
                 if step.args.get("timeout_s") is None and step.do == "wait":
                     step.args["timeout_s"] = s.timeout
+                if late_windows and step.do == "wait" and step.args.get("what") == "players":
+                    step.args["timeout_s"] = float(step.args["timeout_s"]) + join_allowance(s)
+                    late_windows = False
                 if late_bots and after_ready and step.do == "wait":
                     step.args["timeout_s"] = float(step.args["timeout_s"]) + BOTS_START_SECONDS
                     late_bots = False
@@ -810,10 +815,16 @@ def clear(folder: Path) -> None:
         raise Failure(f"cannot clear {shown(folder)}: close any program holding its files (a PNG viewer), then rerun")
 
 
+def join_allowance(s: Scenario) -> float:
+    """What a wait for the other windows adds: JOIN_WINDOW_SECONDS for each window that joins (they boot at once,
+    sharing the CPU)."""
+    return JOIN_WINDOW_SECONDS * max(0, s.windows - 1)
+
+
 def start_allowance(s: Scenario) -> float:
     """What window 1's setup wait adds to the scenario's timeout: the bots' or the other windows' start, the larger
     (both start once window 1 hosts)."""
-    return max(BOTS_START_SECONDS if s.bots else 0.0, JOIN_WINDOW_SECONDS if s.windows > 1 else 0.0)
+    return max(BOTS_START_SECONDS if s.bots else 0.0, join_allowance(s))
 
 
 def run_seconds(s: Scenario, seconds: int | None) -> int:
