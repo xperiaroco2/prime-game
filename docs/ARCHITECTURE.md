@@ -5718,18 +5718,22 @@ after `BoothViews`, physics priority 8: after `AvatarViews`' -80, which sets the
   roster member has gets a colour; an owner gone or a shared name is drawn in the neutral colour. Captions are deck
   keys (`pinball.best`, `pinball.score`, `pinball.balls`; raw until the deck has them, asked on #150) with the number
   after them. The lines lie on the art cabinet's screen (#1721): `SCREEN_M` 66 x 38 cm centred on the marker (the art's
-  HANDOFF), one row per line inside its 2 cm margin, each as tall as its line: the three share one pixel size
-  (`shared_pixel`, `PIXEL_M` at most, less so the rows fit the screen's height), so their sizes keep their ratio, and a
-  line shrinks further only when its text (measured with the font Label3D draws with, outline included) is wider than
-  its row (`fit_line`). Its look (font, sizes, colours) is still the placeholder; the engineer picks it on #1721.
+  HANDOFF), one row per line inside its 2 cm margin, each as tall as its line. The three share one pixel size
+  (`shared_pixel`): the largest, `PIXEL_M` at most, at which the rows fit the screen's height and the best's and the
+  game's texts (measured with the font Label3D draws with, outline included) fit its width, so the three shrink together
+  and keep their ratio; only an owner's name wider than its row shrinks alone (`_layout`). Its look is the game's UI
+  (the engineer's (a) on #1721): the shared theme's fonts and colours, the best in `ToyDisplayOnLight`, the owner and
+  the game in `ToyChipLineOnDarkText`, light on the dark screen with no outline; the owner's name keeps the owner's
+  colour (on CI's Git LFS stand-in fonts, which map no character, the engine's fallback font draws and is measured
+  instead: `has_ui_fonts`). The sizes (64/56/40) are provisional.
 - **Provisional, not a decision** (taste, the engineer's: taken under his standing word, #507): the keys Z and Slash,
-  the close-up's fov 50 and ease 0.6 s, the gap and reconcile times, the display's Toy-style look; the greybox table's
+  the close-up's fov 50 and ease 0.6 s, the gap and reconcile times, the display's sizes (64/56/40); the greybox table's
   looks (CI's, without the LFS art). The cabinet, the table's art and the markers are the approved art's (#1702; the
   close-up 0.1 m nearer the player than its report, so the playfield's front edge is in its frame).
 - **Tests.** `tests/unit/client/world/pinball_ball_track_test.gd` (between samples, held past the newest, hidden only
   from its tick, the snap, a stale or repeated tick), `pinball_keys_test.gd` (seated only, a change, the gap, a tap,
   the Esc menu and the focus release, reconcile), `pinball_table_view_test.gd` (meshes and no body, the art's meshes in place of the greybox's with no body, the flippers' turn,
-  the ball, the constants against `PinballTableSpec` and `PinballTable.SCENE`), `pinball_display_test.gd` (the best,
+  the ball, the constants against `PinballTableSpec` and `PinballTable.SCENE`), `pinball_display_test.gd` (every line inside its row on the screen, an everyday game's ratio in both languages, the UI pack's fonts and colours (#1721), the best,
   the colour by a unique name, a shared name, an owner gone, the game line), `pinball_close_up_test.gd` (`held`, the
   current camera, `cull_mask`, the ease, every exit and snap, a knockdown, the hall's frustum: the whole table and the
   display in view), `pinball_views_test.gd` (the markers, the feed, `LoadMatch`, the `shot` previews
