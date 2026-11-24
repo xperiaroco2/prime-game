@@ -119,7 +119,11 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(playcheck.BOTS_START_SECONDS, hostjoin.HOST_READY_SECONDS)
         windows_only = scenario(with_header(steps))
         self.assertEqual(windows_only.steps[1][0].do, "setup")
-        self.assertEqual(windows_only.steps[1][0].args["timeout_s"], 25.0)
+        # #1713: a joining window starts once window 1 hosts too; with bots the larger allowance holds.
+        self.assertEqual(windows_only.steps[1][0].args["timeout_s"], 25.0 + playcheck.JOIN_WINDOW_SECONDS)
+        self.assertGreater(playcheck.BOTS_START_SECONDS, playcheck.JOIN_WINDOW_SECONDS)
+        one_window = scenario(with_header(steps, "players 1\nwindows 1"))
+        self.assertEqual(one_window.steps[1][0].args["timeout_s"], 25.0)
         # A wait keeps the scenario's timeout: only the setup waits for the bots' process to start.
         waits = scenario(with_header(steps + "\nwait phase lobby", f"players 3\nwindows 2\nbots {BOTS}"))
         self.assertEqual((waits.steps[1][2].do, waits.steps[1][2].args["timeout_s"]), ("wait", 25.0))
@@ -150,6 +154,19 @@ class ParserTest(unittest.TestCase):
         self.assertEqual(
             [step.args["timeout_s"] for step in windows_only.steps[2] if step.do == "wait"], [25.0, 60.0, 25.0]
         )
+
+    def test_the_run_header_sets_the_scenario_s_hard_timeout(self) -> None:
+        """#1713: m8_match's 3-minute match outlasts DEFAULT_SECONDS; its own `run` lets it finish, and --seconds
+        still overrides it."""
+        plain = scenario(with_header("window 1\nshot a"))
+        self.assertEqual(plain.run, 0)
+        self.assertEqual(playcheck.run_seconds(plain, None), playcheck.DEFAULT_SECONDS)
+        long = scenario(with_header("run 600\nwindow 1\nshot a"))
+        self.assertEqual(long.run, 600)
+        self.assertEqual(playcheck.run_seconds(long, None), 600)
+        self.assertEqual(playcheck.run_seconds(long, 120), 120)
+        with self.assertRaises(playcheck.Failure):
+            scenario(with_header(f"run {playcheck.MAX_SECONDS + 1}\nwindow 1\nshot a"))
 
     def test_without_roles_settings_or_clock_there_is_no_setup_step(self) -> None:
         s = scenario(with_header("window 1\nshot a\nwindow 2\nwait phase lobby"))

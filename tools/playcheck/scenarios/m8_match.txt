@@ -28,9 +28,10 @@
 #   lobby_again          window 1: the lobby after the End
 # The crystal hit is not scripted: a crystal reaches a hand only through the engine's spent-crystal
 # problem, which the engine deals at random. With its join, loading and End the run takes about
-# 5 minutes: run it with `--seconds 600`.
+# 5 minutes: its `run 600` gives it the time (#1713; it said `--seconds 600` before).
 players 2
 windows 2
+run 600
 map res://levels/clearing/clearing.tscn
 setting dissidents 0
 setting match_duration 3
