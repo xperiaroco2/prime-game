@@ -5176,7 +5176,11 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
 - The body and the aim (#1334): the pose's yaw is the aim (the relayed facing the host already validates, §7.1.5;
   no wire change). Each observer derives the body's yaw from the poses it draws: `RemotePlayerBody.body_yaw`
   follows the aim by `body_follow` with the engineer's 45° dead zone (`BODY_DEAD_ZONE`; the first pose and
-  `snap_look()` after a placement seed it at the aim). The root keeps the aim's yaw, so the head, the spectate
+  `snap_look()` after a placement seed it at the aim). Walking forward (#1712, the engineer's "Так, повертатись"),
+  it eases toward the drawn move (`RemotePlayerBody.eased_to_travel`, time constant `TRAVEL_EASE_S` 0.25 s, the
+  client's feel): a move at `AvatarClips.MIN_SPEED_MPS` or more within the dead zone of the aim, so a slow walk after
+  a look turn plays `Walk`, not the jog's blend side on; standing, strafing and backing keep the dead zone alone.
+  `WorldSounds` eases the own player's body yaw the same way, so its steps keep the pace others draw. The root keeps the aim's yaw, so the head, the spectate
   camera, the mouth and the sight point face the aim; only the rig child turns, by the body's lag, and its head
   looks the rest of the way with the pose's pitch. A knocked-down ragdoll starts turned as the character was drawn
   (`RemotePlayerBody.drawn_yaw`: the body's yaw, the aim's for a capsule), so it does not jump by the lag.

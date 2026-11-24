@@ -243,6 +243,44 @@ func test_past_the_dead_zone_the_body_follows_the_aim() -> void:
 	assert_float(_rig().head_look().aim_yaw).is_equal_approx(deg_to_rad(45.0), 0.001)
 
 
+## #1712 (the engineer, "Так, повертатись"): walking forward, the body eases toward the way it
+## walks, so after a look turned inside the dead zone the slow walk plays Walk, not the jog's
+## blend side on. Standing (above), the dead zone holds.
+func test_walking_forward_the_body_eases_toward_the_travel_and_walks() -> void:
+	# A character with the Walk clip (AvatarClips.EXTRA_CLIPS), as the alien has.
+	var clips := AvatarClips.all_clips()
+	clips.append_array(AvatarClips.EXTRA_CLIPS)
+	_views.character = CharacterSet.from_scene(Fixture.scene(clips), Fixture.ragdoll())
+	await _stand(Vector3.ZERO)
+	var body := _views.body_of(PEER)
+	var aim := deg_to_rad(40.0)
+	await _look(aim, 0.0)
+	assert_float(body.body_yaw).is_equal_approx(0.0, 0.001)
+	# A slow walk (1 m/s) the way it looks.
+	await _walk(_facing(aim, 0.0) * 0.05, _facing(aim, 0.0), 20)
+	assert_float(wrapf(body.body_yaw - aim, -PI, PI)).is_equal_approx(0.0, deg_to_rad(5.0))
+	assert_str(String(_rig().base_clip())).is_equal(String(AvatarClips.WALK))
+
+
+## #1712: the ease is no snap: one frame of a walk turns the body only part of the way.
+func test_the_body_turns_toward_the_travel_smoothly() -> void:
+	await _stand(Vector3.ZERO)
+	var body := _views.body_of(PEER)
+	var aim := deg_to_rad(40.0)
+	await _look(aim, 0.0)
+	var drawn := body.body_yaw
+	var turned := RemotePlayerBody.eased_to_travel(drawn, aim, _facing(aim, 0.0), 1.0 / 60.0)
+	assert_float(turned).is_greater(drawn)
+	assert_float(turned).is_less(aim * 0.5)
+	# A strafe (90 degrees off the aim) or a step back is no walk forward: no ease.
+	var strafe := _facing(aim + PI * 0.5, 0.0)
+	assert_float(RemotePlayerBody.eased_to_travel(drawn, aim, strafe, 0.1)).is_equal(drawn)
+	var back := _facing(aim + PI, 0.0)
+	assert_float(RemotePlayerBody.eased_to_travel(drawn, aim, back, 0.1)).is_equal(drawn)
+	# Standing: none.
+	assert_float(RemotePlayerBody.eased_to_travel(drawn, aim, Vector3.ZERO, 0.1)).is_equal(drawn)
+
+
 func test_a_nod_turns_the_head_by_the_pitch() -> void:
 	await _stand(Vector3.ZERO)
 	for pitch_deg: float in [30.0, -30.0]:

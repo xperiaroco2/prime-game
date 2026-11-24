@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b2jqx10kt87sl"]
+
+[ext_resource type="Script" uid="uid://cq64l74yqkfxp" path="res://client/dev/walk_turn_preview.gd" id="1_preview"]
+
+[node name="WalkTurnPreview" type="Node3D" unique_id=1993264490]
+script = ExtResource("1_preview")
