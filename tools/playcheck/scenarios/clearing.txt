@@ -1,8 +1,8 @@
 # The M8 round's map in the game's real window (#1687): the ship's clearing, the base mode's one player map and
 # default since M8 hid the estate (`map` below names it all the same), its markers and the ship's room record.
 # Window 1 hosts alone (the base mode plays with one) and readies: the round starts on the clearing before the
-# ship's ramp, the fog beyond (shot); M opens the map and tasks screen, whose board draws the ship's lot from its
-# room record (shot); M closes it again. The estate's own scenario played here until #1687 (#1374).
+# ship's ramp, the fog beyond (shot); M opens the map and tasks screen, the task list alone: the clearing draws
+# no map (#1706) (shot); M closes it again. The estate's own scenario played here until #1687 (#1374).
 players 1
 windows 1
 map res://levels/clearing/clearing.tscn

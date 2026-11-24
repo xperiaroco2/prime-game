@@ -1,13 +1,14 @@
 [gd_scene format=3 uid="uid://bggcwlawmd6ll"]
 
-[ext_resource type="PackedScene" path="res://levels/clearing/rooms/ground.tscn" id="1_ground"]
+[ext_resource type="PackedScene" uid="uid://j3b7vrr35705" path="res://levels/clearing/rooms/ground.tscn" id="1_ground"]
 [ext_resource type="PackedScene" uid="uid://drwdw65attu1k" path="res://levels/estate/rooms/ship.tscn" id="2_ship"]
-[ext_resource type="PackedScene" path="res://levels/clearing/rooms/boundary.tscn" id="3_boundary"]
-[ext_resource type="PackedScene" path="res://levels/clearing/rooms/sky.tscn" id="4_sky"]
-[ext_resource type="PackedScene" path="res://levels/clearing/rooms/markers.tscn" id="5_markers"]
+[ext_resource type="PackedScene" uid="uid://dn2m0iwcws81d" path="res://levels/clearing/rooms/boundary.tscn" id="3_boundary"]
+[ext_resource type="PackedScene" uid="uid://q7b210hn7acv" path="res://levels/clearing/rooms/sky.tscn" id="4_sky"]
+[ext_resource type="PackedScene" uid="uid://bq0akd3gdiwaf" path="res://levels/clearing/rooms/markers.tscn" id="5_markers"]
 [ext_resource type="PackedScene" uid="uid://3aibmo7dg07r" path="res://levels/lobby/dead_hall.tscn" id="6_dead_hall"]
 
 [node name="Clearing" type="Node3D" unique_id=100500801]
+metadata/no_map = true
 
 [node name="Ground" parent="." unique_id=1632499782 instance=ExtResource("1_ground")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 116, 0, 72)

@@ -28,6 +28,9 @@ const NAME_KEY := &"name_key"
 ## A room placed by its centre (the level-piece ADR's 2026-10-29 amendment, the estate's lots): true
 ## on its root, its origin is the middle of its plan rect, not its north-west corner.
 const CENTRED_KEY := &"centred"
+## A level that has no map (#1706, the M8 round's clearing: the console's hologram shows where each
+## problem is): true on its root, the map screen draws no room, so it shows its task list alone.
+const NO_MAP_KEY := &"no_map"
 ## The spawn points' group prefix (MarkerReader's, which client/ may not name).
 const SPAWN_GROUP_PREFIX := "spawn_"
 ## The empty border around the rooms on the board, a share of the board's shorter side (layout).
@@ -53,10 +56,11 @@ var rooms: Array[Room] = []
 var zones: Dictionary[StringName, PackedStringArray] = {}
 
 
-## The rooms of `level` and, for each task type of `mode`, its zones; empty for no level.
+## The rooms of `level` and, for each task type of `mode`, its zones; empty for no level and for a
+## level without a map (NO_MAP_KEY on its root).
 static func from_level(level: Node, mode: GameMode) -> MapData:
 	var data := MapData.new()
-	if level == null:
+	if level == null or level.get_meta(NO_MAP_KEY, false) == true:
 		return data
 	data.rooms = rooms_of(level)
 	if mode == null:
