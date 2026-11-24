@@ -132,11 +132,19 @@ func test_no_room_label_shows_on_the_clearing() -> void:
 	var shown: Array[String] = []
 	for node: Node in scene.find_children("*", "Label3D", true, false):
 		if _drawn(node as Node3D, scene):
-			shown.append("%s \"%s\"" % [scene.get_path_to(node), (node as Label3D).text])
+			shown.append('%s "%s"' % [scene.get_path_to(node), (node as Label3D).text])
 	assert_array(shown).is_empty()
 	var ship := scene.get_node(^"Ship") as Node3D
 	assert_bool(ship.has_meta(MapData.SIZE_KEY)).is_true()
 	assert_str(str(ship.get_meta(MapData.ID_KEY, ""))).is_equal("ship")
+	# A re-save keeps the override (its [editable path], levels/CLAUDE.md): packed again as the
+	# editor saves it, the label stays hidden.
+	var edited := (load(MAP) as PackedScene).instantiate(PackedScene.GEN_EDIT_STATE_MAIN)
+	var packed := PackedScene.new()
+	assert_int(packed.pack(edited)).is_equal(OK)
+	edited.free()
+	var resaved: Node = auto_free(packed.instantiate())
+	assert_bool((resaved.get_node(^"Ship/Name") as Node3D).visible).is_false()
 
 
 ## Whether `node` draws: it and every Node3D above it up to `root` visible (out of the tree,
