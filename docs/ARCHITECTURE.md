@@ -3404,7 +3404,8 @@ game's pointer too (`LifeView.mouse_captured`, `pointer.captured`, #1117), but `
 target), so cycling stays with the playtest.
 Window 1 sends the setup (`ForceRole`, `ForceClock`, `ChangeSettings`, and the header `map`'s ChangeSettings: a match plays the M8 map (the clearing, #1687; the estate from the M8 slice, #1496), unless a script names a bench: the greybox for flat ground, #767, or the House, `house_photo.txt`) as the host's own
 client once every player is in its roster (within the scenario's `timeout`, plus `BOTS_START_SECONDS`, 60 s, when
-bots play, #406); peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
+bots play, #406, or `JOIN_WINDOW_SECONDS`, 30 s for each window that joins, the larger, #1713; without a setup, window
+1's first `wait players` gets the windows' allowance); peer ids travel as `peer-<n>` files, as over ENet in `bots`. The bots'
 process starts beside the windows: the bots play once every player is in each bot's lobby, and a bot whose join
 went unanswered (window 1 not listening yet) joins again, `BotsEnet`'s start (#318, §4.6.2 "bots runner"). Nothing in
 `client/` changed for it. The stop is `host`'s: the stop file, then a kill once a process's grace has passed, 30 s

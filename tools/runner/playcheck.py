@@ -33,7 +33,10 @@ The scenario file: one line each, `#` starts a comment. The header comes first:
     clock <seconds>         ForceClock (the match clock's length), sent by window 1 then
     timeout <seconds>       how long a wait may take (default DEFAULT_TIMEOUT); with bots, window 1's setup, and in
                             every other window the first wait after its first `press ready`, waits
-                            BOTS_START_SECONDS longer, for their process to start
+                            BOTS_START_SECONDS longer, for their process to start; with other windows, window 1's
+                            setup waits at least JOIN_WINDOW_SECONDS longer, for theirs (#1713)
+    run <seconds>           the whole run's hard timeout (default DEFAULT_SECONDS; --seconds overrides it), for a
+                            scenario whose match outlasts it
     route <name> <x,z> ...  named waypoints (metres on the map's floor) for `aim station <kind> via <name>`, routed
                             through the doors by trial (#1105: the House has no navigation mesh)
     tutorial                window 1 starts the solo tutorial (--tutorial, #601) instead of hosting: one window
@@ -90,7 +93,7 @@ on the same field before it.
 
 A run fails on a step that times out or cannot run (its window prints the step's line and what it saw, saves
 failed-window-<n>.png and exits 1), an engine error line or a non-zero exit of any process, a window that did not
-finish its steps within --seconds, or a missing PNG. Every process it started stops through hostjoin's stop file (a
+finish its steps within the run's hard timeout (--seconds, else its `run`), or a missing PNG. Every process it started stops through hostjoin's stop file (a
 killed runner: the alive file) and is killed if it still runs WINDOW_GRACE_SECONDS later (a window; the bots:
 hostjoin's GRACE_SECONDS), so no host is left holding the port; the report gives each one's time from the stop to its
 exit. It needs a desktop session: CI never runs it, and verify does not.
@@ -138,6 +141,11 @@ WINDOW_GRACE_SECONDS = 30
 # window 1 hosts, and beside 32 busy loops on 16 cores it joined so late that 5 of #354's runs failed the setup after
 # 30 s with 2 of 3 players (#406). As long as hostjoin gives a host's process to start listening.
 BOTS_START_SECONDS = hostjoin.HOST_READY_SECONDS
+# What window 1's setup wait adds when other windows join: they start only once window 1 hosts, and on the
+# engineer's PC each took about 37 s from there to join (a 15 s boot, then 22 s to Game._ready's join), so m8_match's
+# setup failed 5 runs of 6 after 30 s with 1 of 2 players (#1713). The bots start then too, so the setup waits the
+# larger of the two allowances, not their sum.
+JOIN_WINDOW_SECONDS = 30.0
 SIZE = "1280x720"
 NAME_RE = re.compile(r"[a-z0-9_]+")
 ID_RE = re.compile(r"[a-z_][a-z0-9_]*")
@@ -168,6 +176,7 @@ HEADER_KEYS = (
     "mode",
     "clock",
     "timeout",
+    "run",
     "tutorial",
     "route",
 )
@@ -238,6 +247,8 @@ class Scenario:
     map: str = ""
     clock: int = 0
     timeout: float = DEFAULT_TIMEOUT
+    # The whole run's hard timeout in seconds (`run`); 0 is DEFAULT_SECONDS. --seconds overrides it.
+    run: int = 0
     # Window 1 runs the solo tutorial (--tutorial) instead of hosting.
     tutorial: bool = False
     steps: dict[int, list[Step]] = field(default_factory=dict)
@@ -341,6 +352,8 @@ class _Parser:
             s.clock = self.number(args[0], "clock", 1, MAX_CLOCK)
         elif key == "timeout" and len(args) == 1:
             s.timeout = self.seconds(args[0], "timeout")
+        elif key == "run" and len(args) == 1:
+            s.run = self.number(args[0], "run", 1, MAX_SECONDS)
         elif key == "route" and len(args) >= 2:
             self.route(args)
         elif key in HEADER_KEYS:
@@ -528,10 +541,15 @@ class _Parser:
             # With bots, a window without the setup (which waits for every player) gives its first wait after its
             # first `press ready` the bots' start time too: the round needs the bots in and ready (#406).
             late_bots = bool(s.bots) and not (number == 1 and has_setup)
+            # Without the setup, window 1's first `wait players` waits for the other windows' start (#1713).
+            late_windows = number == 1 and s.windows > 1 and not has_setup
             after_ready = False
             for step in steps:
                 if step.args.get("timeout_s") is None and step.do == "wait":
                     step.args["timeout_s"] = s.timeout
+                if late_windows and step.do == "wait" and step.args.get("what") == "players":
+                    step.args["timeout_s"] = float(step.args["timeout_s"]) + join_allowance(s)
+                    late_windows = False
                 if late_bots and after_ready and step.do == "wait":
                     step.args["timeout_s"] = float(step.args["timeout_s"]) + BOTS_START_SECONDS
                     late_bots = False
@@ -569,7 +587,7 @@ class _Parser:
             setup = {"roles": {str(k): v for k, v in s.roles.items()}, "settings": s.settings, "clock": s.clock}
             if s.map:
                 setup["map"] = s.map
-            setup.update(players=s.players, timeout_s=s.timeout + (BOTS_START_SECONDS if s.bots else 0))
+            setup.update(players=s.players, timeout_s=s.timeout + start_allowance(s))
             text = "setup (ForceRole, ForceClock, ChangeSettings)"
             s.steps.setdefault(1, []).insert(0, Step(0, text, "setup", setup))
         return s
@@ -797,6 +815,25 @@ def clear(folder: Path) -> None:
         raise Failure(f"cannot clear {shown(folder)}: close any program holding its files (a PNG viewer), then rerun")
 
 
+def join_allowance(s: Scenario) -> float:
+    """What a wait for the other windows adds: JOIN_WINDOW_SECONDS for each window that joins (they boot at once,
+    sharing the CPU)."""
+    return JOIN_WINDOW_SECONDS * max(0, s.windows - 1)
+
+
+def start_allowance(s: Scenario) -> float:
+    """What window 1's setup wait adds to the scenario's timeout: the bots' or the other windows' start, the larger
+    (both start once window 1 hosts)."""
+    return max(BOTS_START_SECONDS if s.bots else 0.0, join_allowance(s))
+
+
+def run_seconds(s: Scenario, seconds: int | None) -> int:
+    """The run's hard timeout: --seconds, else the scenario's `run`, else DEFAULT_SECONDS."""
+    if seconds is not None:
+        return seconds
+    return s.run or DEFAULT_SECONDS
+
+
 def run_one(scenario: Scenario, exe: str, seconds: int, port: int, window_exe: str = "") -> int:
     bots = scenario.players - scenario.windows
     kind = " (the solo tutorial)" if scenario.tutorial else ""
@@ -821,10 +858,9 @@ def run_one(scenario: Scenario, exe: str, seconds: int, port: int, window_exe: s
 def main(names: list[str] | None = None, seconds: int | None = None) -> int:
     say("playcheck")
     gaming.refuse_windows("playcheck")
-    seconds = DEFAULT_SECONDS if seconds is None else seconds
     if IS_CI or not shot.has_display():
         raise Failure("playcheck needs a desktop session with a GPU (real windows, like shot); CI never runs it")
-    if not 1 <= seconds <= MAX_SECONDS:
+    if seconds is not None and not 1 <= seconds <= MAX_SECONDS:
         raise Failure(f"--seconds must be between 1 and {MAX_SECONDS}")
     scenarios = [load(name) for name in (names or available())]
     if not scenarios:
@@ -835,7 +871,9 @@ def main(names: list[str] | None = None, seconds: int | None = None) -> int:
     launch.ensure_import()
     from .verify import free_udp_port
 
-    failed = sum(run_one(scenario, exe, seconds, free_udp_port(), window_exe) for scenario in scenarios)
+    failed = sum(
+        run_one(scenario, exe, run_seconds(scenario, seconds), free_udp_port(), window_exe) for scenario in scenarios
+    )
     say(f"playcheck: FAILED ({failed} of {len(scenarios)})" if failed else "playcheck: passed")
     if not failed:
         say("playcheck: done. Read the PNGs to check them; a PR lists their paths for the human to drag in.")
