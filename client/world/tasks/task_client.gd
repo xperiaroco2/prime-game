@@ -22,7 +22,7 @@ func usable(_model: ClientModel, _type: TaskType, _id: int) -> bool:
 
 
 ## Whether CircleViews draws a station of `kind_id`, one of this client's type's station kinds, as
-## a circle (#801's G6). The base: never (a kind no type of the mode holds is CircleViews' own
+## a circle (#801's G6). The base: never (a kind the mode names nowhere is CircleViews' own
 ## fallback cylinder).
 func draws_circle(_kind_id: StringName) -> bool:
 	return false
