@@ -114,6 +114,14 @@ func test_the_map_is_the_ship_on_its_clearing_in_fog_and_no_estate_lot() -> void
 	assert_that(sky.environment.fog_light_color).is_equal(sky.environment.background_color)
 
 
+## #1706, the engineer's (a): the M screen on the clearing keeps its task list and draws no map
+## (the console's hologram shows where each problem is): the level says so, so its board is empty.
+func test_the_clearing_draws_no_map_on_the_m_screen() -> void:
+	var scene: Node = auto_free((load(MAP) as PackedScene).instantiate())
+	assert_bool(scene.get_meta(MapData.NO_MAP_KEY, false)).is_true()
+	assert_array(MapData.from_level(scene, _base_mode()).rooms).is_empty()
+
+
 func _base_mode() -> GameMode:
 	return load(BASE_MODE) as GameMode
 

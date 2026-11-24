@@ -92,6 +92,20 @@ func test_a_level_without_rooms_or_no_level_draws_nothing() -> void:
 	assert_float(data.scale_for(Vector2(800, 600))).is_equal(0.0)
 
 
+## #1706: a level whose root says it has no map (`metadata/no_map`) draws nothing, its rooms and
+## zones included; `rooms_of` still reads them for the level's own checks.
+func test_a_level_marked_without_a_map_draws_nothing() -> void:
+	var level: Node3D = auto_free(Node3D.new())
+	_room(level, "Lot", Vector3.ZERO, Vector2i(8, 6))
+	level.set_meta(MapData.NO_MAP_KEY, true)
+	var data := MapData.from_level(level, _mode)
+	assert_array(data.rooms).is_empty()
+	assert_array(Array(data.zone_of(&"delivery"))).is_empty()
+	assert_array(MapData.rooms_of(level)).is_not_empty()
+	level.set_meta(MapData.NO_MAP_KEY, false)
+	assert_array(MapData.from_level(level, _mode).rooms).is_not_empty()
+
+
 func test_every_room_of_the_greybox_has_an_area() -> void:
 	# Holds before #306 (no room) and after it (rooms): a room with no area could draw nothing.
 	var level: Node = auto_free((load(GREYBOX) as PackedScene).instantiate())

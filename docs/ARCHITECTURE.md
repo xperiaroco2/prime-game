@@ -3936,7 +3936,9 @@ the designer, 2026-10-03, on #253). Its Toy look and its keyboard focus are #490
   (no body). Hovering a row (its «?» included; `gui_get_hovered_control`, since a child takes the parent's hover)
   lights that type's zones, drawn in the room's `Area` under its name, and their tag (`map.zone_hint.<type>`, else
   `map.zone_hint.task`; under the first lit room since #490, §4.7.40). Words built in code are
-  set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board.
+  set again on `NOTIFICATION_TRANSLATION_CHANGED`. A level with no room hides the board, and so does a level whose
+  root says it has no map (`metadata/no_map = true`, `MapData.NO_MAP_KEY`): the M8 round's clearing (#1706, the
+  engineer's (a)), whose console hologram shows where each problem is; its M screen is the task list alone.
 - **Rooms and zones from data** (`client/ui/MapData`, pure, read once when a map level loads): a room is a `Node3D`
   of the level with `metadata/size_m` (whole metres), its origin the north-west floor corner (with `metadata/centred =
   true`, an estate lot placed by its centre per the level-piece ADR's 2026-10-29 amendment, the middle of its rect),
