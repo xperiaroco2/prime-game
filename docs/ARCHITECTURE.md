@@ -10105,7 +10105,8 @@ levels/
                                    gazebo, well, ship, fallen_trunk, gate) and the map-wide plot, creek, paths, trees and
                                    markers (the base mode's spawn markers, #1374) and passages (§5b's tunnel, sewer
                                    and ducts, #1373)
-  clearing/clearing.tscn           the M8 round's map (#1687): the estate's `Ship` piece at (116, 0, 72), the dead's
+  clearing/clearing.tscn           the M8 round's map (#1687): the estate's `Ship` piece at (116, 0, 72), its greybox
+                                   `Name` label hidden (#1720; the estate keeps it), the dead's
                                    hall, and its own pieces in `clearing/rooms/`: `Markers` (the estate's round and
                                    respawn markers, and four knife markers on its edge for the melee fixture's
                                    Loading), `Ground` (200 m; the landing pad, #1704: prime-game-art's
