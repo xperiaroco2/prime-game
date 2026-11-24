@@ -8,6 +8,8 @@ extends GdUnitTestSuite
 ## clearing's size and the fog are looks, "not a decision" (the engineer's to tune).
 
 const MAP := "res://levels/clearing/clearing.tscn"
+## The landing pad's material (prime-game-art clearing_ground/v1, #1704).
+const GROUND_LOOK := "res://assets/environment/clearing/clearing_ground.tres"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 ## The ship's origin, the clearing's middle (the estate's, docs/design/estate-map.md §5a).
 const MIDDLE := Vector3(116, 0, 72)
@@ -120,6 +122,30 @@ func test_the_clearing_draws_no_map_on_the_m_screen() -> void:
 	var scene: Node = auto_free((load(MAP) as PackedScene).instantiate())
 	assert_bool(scene.get_meta(MapData.NO_MAP_KEY, false)).is_true()
 	assert_array(MapData.from_level(scene, _base_mode()).rooms).is_empty()
+
+
+## #1704, the engineer's landing pad (prime-game-art clearing_ground/v1): the ground's box wears the
+## package's material, its pad centred on the ship; the box and its collider stay the greybox's.
+func test_the_ground_is_the_landing_pad_round_the_ship() -> void:
+	var scene: Node = auto_free((load(MAP) as PackedScene).instantiate())
+	var ground := scene.get_node(^"Ground") as Node3D
+	var mesh := (ground.get_node(^"Mesh") as MeshInstance3D).mesh as BoxMesh
+	var material := mesh.material as ShaderMaterial
+	(
+		assert_object(material)
+		. override_failure_message("no ShaderMaterial on the ground")
+		. is_not_null()
+	)
+	if material == null:
+		return
+	assert_str(material.resource_path).is_equal(GROUND_LOOK)
+	assert_that(material.get_shader_parameter(&"pad")).is_equal(true)
+	var centre: Vector2 = material.get_shader_parameter(&"centre")
+	var ship := (scene.get_node(^"Ship") as Node3D).position
+	assert_vector(centre).is_equal(Vector2(ship.x, ship.z))
+	assert_vector(mesh.size).is_equal(Vector3(200, 1, 200))
+	var shape := (ground.get_node(^"Shape") as CollisionShape3D).shape as BoxShape3D
+	assert_vector(shape.size).is_equal(Vector3(200, 1, 200))
 
 
 func _base_mode() -> GameMode:
