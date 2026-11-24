@@ -242,10 +242,12 @@ func _physics_process(delta: float) -> void:
 		# Before set_pose places it: the push search of this frame reads the crouched capsule.
 		body.set_crouched(pose.crouched, ease_s)
 		body.set_sneaking(pose.sneaking)
-		if _is_placement(peer, pose, delta):
+		var placed := _is_placement(peer, pose, delta)
+		if placed:
 			body.snap_look()
-		body.set_pose(pose)
-		_animate(body, pose, delta)
+		var move := Vector3.ZERO if placed else _drawn_move(peer, pose, delta)
+		body.set_pose(pose, move, delta)
+		_animate(body, pose, move)
 	_fire_shots()
 	_held.clear()
 	for key: Variant in model.avatars:
@@ -285,9 +287,17 @@ func _is_placement(peer: int, pose: SnapshotBuffer.Pose, delta: float) -> bool:
 	return Vector2(moved.x, moved.z).length() > SnapshotBuffer.SNAP_SPEED_MPS * delta
 
 
-## Plans AvatarClips' clips of what is drawn at `pose`, `delta` seconds after the last frame,
-## against the body's yaw (it lags the aim, #1334), and plays them on `body`'s character (if any).
-func _animate(body: RemotePlayerBody, pose: SnapshotBuffer.Pose, delta: float) -> void:
+## `peer`'s drawn move to `pose`, `delta` seconds after its last drawn place, in metres a second:
+## zero for its first pose or no time (the caller passes zero for a placement).
+func _drawn_move(peer: int, pose: SnapshotBuffer.Pose, delta: float) -> Vector3:
+	if not _drawn_pos.has(peer) or delta <= 0.0:
+		return Vector3.ZERO
+	return (pose.position - _drawn_pos[peer]) / delta
+
+
+## Plans AvatarClips' clips of what is drawn at `pose` moving at `move` (the drawn move), against
+## the body's yaw (it lags the aim, #1334), and plays them on `body`'s character (if any).
+func _animate(body: RemotePlayerBody, pose: SnapshotBuffer.Pose, move: Vector3) -> void:
 	var state := AvatarClips.State.new()
 	state.downed = body.is_downed()
 	state.yaw = body.body_yaw
@@ -297,8 +307,7 @@ func _animate(body: RemotePlayerBody, pose: SnapshotBuffer.Pose, delta: float) -
 	var last: AvatarClips.Plan = _plans.get(body.peer)
 	state.was_back = last != null and last.back
 	state.was_walk = last != null and last.slot == AvatarClips.WALK
-	if _drawn_pos.has(body.peer) and delta > 0.0 and not _is_placement(body.peer, pose, delta):
-		state.drawn_move = (pose.position - _drawn_pos[body.peer]) / delta
+	state.drawn_move = move
 	_drawn_pos[body.peer] = pose.position
 	var plan := AvatarClips.plan_by(state, rules, body.extra_clips())
 	_plans[body.peer] = plan

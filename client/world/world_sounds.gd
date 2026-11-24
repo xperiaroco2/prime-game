@@ -216,6 +216,11 @@ func steps() -> int:
 	return _steps
 
 
+## The own player's body yaw its steps are planned against (tests); NAN before its first step.
+func own_body_yaw() -> float:
+	return _own_body_yaw
+
+
 ## The placeholder sound of a throw's launch (#645): a short 16-bit mono burst of noise that swells
 ## then fades.
 static func throw_blip() -> AudioStreamWAV:
@@ -498,13 +503,17 @@ func _plan_of(peer: int, moved: Vector3, delta: float, rules: PlayerRules) -> Av
 	if is_nan(_own_body_yaw):
 		_own_body_yaw = aim
 	_own_body_yaw = HeadLook.body_follow(_own_body_yaw, aim, RemotePlayerBody.BODY_DEAD_ZONE)
+	var move := Vector3.ZERO
+	if delta > 0.0 and Vector2(moved.x, moved.z).length() <= SnapshotBuffer.SNAP_SPEED_MPS * delta:
+		move = moved / delta
+	# Walking forward it eases toward the walk, as the others' clients draw it (#1712).
+	_own_body_yaw = RemotePlayerBody.eased_to_travel(_own_body_yaw, aim, move, delta)
 	var state := AvatarClips.State.new()
 	state.yaw = _own_body_yaw
 	state.crouched = player.is_crouched()
 	state.was_back = _own_plan != null and _own_plan.back
 	state.was_walk = _own_plan != null and _own_plan.slot == AvatarClips.WALK
-	if delta > 0.0 and Vector2(moved.x, moved.z).length() <= SnapshotBuffer.SNAP_SPEED_MPS * delta:
-		state.drawn_move = moved / delta
+	state.drawn_move = move
 	# The clips the others' clients draw it with (the character set's), so it hears its steps so.
 	var extras: Array[StringName] = []
 	if avatars != null and avatars.character != null:

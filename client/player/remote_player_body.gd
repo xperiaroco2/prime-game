@@ -51,6 +51,14 @@ const MOUTH_BELOW_EYE_M := 0.1
 ## How far the aim turns from the body before the body follows (art #196: the engineer's 45
 ## degrees).
 const BODY_DEAD_ZONE := deg_to_rad(45.0)
+## Walking forward (#1712, the engineer's "Так, повертатись"): the body eases toward the way it
+## walks with this time constant, in seconds (the client's feel, "not a decision"). Forward is a
+## drawn move within TRAVEL_CONE of the aim at AvatarClips.MIN_SPEED_MPS or more.
+const TRAVEL_EASE_S := 0.25
+## How far off the aim a move still counts as walking forward: Walk's own cone
+## (AvatarClips.WALK_MAX_DEG), well inside the dead zone, so a front diagonal (W+A, 45 degrees, the
+## art's Jog_Fwd_Left point) keeps the dead zone alone and its diagonal clip.
+const TRAVEL_CONE := deg_to_rad(AvatarClips.WALK_MAX_DEG)
 
 ## The client's own copy of the mode's PlayerRules: the capsule and the eyes. Applied at once
 ## when set in the tree.
@@ -63,8 +71,9 @@ const BODY_DEAD_ZONE := deg_to_rad(45.0)
 ## The player it shows; 0 when none (the controller's tests).
 var peer := 0
 ## The body's yaw (#1334, art #196): it lags the aim (the pose's yaw) inside BODY_DEAD_ZONE and
-## turns once the aim leaves it (HeadLook.body_follow). Derived on each observer from the poses it
-## draws, never relayed. Only the character rig turns by it: the root, the head, the mouth and the
+## turns once the aim leaves it (HeadLook.body_follow); walking forward, it eases toward the way the
+## body walks (eased_to_travel, #1712). Derived on each observer from the poses it draws, never
+## relayed. Only the character rig turns by it: the root, the head, the mouth and the
 ## sight point keep the aim, as spectate reads them.
 var body_yaw := 0.0
 
@@ -287,14 +296,16 @@ func is_living() -> bool:
 
 
 ## Places the body at `pose`: its position, the aim's yaw on the body and the pitch on the head.
-## body_yaw follows the aim (BODY_DEAD_ZONE); the character turns by the body's lag behind the aim
-## and its head looks the rest of the way.
-func set_pose(pose: SnapshotBuffer.Pose) -> void:
+## body_yaw follows the aim (BODY_DEAD_ZONE) and, walking forward, eases toward `move` (the drawn
+## move, metres a second, over the `delta` seconds since the last frame); the character turns by
+## the body's lag behind the aim and its head looks the rest of the way.
+func set_pose(pose: SnapshotBuffer.Pose, move := Vector3.ZERO, delta := 0.0) -> void:
 	global_position = pose.position
 	rotation = Vector3(0.0, pose.yaw, 0.0)
 	_head.rotation = Vector3(pose.pitch, 0.0, 0.0)
 	if _body_seeded:
 		body_yaw = HeadLook.body_follow(body_yaw, pose.yaw, BODY_DEAD_ZONE)
+		body_yaw = eased_to_travel(body_yaw, pose.yaw, move, delta)
 	elif is_finite(pose.yaw):
 		body_yaw = pose.yaw
 		_body_seeded = true
@@ -304,6 +315,22 @@ func set_pose(pose: SnapshotBuffer.Pose) -> void:
 		_rig.set_look(-lag, pose.pitch)
 	# Now, not after the pass: the local player's push search (priority 0) reads it this frame.
 	force_update_transform()
+
+
+## `body` eased toward the way `move` goes (a drawn move, metres a second) for `delta` seconds, when
+## it goes forward: at AvatarClips.MIN_SPEED_MPS or more, within TRAVEL_CONE of `aim`. Else (a
+## stand, a diagonal, a strafe, a step back, no time) `body` unchanged. Both ends lie inside the
+## dead zone of the aim, so the eased body does too.
+static func eased_to_travel(body: float, aim: float, move: Vector3, delta: float) -> float:
+	var flat := Vector2(move.x, move.z)
+	if not (delta > 0.0) or not flat.is_finite() or flat.length() < AvatarClips.MIN_SPEED_MPS:
+		return body
+	if not is_finite(body) or not is_finite(aim):
+		return body
+	var travel := atan2(-move.x, -move.z)
+	if absf(wrapf(travel - aim, -PI, PI)) > TRAVEL_CONE:
+		return body
+	return wrapf(lerp_angle(body, travel, 1.0 - exp(-delta / TRAVEL_EASE_S)), -PI, PI)
 
 
 ## Lets the next pose seed body_yaw at its aim: a placement (a teleport, a respawn) draws the body

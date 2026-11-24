@@ -178,6 +178,25 @@ func test_the_stand_in_is_the_own_body_in_the_own_colour_seen_only_by_the_mirror
 	assert_int(PhotoLayers.PHOTO_VIEW & PhotoLayers.MIRROR_SELF).is_equal(0)
 
 
+## #1712: walking forward, the stand-in's body eases toward the walk, as the others' clients draw
+## the own body: a look turned 30 degrees (inside the dead zone) stays a head turn while it stands,
+## and a walk the way it looks brings the body round.
+func test_the_stand_in_walking_forward_eases_toward_its_walk() -> void:
+	var player := _player_at(GLASS_AT + GLASS_BASIS.z * 0.8 + Vector3(0, -1.25, 0))
+	_eye.look_at_from_position(player.global_position + Vector3(0, 1.6, 0), GLASS_AT)
+	_mirror.refresh(1.0 / 60.0)
+	var body := _mirror.self_body
+	var stood := body.body_yaw
+	player.rotation.y += deg_to_rad(30.0)
+	_mirror.refresh(1.0 / 60.0)
+	assert_float(body.body_yaw).is_equal_approx(stood, 0.001)
+	var aim := wrapf(stood + deg_to_rad(30.0), -PI, PI)
+	player.velocity = Vector3(-sin(aim), 0.0, -cos(aim))
+	for frame: int in 60:
+		_mirror.refresh(1.0 / 60.0)
+	assert_float(wrapf(body.body_yaw - aim, -PI, PI)).is_equal_approx(0.0, deg_to_rad(3.0))
+
+
 func test_the_stand_in_hides_while_the_own_body_is_down_or_the_glass_unseen() -> void:
 	var player := _player_at(GLASS_AT + GLASS_BASIS.z * 0.8 + Vector3(0, -1.25, 0))
 	var eye_at := player.global_position + Vector3(0, 1.6, 0)

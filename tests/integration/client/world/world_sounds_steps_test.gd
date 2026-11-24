@@ -110,6 +110,22 @@ func test_the_local_player_steps_at_its_character_s_clip_length() -> void:
 		)
 
 
+## #1712: the own steps are planned against a body that, walking forward, eases toward the walk,
+## as the others' clients draw it: a look turned 30 degrees mid-walk (inside the dead zone) brings
+## the body round to it.
+func test_the_local_player_s_body_eases_toward_its_walk() -> void:
+	var player := _world.add_player(Vector3(0, 0, 0))
+	_sounds.player = player
+	await _world.frames(10)
+	player.move_input = Vector2(0, 1)
+	await _world.frames(30)
+	assert_float(_sounds.own_body_yaw()).is_equal_approx(0.0, 0.01)
+	player.rotation.y = deg_to_rad(30.0)
+	await _world.frames(90)
+	player.move_input = Vector2.ZERO
+	assert_float(_sounds.own_body_yaw()).is_equal_approx(deg_to_rad(30.0), deg_to_rad(3.0))
+
+
 ## #1693: a character whose back jog is measured slower (its profile's clip_mps) plays it faster
 ## (CharacterProfile.rate_factor), and its steps keep to the drawn contacts: here twice as often as
 ## the table's rate would time them.
