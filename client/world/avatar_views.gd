@@ -242,9 +242,10 @@ func _physics_process(delta: float) -> void:
 		# Before set_pose places it: the push search of this frame reads the crouched capsule.
 		body.set_crouched(pose.crouched, ease_s)
 		body.set_sneaking(pose.sneaking)
-		if _is_placement(peer, pose, delta):
+		var placed := _is_placement(peer, pose, delta)
+		if placed:
 			body.snap_look()
-		var move := _drawn_move(peer, pose, delta)
+		var move := Vector3.ZERO if placed else _drawn_move(peer, pose, delta)
 		body.set_pose(pose, move, delta)
 		_animate(body, pose, move)
 	_fire_shots()
@@ -287,9 +288,9 @@ func _is_placement(peer: int, pose: SnapshotBuffer.Pose, delta: float) -> bool:
 
 
 ## `peer`'s drawn move to `pose`, `delta` seconds after its last drawn place, in metres a second:
-## zero for its first pose, no time or a placement.
+## zero for its first pose or no time (the caller passes zero for a placement).
 func _drawn_move(peer: int, pose: SnapshotBuffer.Pose, delta: float) -> Vector3:
-	if not _drawn_pos.has(peer) or delta <= 0.0 or _is_placement(peer, pose, delta):
+	if not _drawn_pos.has(peer) or delta <= 0.0:
 		return Vector3.ZERO
 	return (pose.position - _drawn_pos[peer]) / delta
 

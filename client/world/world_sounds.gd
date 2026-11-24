@@ -216,6 +216,11 @@ func steps() -> int:
 	return _steps
 
 
+## The own player's body yaw its steps are planned against (tests); NAN before its first step.
+func own_body_yaw() -> float:
+	return _own_body_yaw
+
+
 ## The placeholder sound of a throw's launch (#645): a short 16-bit mono burst of noise that swells
 ## then fades.
 static func throw_blip() -> AudioStreamWAV:

@@ -279,6 +279,27 @@ func test_the_body_turns_toward_the_travel_smoothly() -> void:
 	assert_float(RemotePlayerBody.eased_to_travel(drawn, aim, back, 0.1)).is_equal(drawn)
 	# Standing: none.
 	assert_float(RemotePlayerBody.eased_to_travel(drawn, aim, Vector3.ZERO, 0.1)).is_equal(drawn)
+	# A front diagonal (W+A, 45 degrees off the aim, the art's Jog_Fwd_Left point) and a move
+	# 30 degrees off are outside the forward cone: the dead zone alone, the diagonal's clip kept.
+	for off_deg: float in [45.0, -45.0, 30.0]:
+		var diagonal := _facing(aim + deg_to_rad(off_deg), 0.0)
+		assert_float(RemotePlayerBody.eased_to_travel(drawn, aim, diagonal, 0.1)).is_equal(drawn)
+
+
+## #1712: across +-180 degrees the ease turns the short way and stays inside the dead zone.
+func test_the_ease_turns_the_short_way_across_the_back() -> void:
+	var aim := deg_to_rad(179.0)
+	var body := deg_to_rad(150.0)
+	var travel := _facing(deg_to_rad(-179.0), 0.0)
+	var turned := RemotePlayerBody.eased_to_travel(body, aim, travel, 0.1)
+	# Toward the travel (181 degrees, past +180) the short way: up from 150, not down through 0.
+	assert_float(wrapf(turned - body, -PI, PI)).is_greater(0.0)
+	assert_float(absf(wrapf(turned - aim, -PI, PI))).is_less_equal(RemotePlayerBody.BODY_DEAD_ZONE)
+	# And on from there, it settles on the travel, the wrap kept in -PI..PI.
+	for frame: int in 120:
+		turned = RemotePlayerBody.eased_to_travel(turned, aim, travel, 1.0 / 60.0)
+	assert_float(turned).is_between(-PI, PI)
+	assert_float(absf(wrapf(turned - deg_to_rad(-179.0), -PI, PI))).is_less(deg_to_rad(1.0))
 
 
 func test_a_nod_turns_the_head_by_the_pitch() -> void:

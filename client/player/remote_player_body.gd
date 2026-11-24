@@ -53,8 +53,12 @@ const MOUTH_BELOW_EYE_M := 0.1
 const BODY_DEAD_ZONE := deg_to_rad(45.0)
 ## Walking forward (#1712, the engineer's "Так, повертатись"): the body eases toward the way it
 ## walks with this time constant, in seconds (the client's feel, "not a decision"). Forward is a
-## drawn move within BODY_DEAD_ZONE of the aim at AvatarClips.MIN_SPEED_MPS or more.
+## drawn move within TRAVEL_CONE of the aim at AvatarClips.MIN_SPEED_MPS or more.
 const TRAVEL_EASE_S := 0.25
+## How far off the aim a move still counts as walking forward: Walk's own cone
+## (AvatarClips.WALK_MAX_DEG), well inside the dead zone, so a front diagonal (W+A, 45 degrees, the
+## art's Jog_Fwd_Left point) keeps the dead zone alone and its diagonal clip.
+const TRAVEL_CONE := deg_to_rad(AvatarClips.WALK_MAX_DEG)
 
 ## The client's own copy of the mode's PlayerRules: the capsule and the eyes. Applied at once
 ## when set in the tree.
@@ -314,9 +318,9 @@ func set_pose(pose: SnapshotBuffer.Pose, move := Vector3.ZERO, delta := 0.0) -> 
 
 
 ## `body` eased toward the way `move` goes (a drawn move, metres a second) for `delta` seconds, when
-## it goes forward: at AvatarClips.MIN_SPEED_MPS or more, within BODY_DEAD_ZONE of `aim`. Else (a
-## stand, a strafe, a step back, no time) `body` unchanged. Both ends lie inside the dead zone of
-## the aim, so the eased body does too.
+## it goes forward: at AvatarClips.MIN_SPEED_MPS or more, within TRAVEL_CONE of `aim`. Else (a
+## stand, a diagonal, a strafe, a step back, no time) `body` unchanged. Both ends lie inside the
+## dead zone of the aim, so the eased body does too.
 static func eased_to_travel(body: float, aim: float, move: Vector3, delta: float) -> float:
 	var flat := Vector2(move.x, move.z)
 	if not (delta > 0.0) or not flat.is_finite() or flat.length() < AvatarClips.MIN_SPEED_MPS:
@@ -324,7 +328,7 @@ static func eased_to_travel(body: float, aim: float, move: Vector3, delta: float
 	if not is_finite(body) or not is_finite(aim):
 		return body
 	var travel := atan2(-move.x, -move.z)
-	if absf(wrapf(travel - aim, -PI, PI)) > BODY_DEAD_ZONE:
+	if absf(wrapf(travel - aim, -PI, PI)) > TRAVEL_CONE:
 		return body
 	return wrapf(lerp_angle(body, travel, 1.0 - exp(-delta / TRAVEL_EASE_S)), -PI, PI)
 

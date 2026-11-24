@@ -5176,11 +5176,13 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
 - The body and the aim (#1334): the pose's yaw is the aim (the relayed facing the host already validates, §7.1.5;
   no wire change). Each observer derives the body's yaw from the poses it draws: `RemotePlayerBody.body_yaw`
   follows the aim by `body_follow` with the engineer's 45° dead zone (`BODY_DEAD_ZONE`; the first pose and
-  `snap_look()` after a placement seed it at the aim). Walking forward (#1712, the engineer's "Так, повертатись"),
-  it eases toward the drawn move (`RemotePlayerBody.eased_to_travel`, time constant `TRAVEL_EASE_S` 0.25 s, the
-  client's feel): a move at `AvatarClips.MIN_SPEED_MPS` or more within the dead zone of the aim, so a slow walk after
-  a look turn plays `Walk`, not the jog's blend side on; standing, strafing and backing keep the dead zone alone.
-  `WorldSounds` eases the own player's body yaw the same way, so its steps keep the pace others draw. The root keeps the aim's yaw, so the head, the spectate
+  `snap_look()` after a placement seed it at the aim). Walking forward (#1712, the engineer's "Так,
+  повертатись"), it eases toward the drawn move (`RemotePlayerBody.eased_to_travel`, time constant
+  `TRAVEL_EASE_S` 0.25 s, the client's feel): a move at `AvatarClips.MIN_SPEED_MPS` or more within
+  `TRAVEL_CONE` of the aim (Walk's own 22.5°, so a front diagonal at 45° keeps its clip), so a slow walk after a
+  look turn plays `Walk`, not the jog's blend side on; standing, diagonals, strafes and backing keep the dead zone
+  alone. `WorldSounds` (the own steps' plan) and the mirror's own stand-in ease the own body the same way, so
+  its steps and its reflection match what others draw. The root keeps the aim's yaw, so the head, the spectate
   camera, the mouth and the sight point face the aim; only the rig child turns, by the body's lag, and its head
   looks the rest of the way with the pose's pitch. A knocked-down ragdoll starts turned as the character was drawn
   (`RemotePlayerBody.drawn_yaw`: the body's yaw, the aim's for a capsule), so it does not jump by the lag.
@@ -5236,7 +5238,9 @@ body colour (a follow-up of #522), and a mirror or shadow of the own living play
   by data, the back family's single clip, the head look's turn and clamps, no look without the bones),
   `tests/integration/client/world/avatar_views_character_test.gd` (the rig in the capsule's place, hidden, tinted, its
   sockets; a head shake inside the dead zone turns only the head, the root stays on the aim, past it the body
-  follows, a nod, a placement re-seeds; the family by the body's yaw; the clip per drawn move, a claimed sprint
+  follows, a nod, a placement re-seeds; walking forward the body eases toward the walk and plays `Walk`, smoothly,
+  not on a diagonal, strafe or step back, the short way across ±180° (#1712: seen failing without the ease); the
+  family by the body's yaw; the clip per drawn move, a claimed sprint
   standing still is `Idle`: seen failing on a planted `pose.velocity`; a placement's jump; the carry layer;
   the one-shots per cause after the delay; a knocked-down
   player's ragdoll is the skeleton), `tests/integration/client/player/ragdoll_view_character_test.gd` (the anchor, the
@@ -5899,7 +5903,8 @@ GDD §3 "The mirror": you see yourself in the mirror, your reflection, in first 
   with no collision, its shadow off, on `MIRROR_SELF` alone, at the local player's feet, look, crouch, sneak and own
   velocity (`pose_of`, `AvatarClips` from it, carrying with a two-handed item in the own hand), seated by
   `ClientModel.posed`, in the own roster colour (the host's `ProfileChanged`; nothing predicted). Shown again after
-  being hidden, it faces the look at once (`snap_look`). It shows only while the own body stands (`body_life_of`
+  being hidden, it faces the look at once (`snap_look`); walking forward its body eases toward the walk as
+  others draw it (#1712, `mirror_reflection_test`). It shows only while the own body stands (`body_life_of`
   living: a downed or limp own body is drawn as its ragdoll, KE5) and the reflection renders. The first-person hand
   item is on `LIVE_AVATAR` and so shows in the mirror where it sits before the eye, but a crystal or a mug, which
   the first-person hands hold on `HANDS` (§4.7.69: only a crystal's glow shows; a mug at the hall's bar does not

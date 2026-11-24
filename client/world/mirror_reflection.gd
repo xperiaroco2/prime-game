@@ -320,7 +320,8 @@ func _show_self(delta: float) -> void:
 	self_body.set_colour(BodyColours.of(model.colour_of(own)))
 	self_body.set_crouched(pose.crouched, INF if first else delta)
 	self_body.set_sneaking(pose.sneaking)
-	self_body.set_pose(pose)
+	# The move it plans with: walking forward the body eases toward it, as others draw it (#1712).
+	self_body.set_pose(pose, pose.velocity, delta)
 	var state := AvatarClips.State.new()
 	state.yaw = self_body.body_yaw
 	state.crouched = pose.crouched
