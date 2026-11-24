@@ -4,12 +4,9 @@
 [ext_resource type="Script" uid="uid://dhb4r6d6y5bb1" path="res://levels/lobby/lobby_render.gd" id="2_render"]
 [ext_resource type="Material" uid="uid://bf8ulogkmjsua" path="res://levels/kit/greybox_station_green.tres" id="4_green"]
 [ext_resource type="PackedScene" uid="uid://cdgdi26xsd1gj" path="res://levels/lobby/match_console.tscn" id="8_console"]
-[ext_resource type="PackedScene" uid="uid://dwowsc5qbhfu7" path="res://assets/environment/bar/bar.glb" id="9_bar"]
+[ext_resource type="PackedScene" uid="uid://c14myfihww7x1" path="res://levels/lobby/bar.tscn" id="9_bar"]
 [ext_resource type="PackedScene" uid="uid://b8xswy5mjbvwx" path="res://assets/environment/mirror/mirror.glb" id="10_mirror"]
 [ext_resource type="PackedScene" uid="uid://dxud6l2lwli4c" path="res://assets/environment/pinball/pinball.glb" id="20_pinball"]
-
-[sub_resource type="BoxShape3D" id="Shape_bar"]
-size = Vector3(1, 1.1, 6)
 
 [sub_resource type="BoxShape3D" id="Shape_booth"]
 size = Vector3(2, 2.5, 2)
@@ -32,15 +29,8 @@ metadata/size_m = Vector2(40, 40)
 [node name="ShipOccluder" type="OccluderInstance3D" parent="." unique_id=1523000001]
 script = ExtResource("2_render")
 
-[node name="Bar" type="StaticBody3D" parent="." unique_id=800906334]
+[node name="Bar" parent="." unique_id=800906334 instance=ExtResource("9_bar")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0, -13)
-
-[node name="Shape" type="CollisionShape3D" parent="Bar" unique_id=1385674195]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.55, 3)
-shape = SubResource("Shape_bar")
-
-[node name="Look" parent="Bar" unique_id=445664147 instance=ExtResource("9_bar")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.5, 0, 3)
 
 [node name="PhotoBooth" type="StaticBody3D" parent="." unique_id=1586480523]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0, -13)

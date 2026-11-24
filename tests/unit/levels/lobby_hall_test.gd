@@ -20,6 +20,7 @@ const SHIP := "res://levels/ship/ship.tscn"
 const PLAYER := "res://client/player/player.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
 const DEAD_HALL := "res://levels/lobby/dead_hall.tscn"
+const BAR := "res://levels/lobby/bar.tscn"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 ## The game's pieces of the hall, each a node of its own under the root.
 const PIECES: Array[String] = ["Bar", "PhotoBooth", "Pinball", "Mirror"]
@@ -624,31 +625,26 @@ func test_the_dead_hall_s_pinball_is_the_lobby_s() -> void:
 	dead.free()
 
 
-## #1707: the dead's hall stands the same art bar as the lobby: its Bar body, collider and Look as
-## the lobby's, and no greybox mesh of its own.
-func test_the_dead_hall_s_bar_is_the_lobby_s() -> void:
-	var dead := (load(DEAD_HALL) as PackedScene).instantiate() as Node3D
-	var ours := dead.get_node("Bar") as Node3D
-	var theirs := _root.get_node("Bar") as Node3D
-	assert_bool(ours.transform.is_equal_approx(theirs.transform)).is_true()
-	for part: String in ["Shape", "Look"]:
-		var a := ours.get_node_or_null(part) as Node3D
-		var b := theirs.get_node(part) as Node3D
-		assert_object(a).override_failure_message("no %s" % part).is_not_null()
-		if a != null:
-			(
-				assert_bool(a.transform.is_equal_approx(b.transform))
-				. override_failure_message(part)
-				. is_true()
-			)
-	assert_vector(((ours.get_node("Shape") as CollisionShape3D).shape as BoxShape3D).size).is_equal(
-		((theirs.get_node("Shape") as CollisionShape3D).shape as BoxShape3D).size
-	)
-	var look := ours.get_node_or_null("Look")
-	if look != null:
-		assert_str(look.scene_file_path).is_equal(ART_LOOKS["Bar"])
-	var own_meshes := ours.get_children().filter(
-		func(node: Node) -> bool: return node is MeshInstance3D
-	)
-	assert_array(own_meshes).override_failure_message("a greybox mesh").is_empty()
-	dead.free()
+## #1707: the lobby and the dead's hall both stand the one bar piece (levels/CLAUDE.md: a map
+## instances pieces, never copies them) at one place, adding nothing to it: no greybox of their own.
+func test_both_halls_stand_the_one_bar_piece() -> void:
+	var piece := auto_free((load(BAR) as PackedScene).instantiate()) as Node3D
+	var dead := auto_free((load(DEAD_HALL) as PackedScene).instantiate()) as Node3D
+	var lobby_bar := _root.get_node("Bar") as Node3D
+	for bar: Node3D in [lobby_bar, dead.get_node_or_null("Bar") as Node3D]:
+		assert_object(bar).is_not_null()
+		if bar == null:
+			continue
+		assert_str(bar.scene_file_path).is_equal(BAR)
+		assert_bool(bar.transform.is_equal_approx(lobby_bar.transform)).is_true()
+		assert_array(_names_of(bar)).contains_exactly(_names_of(piece))
+	var look := piece.get_node("Look") as Node3D
+	assert_str(look.scene_file_path).is_equal(ART_LOOKS["Bar"])
+
+
+## The names of `node`'s children, in order.
+func _names_of(node: Node) -> Array[StringName]:
+	var names: Array[StringName] = []
+	for child: Node in node.get_children():
+		names.append(child.name)
+	return names

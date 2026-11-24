@@ -1,14 +1,11 @@
 [gd_scene format=3 uid="uid://3aibmo7dg07r"]
 
 [ext_resource type="Script" uid="uid://cs5s1c62scn1f" path="res://levels/lobby/dead_hall.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://dwowsc5qbhfu7" path="res://assets/environment/bar/bar.glb" id="9_bar"]
+[ext_resource type="PackedScene" uid="uid://c14myfihww7x1" path="res://levels/lobby/bar.tscn" id="9_bar"]
 [ext_resource type="PackedScene" uid="uid://dxud6l2lwli4c" path="res://assets/environment/pinball/pinball.glb" id="20_pinball"]
 
 [sub_resource type="BoxShape3D" id="Shape_floor"]
 size = Vector3(44, 1, 44)
-
-[sub_resource type="BoxShape3D" id="Shape_bar"]
-size = Vector3(1, 1.1, 6)
 
 [sub_resource type="BoxShape3D" id="Shape_pinball"]
 size = Vector3(0.9, 1.1, 1.73)
@@ -22,15 +19,8 @@ script = ExtResource("1_script")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 shape = SubResource("Shape_floor")
 
-[node name="Bar" type="StaticBody3D" parent="." unique_id=1932367612]
+[node name="Bar" parent="." unique_id=1932367612 instance=ExtResource("9_bar")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0, -13)
-
-[node name="Shape" type="CollisionShape3D" parent="Bar" unique_id=1468109315]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.55, 3)
-shape = SubResource("Shape_bar")
-
-[node name="Look" parent="Bar" unique_id=1707245113 instance=ExtResource("9_bar")]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.5, 0, 3)
 
 [node name="Pinball" type="StaticBody3D" parent="." unique_id=2023135105]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0, 3)

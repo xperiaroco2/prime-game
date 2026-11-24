@@ -10035,7 +10035,7 @@ the seated pose, false in the hall), the hand-over of a strip (#1389).
 
 ### 9.6 Where the MVP's data and scenes live (provisional)
 
-**The dead's hall (#1489):** `levels/lobby/dead_hall.tscn`, one instance far off in each round map, in the group `dead_hall`, with `spawn_dead` markers (`Respawn.hall_tag`), a floor and the stations' places (`levels/lobby/dead_hall.gd`): its art (the lobby hall, no ship, `ship_free`) comes only on a client whose own player waits there (`DeadHall.ensure_art`), so a map stays cheap to read and the host reads no art; the hall's radius bounds a dead player, not the art's walls. Its `Bar` and `Pinball` are the lobby's art pieces (each a `Look` over the same box collider, #1707, #1702), held equal to the lobby's by `lobby_hall_test`.
+**The dead's hall (#1489):** `levels/lobby/dead_hall.tscn`, one instance far off in each round map, in the group `dead_hall`, with `spawn_dead` markers (`Respawn.hall_tag`), a floor and the stations' places (`levels/lobby/dead_hall.gd`): the hall's art (the lobby hall, no ship, `ship_free`) comes only on a client whose own player waits there (`DeadHall.ensure_art`), so a map stays cheap to read and the host reads no hall art; the hall's radius bounds a dead player, not the art's walls. The two things a dead player plays with stand in the piece itself, a small GLB `Look` over a box collider each: the bar is the lobby's own piece `levels/lobby/bar.tscn` (#1707, both halls instance it), the pinball the lobby's cabinet (#1702), held equal to the lobby's by `lobby_hall_test`.
 
 ```
 content/
