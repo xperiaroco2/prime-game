@@ -69,27 +69,39 @@ func test_every_line_lies_inside_the_cabinet_s_screen() -> void:
 			. override_failure_message("%s %s leaves its row %s" % [line.name, drawn, row])
 			. is_true()
 		)
+		# Drawn smaller than the shared size only to fit its width: then it fills the row's width.
+		if line.pixel_size < _display.shared_pixel - 1e-7:
+			(
+				assert_float(drawn.size.x)
+				. override_failure_message("%s shrunk but does not fill its row" % line.name)
+				. is_equal_approx(row.size.x, row.size.x * 0.03)
+			)
 
 
-## #1721: short lines keep the placeholder's sizes in ratio: the three share one pixel size, so
-## the best's line stays the largest, the game's the smallest.
-func test_short_lines_keep_their_sizes_in_ratio() -> void:
+## #1721: an everyday game keeps the lines' sizes in ratio, in both languages: all three draw at
+## the one shared pixel size (none shrunk for its width), so the best's line stays the largest,
+## the game's the smallest.
+func test_an_everyday_game_keeps_the_sizes_in_ratio() -> void:
 	add_child(_display)
 	_model.pinball.best = 120
 	_model.pinball.best_name = "Bo"
 	_model.pinball.player = 1
 	_model.pinball.in_play = true
-	_model.pinball.score = 50
+	_model.pinball.score = 12340
 	_model.pinball.balls_left = 3
-	_display.show_state(_model)
-	await get_tree().process_frame
-	var shared := _display.shared_pixel
-	assert_float(shared).is_greater(0.0)
-	assert_float(shared).is_less_equal(PinballDisplay.PIXEL_M)
-	for line: Label3D in [_display.best, _display.owner_name, _display.game]:
-		assert_float(line.pixel_size).override_failure_message(line.name).is_equal_approx(
-			shared, 1e-7
-		)
+	for locale: String in ["en", Languages.UKRAINIAN]:
+		TranslationServer.set_locale(locale)
+		_display.show_state(_model)
+		await get_tree().process_frame
+		var shared := _display.shared_pixel
+		assert_float(shared).is_greater(0.0)
+		assert_float(shared).is_less_equal(PinballDisplay.PIXEL_M)
+		for line: Label3D in [_display.best, _display.owner_name, _display.game]:
+			(
+				assert_float(line.pixel_size)
+				. override_failure_message("%s (%s): %s" % [line.name, locale, line.text])
+				. is_equal_approx(shared, 1e-7)
+			)
 	var tall := func(line: Label3D) -> float: return line.get_aabb().size.y
 	assert_float(tall.call(_display.best) as float).is_greater(
 		tall.call(_display.owner_name) as float
@@ -99,16 +111,49 @@ func test_short_lines_keep_their_sizes_in_ratio() -> void:
 	)
 
 
+## #1721, the engineer's (a): the lines draw in the game's UI font and colours (the UI pack's, the
+## shared theme's): the best in its display style, the owner and the game in its line style, light
+## on the dark screen with no outline; the owner's name keeps the owner's colour.
+func test_the_lines_wear_the_ui_pack_s_font_and_colours() -> void:
+	var theme := GameUi.THEME
+	# The looks are the UI pack's own: a missing variation would fall back to the theme's default
+	# font and a stock colour on both sides of the asserts below.
+	for look: StringName in [PinballDisplay.BEST_LOOK, PinballDisplay.LINE_LOOK]:
+		assert_bool(theme.has_font(&"font", look)).override_failure_message(look).is_true()
+		assert_bool(theme.has_color(&"font_color", look)).override_failure_message(look).is_true()
+	if not PinballDisplay.has_ui_fonts():
+		# CI's Git LFS stand-in fonts map no character: the engine's fallback draws instead.
+		for line: Label3D in [_display.best, _display.owner_name, _display.game]:
+			assert_object(line.font).is_same(ThemeDB.fallback_font)
+	else:
+		assert_object(_display.best.font).is_not_same(_display.game.font)
+		assert_object(_display.best.font).is_same(theme.get_font(&"font", PinballDisplay.BEST_LOOK))
+	assert_object(_display.best.modulate).is_equal(
+		theme.get_color(&"font_color", PinballDisplay.BEST_LOOK)
+	)
+	for line: Label3D in [_display.owner_name, _display.game]:
+		if PinballDisplay.has_ui_fonts():
+			assert_object(line.font).is_same(theme.get_font(&"font", PinballDisplay.LINE_LOOK))
+	assert_object(_display.game.modulate).is_equal(
+		theme.get_color(&"font_color", PinballDisplay.LINE_LOOK)
+	)
+	assert_object(PinballDisplay.neutral()).is_equal(
+		theme.get_color(&"font_color", PinballDisplay.LINE_LOOK)
+	)
+	for line: Label3D in [_display.best, _display.owner_name, _display.game]:
+		assert_int(line.outline_size).override_failure_message(line.name).is_equal(0)
+
+
 func test_an_owner_gone_or_a_shared_name_is_neutral() -> void:
 	_model.pinball.best = 300
 	_model.pinball.best_name = "Cy"
 	_display.show_state(_model)
 	assert_str(_display.owner_name.text).is_equal("Cy")
-	assert_object(_display.owner_name.modulate).is_equal(PinballDisplay.NEUTRAL)
+	assert_object(_display.owner_name.modulate).is_equal(PinballDisplay.neutral())
 	_member(3, "Ana", 7)
 	_model.pinball.best_name = "Ana"
 	_display.show_state(_model)
-	assert_object(_display.owner_name.modulate).is_equal(PinballDisplay.NEUTRAL)
+	assert_object(_display.owner_name.modulate).is_equal(PinballDisplay.neutral())
 
 
 func test_a_new_best_re_texts_the_display() -> void:
