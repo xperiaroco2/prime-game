@@ -255,12 +255,12 @@ func test_the_dead_s_hall_shows_the_room_the_return_and_the_capsule_note() -> vo
 	assert_bool(screen.capsule.visible).is_true()
 	# The deck keeps the count and its unit together with a no-break space (U+00A0).
 	assert_str(screen.capsule_label.text).is_equal(
-		"Random capsule · 3" + char(0xA0) + "s protection"
+		"Back on the clearing · 3" + char(0xA0) + "s protection"
 	)
 	TranslationServer.set_locale(Languages.UKRAINIAN)
 	await get_tree().process_frame
 	assert_str(screen.capsule_label.text).is_equal(
-		"Випадкова капсула · 3" + char(0xA0) + "с захисту"
+		"Повернення на галявину · 3" + char(0xA0) + "с захисту"
 	)
 	assert_str(screen.room_label.text).is_equal("Кімната мертвих")
 	assert_str(screen.back_in_label.text).is_equal("Повернення через")
