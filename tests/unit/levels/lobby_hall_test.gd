@@ -19,6 +19,7 @@ const HALL := "res://levels/lobby/lobby_hall.tscn"
 const SHIP := "res://levels/ship/ship.tscn"
 const PLAYER := "res://client/player/player.tscn"
 const BASE_MODE := "res://content/modes/base_mode.tres"
+const DEAD_HALL := "res://levels/lobby/dead_hall.tscn"
 const ScenarioLevels := preload("res://tests/fixtures/scenario_levels.gd")
 ## The game's pieces of the hall, each a node of its own under the root.
 const PIECES: Array[String] = ["Bar", "PhotoBooth", "Pinball", "Mirror"]
@@ -598,7 +599,7 @@ func test_the_art_pieces_bring_no_light_or_camera() -> void:
 ## #1702: the dead's hall plays the same art pinball as the lobby: its Pinball body, collider, Look,
 ## markers and play spot as the lobby's (whose placement the tests above hold).
 func test_the_dead_hall_s_pinball_is_the_lobby_s() -> void:
-	var dead := (load("res://levels/lobby/dead_hall.tscn") as PackedScene).instantiate() as Node3D
+	var dead := (load(DEAD_HALL) as PackedScene).instantiate() as Node3D
 	var ours := dead.get_node("Pinball") as Node3D
 	var theirs := _root.get_node("Pinball") as Node3D
 	assert_bool(ours.transform.is_equal_approx(theirs.transform)).is_true()
@@ -620,4 +621,34 @@ func test_the_dead_hall_s_pinball_is_the_lobby_s() -> void:
 	assert_int(spots.size()).is_equal(1)
 	var lobby_spot := _markers(&"spawn_pinball")[0] as Node3D
 	assert_vector((spots[0] as Node3D).position).is_equal(lobby_spot.position)
+	dead.free()
+
+
+## #1707: the dead's hall stands the same art bar as the lobby: its Bar body, collider and Look as
+## the lobby's, and no greybox mesh of its own.
+func test_the_dead_hall_s_bar_is_the_lobby_s() -> void:
+	var dead := (load(DEAD_HALL) as PackedScene).instantiate() as Node3D
+	var ours := dead.get_node("Bar") as Node3D
+	var theirs := _root.get_node("Bar") as Node3D
+	assert_bool(ours.transform.is_equal_approx(theirs.transform)).is_true()
+	for part: String in ["Shape", "Look"]:
+		var a := ours.get_node_or_null(part) as Node3D
+		var b := theirs.get_node(part) as Node3D
+		assert_object(a).override_failure_message("no %s" % part).is_not_null()
+		if a != null:
+			(
+				assert_bool(a.transform.is_equal_approx(b.transform))
+				. override_failure_message(part)
+				. is_true()
+			)
+	assert_vector(((ours.get_node("Shape") as CollisionShape3D).shape as BoxShape3D).size).is_equal(
+		((theirs.get_node("Shape") as CollisionShape3D).shape as BoxShape3D).size
+	)
+	var look := ours.get_node_or_null("Look")
+	if look != null:
+		assert_str(look.scene_file_path).is_equal(ART_LOOKS["Bar"])
+	var own_meshes := ours.get_children().filter(
+		func(node: Node) -> bool: return node is MeshInstance3D
+	)
+	assert_array(own_meshes).override_failure_message("a greybox mesh").is_empty()
 	dead.free()

@@ -1,17 +1,13 @@
 [gd_scene format=3 uid="uid://3aibmo7dg07r"]
 
 [ext_resource type="Script" uid="uid://cs5s1c62scn1f" path="res://levels/lobby/dead_hall.gd" id="1_script"]
-[ext_resource type="Material" uid="uid://d1t4fwv4n5174" path="res://levels/kit/greybox_station_yellow.tres" id="3_yellow"]
+[ext_resource type="PackedScene" uid="uid://dwowsc5qbhfu7" path="res://assets/environment/bar/bar.glb" id="9_bar"]
 [ext_resource type="PackedScene" uid="uid://dxud6l2lwli4c" path="res://assets/environment/pinball/pinball.glb" id="20_pinball"]
 
 [sub_resource type="BoxShape3D" id="Shape_floor"]
 size = Vector3(44, 1, 44)
 
 [sub_resource type="BoxShape3D" id="Shape_bar"]
-size = Vector3(1, 1.1, 6)
-
-[sub_resource type="BoxMesh" id="Mesh_bar"]
-material = ExtResource("3_yellow")
 size = Vector3(1, 1.1, 6)
 
 [sub_resource type="BoxShape3D" id="Shape_pinball"]
@@ -33,9 +29,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0, -13)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.55, 3)
 shape = SubResource("Shape_bar")
 
-[node name="Mesh" type="MeshInstance3D" parent="Bar" unique_id=2137620643]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.55, 3)
-mesh = SubResource("Mesh_bar")
+[node name="Look" parent="Bar" unique_id=1707245113 instance=ExtResource("9_bar")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.5, 0, 3)
 
 [node name="Pinball" type="StaticBody3D" parent="." unique_id=2023135105]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 0, 3)
