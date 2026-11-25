@@ -171,6 +171,19 @@ func test_anchors_offsets_grow_sizes_and_flags_are_the_handoffs() -> void:
 	assert_float(hint_bottom).is_less_equal(hud.bottom.get_global_rect().position.y)
 
 
+## #1725: the voice hint is a deck key the label shows in the player's language, not the raw key.
+func test_the_voice_hint_shows_in_the_player_s_language() -> void:
+	var hud := await _hud()
+	hud.show_voice_hint(VoicePanel.LOBBY_HINT)
+	assert_str(hud.voice_label.text).is_equal(VoicePanel.LOBBY_HINT)
+	assert_bool(hud.voice_label.can_auto_translate()).is_true()
+	for locale: String in ["en", Languages.UKRAINIAN]:
+		TranslationServer.set_locale(locale)
+		var shown := hud.voice_label.atr(hud.voice_label.text)
+		assert_str(shown).override_failure_message(locale).is_not_equal(VoicePanel.LOBBY_HINT)
+		assert_str(shown).override_failure_message(locale).is_equal(tr(VoicePanel.LOBBY_HINT))
+
+
 func test_no_node_takes_the_mouse_or_focus_and_names_cut_with_an_ellipsis() -> void:
 	var hud := await _hud()
 	var all: Array[Node] = hud.find_children("*", "Control", true, false)

@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## Settings › Sound and voice (client/ui/voice_panel.gd; the M5 ADR §1.7, D11, D15): what it shows
-## of VoiceControl's facts, the words it must say (unavailable without the addon, loudspeakers echo,
-## the headset and #22 advice), its bounds (the threshold slider never reaches 0), and the signals
+## of VoiceControl's facts, the words it must say (unavailable without the addon; the echo and
+## headset notes as deck keys, words in both languages, #1725), its bounds (the threshold slider
+## never reaches 0), and the signals
 ## a change sends. How it looks: `shot client/dev/esc_settings_sound_preview.tscn`.
 
 var _got: Array = []
@@ -94,12 +95,27 @@ func test_it_says_voice_is_unavailable_without_the_addon() -> void:
 	assert_bool(volume_row.visible).is_true()
 
 
-func test_it_says_loudspeakers_echo_and_gives_the_headset_advice() -> void:
+## #1725: the echo and headset notes, and the lobby's voice hint, are deck keys the deck words in
+## both languages, with no engine version and no issue number on a player's screen.
+func test_its_notes_and_the_lobby_hint_are_deck_words_in_both_languages() -> void:
 	var panel: VoicePanel = auto_free(VoicePanel.new())
-	assert_str(panel.echo_label.text).contains("headphones")
-	assert_str(panel.echo_label.text).contains("loudspeakers")
-	assert_str(panel.headset_label.text).contains("#22")
-	assert_str(panel.headset_label.text).contains("headset")
+	assert_str(panel.echo_label.text).is_equal(VoicePanel.ECHO)
+	assert_str(panel.headset_label.text).is_equal(VoicePanel.HEADSET)
+	for locale: String in ["en", Languages.UKRAINIAN]:
+		TranslationServer.set_locale(locale)
+		for key: String in [VoicePanel.ECHO, VoicePanel.HEADSET, VoicePanel.LOBBY_HINT]:
+			var words := tr(key)
+			(
+				assert_str(words)
+				. override_failure_message("%s %s: no deck words" % [locale, key])
+				. is_not_equal(key)
+			)
+			assert_str(words).override_failure_message(locale).not_contains("#22")
+			assert_str(words).override_failure_message(locale).not_contains("Godot")
+	# The labels show them translated (as the lobby's hint label does, #1725).
+	add_child(panel)
+	for label: Label in [panel.echo_label, panel.headset_label]:
+		assert_bool(label.can_auto_translate()).override_failure_message(label.text).is_true()
 
 
 func test_a_notice_shows_only_when_there_is_one() -> void:

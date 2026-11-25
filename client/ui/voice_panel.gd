@@ -7,10 +7,11 @@ extends VBoxContainer
 ## key; off), Threshold (voice activation only) with MicTest's live meter of the microphone's
 ## peak, Noise (RNNoise, two chips) and the four volumes (Master, Voice, Effects, Music). Without
 ## the voice addon the microphone rows give way to `settings.voice_unavailable`. Beside the
-## handoff (#491's differences): the line that loudspeakers echo and headphones avoid it, the
-## headset and #22 advice, the device's notice, and in debug builds a test tone instead of the
-## microphone and "mute this window", neither saved (E47); greybox English, as the deck has no
-## keys for them. No talking indicator (D14): the meter shows the microphone's level, never
+## handoff (#491's differences): the notes that loudspeakers echo (headphones avoid it) and that a
+## headset microphone works best, deck keys (#1725); the device's notice, and in debug builds a
+## test tone instead of the microphone and "mute this window", neither saved (E47), in greybox
+## English, as the deck has no keys for them. No talking indicator (D14): the meter shows the
+## microphone's level, never
 ## whether the gate sends. The sliders keep the engine's units (the gate's peak, dB): no number
 ## is drawn. It shows a Shown (VoiceControl's) and says what changed through its signals.
 
@@ -26,17 +27,11 @@ signal sliders_settled
 signal tone_toggled(on: bool)
 signal mute_toggled(on: bool)
 
-## Greybox wording (#150): no deck key yet.
-const ECHO := (
-	"There is no echo cancellation: with loudspeakers your microphone sends the others' voices"
-	+ " back to them. Wear headphones."
-)
-const HEADSET := (
-	"A headset microphone works best. Godot 4.7.2 reads only mono or stereo microphones (#22): a"
-	+ " laptop's microphone array can freeze the game. Prefer 48 kHz and turn off Windows' sound"
-	+ " enhancements."
-)
-const LOBBY_HINT := "Voice: Esc, then Settings, to pick your microphone"
+## The two notes under the voice rows and the lobby's hint until a microphone is picked: deck keys
+## (#1725), shown in the player's language by the labels that hold them.
+const ECHO := "settings.echo_note"
+const HEADSET := "settings.headset_note"
+const LOBBY_HINT := "lobby.voice_hint"
 const DEFAULT_KEY := &"settings.mic.default"
 const UNAVAILABLE_KEY := "settings.voice_unavailable"
 ## Each mode's deck key, in the dropdown's order.

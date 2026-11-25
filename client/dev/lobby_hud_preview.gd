@@ -31,6 +31,8 @@ const TARAS_HANDED_AT := Vector3(0.0, 0.0, -1.4)
 @export var hosting := false
 ## The hand-over's cue in Aim (#1411).
 @export var hand_over := false
+## The voice hint, as before a microphone is picked (#1725).
+@export var voice_hint := false
 
 
 func _ready() -> void:
@@ -62,6 +64,8 @@ func _ready() -> void:
 	ui.refresh(_model, mode, NOW, _hosts())
 	if hand_over:
 		ui.lobby_hud.show_hand_over(KeyLabel.of_action(&"interact"))
+	if voice_hint:
+		ui.lobby_hud.show_voice_hint(VoicePanel.LOBBY_HINT)
 	if lobby_state == "boot":
 		ui.set_ship(true)
 
