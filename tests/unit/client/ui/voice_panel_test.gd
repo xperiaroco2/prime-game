@@ -94,12 +94,24 @@ func test_it_says_voice_is_unavailable_without_the_addon() -> void:
 	assert_bool(volume_row.visible).is_true()
 
 
-func test_it_says_loudspeakers_echo_and_gives_the_headset_advice() -> void:
+## #1725: the echo and headset notes, and the lobby's voice hint, are deck keys the deck words in
+## both languages, with no engine version and no issue number on a player's screen.
+func test_its_notes_and_the_lobby_hint_are_deck_words_in_both_languages() -> void:
 	var panel: VoicePanel = auto_free(VoicePanel.new())
-	assert_str(panel.echo_label.text).contains("headphones")
-	assert_str(panel.echo_label.text).contains("loudspeakers")
-	assert_str(panel.headset_label.text).contains("#22")
-	assert_str(panel.headset_label.text).contains("headset")
+	assert_str(panel.echo_label.text).is_equal(VoicePanel.ECHO)
+	assert_str(panel.headset_label.text).is_equal(VoicePanel.HEADSET)
+	for locale: String in ["en", Languages.UKRAINIAN]:
+		TranslationServer.set_locale(locale)
+		for key: String in [VoicePanel.ECHO, VoicePanel.HEADSET, VoicePanel.LOBBY_HINT]:
+			var words := tr(key)
+			(
+				assert_str(words)
+				. override_failure_message("%s %s: no deck words" % [locale, key])
+				. is_not_equal(key)
+			)
+			assert_str(words).override_failure_message(locale).not_contains("#22")
+			assert_str(words).override_failure_message(locale).not_contains("Godot")
+	TranslationServer.set_locale("en")
 
 
 func test_a_notice_shows_only_when_there_is_one() -> void:

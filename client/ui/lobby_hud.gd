@@ -449,7 +449,7 @@ func _build_voice_hint() -> void:
 	var corner := Vector2(EDGE, -EDGE)
 	_pin(voice_hint, Control.PRESET_BOTTOM_LEFT, corner, GROW_DIRECTION_END, GROW_DIRECTION_BEGIN)
 	voice_label.name = "Text"
-	voice_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	# A deck key (VoicePanel.LOBBY_HINT, #1725) or "": shown in the player's language.
 	voice_hint.add_child(voice_label)
 	bottom.resized.connect(_place_voice_hint)
 
