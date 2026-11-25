@@ -7,10 +7,11 @@ extends VBoxContainer
 ## key; off), Threshold (voice activation only) with MicTest's live meter of the microphone's
 ## peak, Noise (RNNoise, two chips) and the four volumes (Master, Voice, Effects, Music). Without
 ## the voice addon the microphone rows give way to `settings.voice_unavailable`. Beside the
-## handoff (#491's differences): the line that loudspeakers echo and headphones avoid it, the
-## headset and #22 advice, the device's notice, and in debug builds a test tone instead of the
-## microphone and "mute this window", neither saved (E47); greybox English, as the deck has no
-## keys for them. No talking indicator (D14): the meter shows the microphone's level, never
+## handoff (#491's differences): the notes that loudspeakers echo (headphones avoid it) and that a
+## headset microphone works best, deck keys (#1725); the device's notice, and in debug builds a
+## test tone instead of the microphone and "mute this window", neither saved (E47), in greybox
+## English, as the deck has no keys for them. No talking indicator (D14): the meter shows the
+## microphone's level, never
 ## whether the gate sends. The sliders keep the engine's units (the gate's peak, dB): no number
 ## is drawn. It shows a Shown (VoiceControl's) and says what changed through its signals.
 

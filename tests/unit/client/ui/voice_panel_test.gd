@@ -1,7 +1,8 @@
 extends GdUnitTestSuite
 ## Settings › Sound and voice (client/ui/voice_panel.gd; the M5 ADR §1.7, D11, D15): what it shows
-## of VoiceControl's facts, the words it must say (unavailable without the addon, loudspeakers echo,
-## the headset and #22 advice), its bounds (the threshold slider never reaches 0), and the signals
+## of VoiceControl's facts, the words it must say (unavailable without the addon; the echo and
+## headset notes as deck keys, words in both languages, #1725), its bounds (the threshold slider
+## never reaches 0), and the signals
 ## a change sends. How it looks: `shot client/dev/esc_settings_sound_preview.tscn`.
 
 var _got: Array = []
@@ -111,7 +112,10 @@ func test_its_notes_and_the_lobby_hint_are_deck_words_in_both_languages() -> voi
 			)
 			assert_str(words).override_failure_message(locale).not_contains("#22")
 			assert_str(words).override_failure_message(locale).not_contains("Godot")
-	TranslationServer.set_locale("en")
+	# The labels show them translated (as the lobby's hint label does, #1725).
+	add_child(panel)
+	for label: Label in [panel.echo_label, panel.headset_label]:
+		assert_bool(label.can_auto_translate()).override_failure_message(label.text).is_true()
 
 
 func test_a_notice_shows_only_when_there_is_one() -> void:

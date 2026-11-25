@@ -4496,7 +4496,8 @@ so a dissident sees it over a downed engineer too. `HudText` puts it in place of
   Accessibility, Language as ToyMenuItem toggles) beside a `follow_focus` `Scroll` (700 x 828) of 64 px
   ToySettingRows (`SettingRows`: the row, the ToyDropdown with its ToyDropdownList, the ToySlider, the chip groups).
   `VoicePanel` and `ControlsPanel` keep their logic and signals in the new rows (the sliders keep the engine's units,
-  no number is drawn; the echo, headset and notice lines and the debug rows stay, in greybox English).
+  no number is drawn; the echo and headset notes are deck keys, `settings.echo_note` and `settings.headset_note` (#1725);
+  the notice line and the debug rows stay in greybox English).
   `client/app/GameSettings` (out of `game.gd`) binds both pages to the player's `UserSettings` (new: `large_text`,
   `reduced_motion` -1/0/1, `window_mode`), `Controls` and `GameWindow`, applies and saves each pick (large text
   through `GameUi.set_large_text`, reduced motion through `UiPrefs`, the language through `Languages.choose`), keeps
@@ -4810,7 +4811,7 @@ the Esc menu's Lobby page holds the settings (§4.7.42).
   `LobbyHud.set_close_up(true)` hides all but the mic: the crosshair, `Aim`, `Status`, `Players`, `Ready` and the voice
   hint come back when the view is at the eye again.
 - **Beyond the handoff:** M5-6's voice hint until a microphone is picked stays, a `VoiceHint` ToyChipPlate over the
-  bottom row, its bottom 16 px over the row's top (plain English, as before). The round HUD's `Aim` (#1408): a
+  bottom row, its bottom 16 px over the row's top (the deck's `lobby.voice_hint`, translated by its label, #1725). The round HUD's `Aim` (#1408): a
   ToyChipPlate > `Text` ToyChipPlateText at the round HUD's place under the crosshair, second child after `Cross`, hidden when empty, naming what E would use there
   (`HudText.aim_of`, the round's own: the item's deck key, else the station's `ContentNames.station`; the lobby's
   tap reads the deck's `station.tap` "Beer tap", the mugs `item.mug` and `item.mug_empty`, #1430), fed by `GameUi.refresh_round` on the lobby screen
@@ -6625,7 +6626,8 @@ then play: v6.5's playback has no call that empties its queue) leaves nothing qu
   with a live meter of the microphone's peak, and the 300 ms hangover), push-to-talk held on V (`voice_talk`,
   counted under the Esc menu too since #488, never while typing in a text field or a key capture), or Off, which closes only the own microphone: the others stay audible and the
   Voice slider silences them (the design's reading, still "Needs the engineer"). No echo cancellation: under
-  voice activity loudspeakers echo, so the Voice tab says headphones avoid it, with the headset and #22 advice.
+  voice activity loudspeakers echo, so the Voice tab says headphones avoid it and that a headset microphone works best
+  (`settings.echo_note`, `settings.headset_note`, #1725).
   In debug builds the tab also has a test tone in place of the microphone and "mute this window" (E47), neither
   saved. F3 shows the own gate, peak, frame age and encode µs.
 - 20 ms frames keep E7's bucket (50 a second) and the relay's newest 5 per poll.
